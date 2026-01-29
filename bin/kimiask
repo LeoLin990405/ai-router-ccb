@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+kimiask - Send message to Kimi API and get reply (headless mode).
+
+Uses Moonshot AI API directly, no WezTerm pane required.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import json
+import urllib.request
+import urllib.error
+from pathlib import Path
+from typing import Optional
+
+script_dir = Path(__file__).resolve().parent
+lib_dir = script_dir.parent / "lib"
+sys.path.insert(0, str(lib_dir))
+
+try:
+    from compat import read_stdin_text, setup_windows_encoding
+    setup_windows_encoding()
+except ImportError:
+    def read_stdin_text():
+        return sys.stdin.read()
+
+ASYNC_GUARDRAIL = """[CCB_ASYNC_SUBMITTED provider=kimi]
+IMPORTANT: Task submitted to Kimi. You MUST:
+1. Tell user "Kimi processing..."
+2. END YOUR TURN IMMEDIATELY
+3. Do NOT wait, poll, check status, or use any more tools
+"""
+
+API_URL = "https://api.moonshot.cn/v1/chat/completions"
+DEFAULT_MODEL = "moonshot-v1-8k"
+
+
+def _usage() -> None:
+    print("Usage: kimiask [options] <message>", file=sys.stderr)
+    print("  Or pipe: echo 'message' | kimiask", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Options:", file=sys.stderr)
+    print("  --model MODEL    Model: 8k (default), 32k, 128k", file=sys.stderr)
+    print("  --timeout SECS   Timeout in seconds (default: 300)", file=sys.stderr)
+    print("  --sync           Synchronous mode (no async guardrail)", file=sys.stderr)
+    print("  -h, --help       Show this help", file=sys.stderr)
+
+
+def _resolve_model(model_arg: str) -> str:
+    model_lower = model_arg.lower()
+    if model_lower in ("8k", "moonshot-v1-8k"):
+        return "moonshot-v1-8k"
+    elif model_lower in ("32k", "moonshot-v1-32k"):
+        return "moonshot-v1-32k"
+    elif model_lower in ("128k", "moonshot-v1-128k"):
+        return "moonshot-v1-128k"
+    else:
+        return model_arg
+
+
+def _call_api(message: str, model: str, api_key: str, timeout: float) -> dict:
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": message}],
+        "max_tokens": 4096,
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(API_URL, data=data, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) <= 1 and sys.stdin.isatty():
+        _usage()
+        return 1
+
+    timeout: float = 300.0
+    sync_mode = False
+    model = DEFAULT_MODEL
+    parts: list[str] = []
+
+    it = iter(argv[1:])
+    for token in it:
+        if token in ("-h", "--help"):
+            _usage()
+            return 0
+        if token == "--sync":
+            sync_mode = True
+            continue
+        if token in ("-m", "--model"):
+            try:
+                model = _resolve_model(next(it))
+            except StopIteration:
+                print("[ERROR] --model requires a value", file=sys.stderr)
+                return 1
+            continue
+        if token in ("-t", "--timeout"):
+            try:
+                timeout = float(next(it))
+            except (StopIteration, ValueError):
+                print("[ERROR] --timeout requires a number", file=sys.stderr)
+                return 1
+            continue
+        parts.append(token)
+
+    message = " ".join(parts).strip()
+    if not message and not sys.stdin.isatty():
+        message = read_stdin_text().strip()
+    if not message:
+        print("[ERROR] Message cannot be empty", file=sys.stderr)
+        return 1
+
+    api_key = os.environ.get("MOONSHOT_API_KEY") or os.environ.get("KIMI_API_KEY")
+    if not api_key:
+        print("[ERROR] MOONSHOT_API_KEY not set. Get one at https://platform.moonshot.cn/", file=sys.stderr)
+        return 1
+
+    try:
+        response = _call_api(message, model, api_key, timeout)
+        if not sync_mode:
+            print(ASYNC_GUARDRAIL, file=sys.stderr, flush=True)
+
+        choice = response.get("choices", [{}])[0]
+        content = choice.get("message", {}).get("content", "")
+        if content:
+            print(content)
+
+        usage = response.get("usage", {})
+        if usage and sync_mode:
+            print(f"\n[Tokens: {usage.get('total_tokens', 0)} | Model: {model}]", file=sys.stderr)
+        return 0
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8") if e.fp else ""
+        print(f"[ERROR] API error {e.code}: {error_body}", file=sys.stderr)
+        return 1
+    except urllib.error.URLError as e:
+        print(f"[ERROR] Network error: {e.reason}", file=sys.stderr)
+        return 1
+    except TimeoutError:
+        print(f"[ERROR] Request timed out after {timeout}s", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"[ERROR] {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

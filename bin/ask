@@ -1,0 +1,84 @@
+#!/usr/bin/env python3.13
+"""
+ask - Unified async request dispatcher.
+
+Usage:
+  ask <provider> [args...]
+
+Examples:
+  ask gemini "hello"
+  ask codex --timeout 120 "review this file"
+  echo "ping" | ask opencode
+"""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+PROVIDER_MAP = {
+    "deepseek": "dskask",
+    "codex": "cask",
+    "gemini": "gask",
+    "opencode": "oask",
+    "droid": "dask",
+    "claude": "lask",
+    "iflow": "iask",
+    "kimi": "kask",
+    "qwen": "qask",
+}
+
+ALIASES = {
+    "deep-seek": "deepseek",
+    "open-code": "opencode",
+    "open_code": "opencode",
+}
+
+
+def _usage() -> None:
+    providers = ", ".join(sorted(PROVIDER_MAP.keys()))
+    print("Usage: ask <provider> [args...]", file=sys.stderr)
+    print(f"Providers: {providers}", file=sys.stderr)
+
+
+def _resolve_provider(raw: str) -> str:
+    key = (raw or "").strip().lower()
+    if key in ALIASES:
+        key = ALIASES[key]
+    return key
+
+
+def _resolve_bin(bin_name: str) -> str | None:
+    script_dir = Path(__file__).resolve().parent
+    candidate = script_dir / bin_name
+    if candidate.exists():
+        return str(candidate)
+    found = shutil.which(bin_name)
+    return found
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2 or argv[1] in {"-h", "--help"}:
+        _usage()
+        return 1
+
+    provider = _resolve_provider(argv[1])
+    bin_name = PROVIDER_MAP.get(provider)
+    if not bin_name:
+        print(f"[ERROR] Unknown provider: {argv[1]}", file=sys.stderr)
+        _usage()
+        return 2
+
+    cmd = _resolve_bin(bin_name)
+    if not cmd:
+        print(f"[ERROR] Command not found: {bin_name}", file=sys.stderr)
+        return 127
+
+    return subprocess.run([cmd, *argv[2:]]).returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

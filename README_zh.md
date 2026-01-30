@@ -571,6 +571,7 @@ ccb update
 
 - **[bfly123](https://github.com/bfly123)** - claude_code_bridge 原作者。感谢您创建了这个创新的多 AI 协作框架！
 - **[Grafbase / Nexus Router](https://github.com/grafbase/nexus)** - 统一路由引擎的灵感来源。他们在 AI 网关和 provider 路由方面的工作影响了我们的实现。
+- **[code-yeongyu / oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)** - Agent 编排模式、多 Agent 架构和后台任务执行的灵感来源。他们的 Sisyphus Agent 和魔法关键词概念影响了我们的设计。
 - **claude_code_bridge 社区** - 提供反馈和贡献
 - **Anthropic** - Claude 和 Claude Code
 - **OpenAI** - Codex

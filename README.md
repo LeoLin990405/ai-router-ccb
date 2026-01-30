@@ -571,6 +571,7 @@ This project would not be possible without:
 
 - **[bfly123](https://github.com/bfly123)** - Original author of claude_code_bridge. Thank you for creating this innovative multi-AI collaboration framework!
 - **[Grafbase / Nexus Router](https://github.com/grafbase/nexus)** - Inspiration for the Unified Router's intelligent task routing architecture. Their work on AI gateway and provider routing influenced our implementation.
+- **[code-yeongyu / oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)** - Inspiration for agent orchestration patterns, multi-agent architecture, and background task execution. Their Sisyphus agent and magic keyword concepts influenced our design.
 - **The claude_code_bridge community** - For feedback and contributions
 - **Anthropic** - For Claude and Claude Code
 - **OpenAI** - For Codex

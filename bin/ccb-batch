@@ -152,6 +152,26 @@ def cmd_cancel(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_cleanup(args: argparse.Namespace) -> int:
+    """Clean up old batch jobs."""
+    processor = get_processor()
+    count = processor.cleanup_old_jobs(hours=args.hours)
+    print(f"Cleaned up {count} jobs older than {args.hours} hours")
+    return 0
+
+
+def cmd_delete(args: argparse.Namespace) -> int:
+    """Delete a specific batch job."""
+    processor = get_processor()
+
+    if processor.delete_job(args.job_id):
+        print(f"Job {args.job_id} deleted")
+        return 0
+    else:
+        print(f"Job not found: {args.job_id}", file=sys.stderr)
+        return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="ccb-batch",
@@ -218,6 +238,19 @@ def main() -> int:
     cancel_parser = subparsers.add_parser("cancel", help="Cancel a job")
     cancel_parser.add_argument("job_id", help="Job ID to cancel")
 
+    # cleanup command
+    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up old jobs")
+    cleanup_parser.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="Remove jobs older than this many hours (default: 24)",
+    )
+
+    # delete command
+    delete_parser = subparsers.add_parser("delete", help="Delete a specific job")
+    delete_parser.add_argument("job_id", help="Job ID to delete")
+
     args = parser.parse_args()
 
     # Default to run if messages provided without subcommand
@@ -245,6 +278,10 @@ def main() -> int:
         return cmd_list(args)
     elif args.command == "cancel":
         return cmd_cancel(args)
+    elif args.command == "cleanup":
+        return cmd_cleanup(args)
+    elif args.command == "delete":
+        return cmd_delete(args)
     else:
         parser.print_help()
         return 0

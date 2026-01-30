@@ -127,8 +127,18 @@ def check_daemon_health(provider: str) -> ProviderHealth:
 
 def execute_ask(provider: str, message: str, use_daemon: bool = True,
                 tracker: Optional[TaskTracker] = None, task_id: Optional[str] = None,
-                record_perf: bool = True) -> int:
-    """Execute the ask command for a provider."""
+                record_perf: bool = True, cache_response: bool = False) -> int:
+    """Execute the ask command for a provider.
+
+    Args:
+        provider: Provider name
+        message: Message to send
+        use_daemon: Whether to use daemon
+        tracker: Task tracker instance
+        task_id: Task ID for tracking
+        record_perf: Whether to record performance metrics
+        cache_response: Whether to cache the response
+    """
     ask_cmd = get_ask_command(provider)
 
     # Update task status to running if tracking
@@ -139,14 +149,30 @@ def execute_ask(provider: str, message: str, use_daemon: bool = True,
     start_time = time.time()
     success = False
     error_msg = None
+    response_text = None
 
     if use_daemon:
         # Use heredoc style for daemon
         cmd = f"{ask_cmd} <<'EOF'\n{message}\nEOF"
-        result = subprocess.run(
-            ["bash", "-c", cmd],
-            capture_output=False,
-        )
+
+        # Capture output if caching is enabled
+        if cache_response:
+            result = subprocess.run(
+                ["bash", "-c", cmd],
+                capture_output=True,
+                text=True,
+            )
+            response_text = result.stdout
+            # Print the output
+            if response_text:
+                print(response_text, end='')
+            if result.stderr:
+                print(result.stderr, end='', file=sys.stderr)
+        else:
+            result = subprocess.run(
+                ["bash", "-c", cmd],
+                capture_output=False,
+            )
 
         success = result.returncode == 0
 
@@ -169,6 +195,11 @@ def execute_ask(provider: str, message: str, use_daemon: bool = True,
                 task_id=task_id,
                 error=error_msg,
             )
+
+        # Cache successful response
+        if cache_response and success and response_text:
+            cache = get_cache()
+            cache.set(message, provider, response_text)
 
         return result.returncode
     else:
@@ -339,7 +370,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
             verbose=args.verbose,
         )
     else:
-        return execute_ask(decision.provider, message, use_daemon, tracker, task_id)
+        return execute_ask(
+            decision.provider, message, use_daemon, tracker, task_id,
+            cache_response=args.cache
+        )
 
 
 def cmd_multi_provider(args: argparse.Namespace, message: str, router: UnifiedRouter) -> int:

@@ -28,6 +28,14 @@
 - **可配置规则**：基于 YAML 的路由配置
 - **Context7 集成**：可选的文档查询功能，减少 AI 幻觉
 
+### Phase 4 高级特性（新增）
+- **速率限制**：Token Bucket 算法，支持每个 Provider 独立限制
+- **MCP 聚合**：聚合多个 MCP 服务器，统一工具发现
+- **专业化 Agent**：6 个 AI Agent（Sisyphus、Oracle、Librarian、Explorer、Frontend、Reviewer）
+- **OAuth2 认证**：Web API 的 Token 认证
+- **LSP/AST 工具**：基于 Language Server Protocol 和 tree-sitter 的代码智能
+- **Hooks/Skills 系统**：事件驱动的钩子和可扩展的技能插件
+
 ### 贡献者
 - **Leo** ([@LeoLin990405](https://github.com/LeoLin990405)) - 项目负责人 & 集成
 - **Claude** (Anthropic Claude Opus 4.5) - 架构设计 & 代码优化
@@ -369,6 +377,109 @@ pending → running → completed
 
 ---
 
+## Phase 4：高级特性
+
+### 速率限制
+
+通过智能速率限制保护 API 配额：
+
+```bash
+# 查看速率限制状态
+ccb-ratelimit status
+
+# 设置 provider 限制
+ccb-ratelimit set claude --rpm 50 --tpm 100000
+
+# 重置计数器
+ccb-ratelimit reset claude
+
+# 测试速率限制
+ccb-ratelimit test claude --requests 10
+```
+
+### 专业化 Agent
+
+6 个专业化 AI Agent，针对不同任务类型：
+
+| Agent | 描述 | 首选 Provider |
+|-------|------|---------------|
+| Sisyphus | 代码实现 | codex, gemini |
+| Oracle | 深度推理与分析 | deepseek, claude |
+| Librarian | 文档与搜索 | claude |
+| Explorer | 代码库导航 | gemini |
+| Frontend | UI/UX 开发 | gemini, claude |
+| Reviewer | 代码审查与测试 | claude, deepseek |
+
+```bash
+# 列出可用 Agent
+ccb-agent list
+
+# 显示 Agent 详情
+ccb-agent info sisyphus
+
+# 使用特定 Agent 执行
+ccb-agent execute sisyphus "实现一个排序函数"
+
+# 自动选择最佳 Agent
+ccb-agent auto "分析这个算法"
+
+# 显示哪个 Agent 会被选中
+ccb-agent match "找出所有 API 端点"
+```
+
+### MCP 聚合
+
+聚合多个 MCP 服务器，统一工具发现：
+
+```bash
+# 列出聚合服务器的所有工具
+ccb-mcp list-tools
+
+# 调用工具
+ccb-mcp call github.list_issues --owner anthropics --repo claude
+
+# 检查服务器健康状态
+ccb-mcp health
+```
+
+### OAuth2 认证
+
+使用 Token 认证保护 Web API：
+
+```bash
+# 创建访问令牌
+curl -X POST http://localhost:8080/api/auth/token \
+  -d '{"username": "admin", "password": "admin", "scopes": ["read", "write"]}'
+
+# 在请求中使用令牌
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/stats
+```
+
+### LSP/AST 工具
+
+基于 Language Server Protocol 和 tree-sitter 的代码智能：
+
+- **查找引用**：定位符号的所有使用位置
+- **跳转定义**：跳转到符号定义
+- **重命名符号**：跨文件重构
+- **AST 分析**：解析和分析代码结构
+
+### Hooks 与 Skills
+
+使用自定义钩子和技能扩展 CCB：
+
+```bash
+# Hooks：事件驱动的扩展
+# 将 Python 文件放在 ~/.ccb_config/hooks/
+
+# Skills：可复用的任务插件
+# 将技能文件夹放在 ~/.ccb_config/skills/
+```
+
+**配置文件**：`~/.ccb_config/phase4.yaml`
+
+---
+
 ## 支持的 Provider
 
 | Provider | 命令 | Ping | 描述 |
@@ -519,6 +630,8 @@ ccb update
 │   ├── ccb-batch          # 批量处理 CLI
 │   ├── ccb-web            # Web 仪表盘 CLI
 │   ├── ccb-docs           # 文档查询 CLI
+│   ├── ccb-agent          # Agent 执行 CLI (Phase 4)
+│   ├── ccb-ratelimit      # 速率限制 CLI (Phase 4)
 │   ├── cask, gask, ...    # Provider ask 命令
 │   └── cping, gping, ...  # Provider ping 命令
 ├── lib/                    # 库模块
@@ -531,16 +644,36 @@ ccb update
 │   ├── batch_processor.py # 批量任务处理
 │   ├── web_server.py      # Web 仪表盘服务器
 │   ├── context7_client.py # Context7 集成
+│   ├── rate_limiter.py    # 速率限制 (Phase 4)
+│   ├── mcp_aggregator.py  # MCP 聚合 (Phase 4)
+│   ├── agent_registry.py  # Agent 注册表 (Phase 4)
+│   ├── agent_executor.py  # Agent 执行器 (Phase 4)
+│   ├── auth_provider.py   # OAuth2 认证 (Phase 4)
+│   ├── auth_middleware.py # 认证中间件 (Phase 4)
+│   ├── lsp_client.py      # LSP 客户端 (Phase 4)
+│   ├── ast_analyzer.py    # AST 分析器 (Phase 4)
+│   ├── hooks_manager.py   # Hooks 系统 (Phase 4)
+│   ├── skills_loader.py   # Skills 加载器 (Phase 4)
+│   ├── agents/            # 专业化 Agent (Phase 4)
 │   └── *_daemon.py        # Provider 守护进程
+├── mcp/                    # MCP 服务器
+│   ├── ccb-delegation/    # 委托 MCP 服务器
+│   └── ccb-aggregator/    # 聚合 MCP 服务器 (Phase 4)
 ├── config/                 # 配置模板
 ├── ccb                     # CCB 主程序
 └── install.sh              # 安装脚本
 
 ~/.ccb_config/
 ├── unified-router.yaml    # 路由配置
+├── phase4.yaml            # Phase 4 配置
 ├── tasks.db               # 任务追踪数据库
 ├── performance.db         # 性能指标数据库
 ├── cache.db               # 响应缓存数据库
+├── ratelimit.db           # 速率限制数据库 (Phase 4)
+├── auth.db                # 认证数据库 (Phase 4)
+├── hooks/                 # 自定义钩子 (Phase 4)
+├── skills/                # 自定义技能 (Phase 4)
+├── logs/                  # 日志文件
 └── .*-session             # Provider 会话文件
 ```
 

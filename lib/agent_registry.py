@@ -14,6 +14,7 @@ import yaml
 
 class AgentCapability(Enum):
     """Agent capability types."""
+    # Core capabilities
     CODE_WRITE = "code_write"
     CODE_REFACTOR = "code_refactor"
     CODE_REVIEW = "code_review"
@@ -24,6 +25,13 @@ class AgentCapability(Enum):
     FRONTEND = "frontend"
     BACKEND = "backend"
     TESTING = "testing"
+    # Extended capabilities (Phase 4G)
+    WORKFLOW = "workflow"           # Workflow orchestration
+    AUTOMATION = "automation"       # Task automation
+    MULTILINGUAL = "multilingual"   # Multilingual processing
+    TRANSLATION = "translation"     # Translation tasks
+    AUTONOMOUS = "autonomous"       # Self-directed execution
+    LONG_RUNNING = "long_running"   # Long-running tasks
 
 
 @dataclass
@@ -161,6 +169,7 @@ Focus on:
             capabilities=[
                 AgentCapability.CODE_REVIEW,
                 AgentCapability.ANALYSIS,
+                AgentCapability.TESTING,
             ],
             preferred_providers=["gemini", "claude"],
             fallback_providers=["codex", "deepseek"],
@@ -174,6 +183,67 @@ Focus on:
 - Security vulnerabilities
 - Best practices adherence
 """,
+        ),
+        # Phase 4G: New agents for full provider coverage
+        "workflow": AgentConfig(
+            name="workflow",
+            description="Workflow automation specialist. Orchestrates multi-step tasks.",
+            capabilities=[
+                AgentCapability.WORKFLOW,
+                AgentCapability.AUTOMATION,
+            ],
+            preferred_providers=["iflow", "droid"],
+            fallback_providers=["claude", "codex"],
+            tools=["bash", "read", "file_write", "glob"],
+            system_prompt="""You are Workflow, a workflow automation specialist.
+Your role is to design and orchestrate multi-step workflows.
+Focus on:
+- Breaking complex tasks into steps
+- Identifying dependencies
+- Error handling and recovery
+- Progress tracking
+""",
+        ),
+        "polyglot": AgentConfig(
+            name="polyglot",
+            description="Multilingual specialist. Handles translation and long-context tasks.",
+            capabilities=[
+                AgentCapability.MULTILINGUAL,
+                AgentCapability.TRANSLATION,
+                AgentCapability.DOCUMENTATION,
+            ],
+            preferred_providers=["kimi", "qwen"],
+            fallback_providers=["claude", "gemini"],
+            tools=["read", "file_write", "file_edit"],
+            system_prompt="""You are Polyglot, a multilingual specialist.
+Your role is to handle translation and multilingual tasks.
+Focus on:
+- Preserving meaning in translations
+- Technical accuracy
+- Long document handling
+- Natural, fluent output
+""",
+        ),
+        "autonomous": AgentConfig(
+            name="autonomous",
+            description="Autonomous execution specialist. Handles long-running tasks.",
+            capabilities=[
+                AgentCapability.AUTONOMOUS,
+                AgentCapability.LONG_RUNNING,
+                AgentCapability.CODE_WRITE,
+            ],
+            preferred_providers=["droid", "codex"],
+            fallback_providers=["claude", "opencode"],
+            tools=["bash", "read", "file_write", "file_edit", "glob", "grep"],
+            system_prompt="""You are Autonomous, a self-directed task execution specialist.
+Your role is to handle long-running tasks with minimal supervision.
+Focus on:
+- Planning complete tasks
+- Progress checkpoints
+- Autonomous error handling
+- Clear status reporting
+""",
+            max_iterations=20,
         ),
     }
 
@@ -218,6 +288,32 @@ Focus on:
         AgentCapability.TESTING: [
             "test", "spec", "coverage", "mock", "assert",
             "测试", "断言", "覆盖率",
+        ],
+        # Phase 4G: New capability keywords
+        AgentCapability.WORKFLOW: [
+            "workflow", "pipeline", "automate", "automation", "orchestrate",
+            "schedule", "batch", "process", "sequence",
+            "工作流", "流程", "自动化", "编排", "批处理",
+        ],
+        AgentCapability.AUTOMATION: [
+            "automate", "script", "cron", "scheduled", "recurring",
+            "自动", "脚本", "定时", "循环",
+        ],
+        AgentCapability.MULTILINGUAL: [
+            "multilingual", "multi-language", "localize", "i18n", "l10n",
+            "多语言", "本地化", "国际化",
+        ],
+        AgentCapability.TRANSLATION: [
+            "translate", "translation", "convert to chinese", "convert to english",
+            "翻译", "译成", "转换",
+        ],
+        AgentCapability.AUTONOMOUS: [
+            "autonomous", "background", "unattended", "self-directed",
+            "自主", "后台", "无人值守",
+        ],
+        AgentCapability.LONG_RUNNING: [
+            "long-running", "long task", "entire project", "all files",
+            "长时间", "整个项目", "所有文件",
         ],
     }
 

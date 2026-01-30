@@ -10,6 +10,10 @@ from .oracle_agent import OracleAgent
 from .librarian_agent import LibrarianAgent
 from .explorer_agent import ExplorerAgent
 from .frontend_agent import FrontendAgent
+from .reviewer_agent import ReviewerAgent
+from .workflow_agent import WorkflowAgent
+from .polyglot_agent import PolyglotAgent
+from .autonomous_agent import AutonomousAgent
 
 __all__ = [
     "SisyphusAgent",
@@ -17,4 +21,8 @@ __all__ = [
     "LibrarianAgent",
     "ExplorerAgent",
     "FrontendAgent",
+    "ReviewerAgent",
+    "WorkflowAgent",
+    "PolyglotAgent",
+    "AutonomousAgent",
 ]

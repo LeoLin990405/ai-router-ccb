@@ -18,6 +18,15 @@ import yaml
 if TYPE_CHECKING:
     from rate_limiter import RateLimiter
 
+# Import unified provider commands
+from provider_commands import (
+    ALL_PROVIDERS,
+    PROVIDER_COMMANDS,
+    PROVIDER_PING_COMMANDS,
+    get_ask_command,
+    get_ping_command,
+)
+
 
 class TaskType(Enum):
     """Task categories for routing decisions."""
@@ -159,45 +168,8 @@ class UnifiedRouter:
         "**/*.rs": "codex",
     }
 
-    # All available providers (must match CCB's supported providers)
-    # CCB supports: codex, gemini, opencode, claude, droid, iflow, kimi, qwen, deepseek
-    ALL_PROVIDERS = [
-        "claude",    # lask - Claude Code CLI
-        "codex",     # cask - Codex CLI (OpenAI)
-        "gemini",    # gask - Gemini CLI (Google)
-        "opencode",  # oask - OpenCode CLI
-        "droid",     # dask - Droid CLI
-        "iflow",     # iask - iFlow CLI
-        "kimi",      # kask - Kimi CLI (Moonshot)
-        "qwen",      # qask - Qwen CLI (Alibaba)
-        "deepseek",  # dskask - DeepSeek CLI
-    ]
-
-    # Provider to ask command mapping (CCB daemon commands)
-    PROVIDER_COMMANDS = {
-        "claude": "lask",     # Claude uses lask (not cask)
-        "codex": "cask",      # Codex uses cask
-        "gemini": "gask",
-        "opencode": "oask",
-        "droid": "dask",
-        "iflow": "iask",
-        "kimi": "kask",
-        "qwen": "qask",
-        "deepseek": "dskask",
-    }
-
-    # Provider to ping command mapping
-    PROVIDER_PING_COMMANDS = {
-        "claude": "lping",
-        "codex": "cping",
-        "gemini": "gping",
-        "opencode": "oping",
-        "droid": "dping",
-        "iflow": "iping",
-        "kimi": "kping",
-        "qwen": "qping",
-        "deepseek": "dskping",
-    }
+    # Use unified provider commands from provider_commands module
+    # ALL_PROVIDERS, PROVIDER_COMMANDS, PROVIDER_PING_COMMANDS are imported
 
     # Magic keywords for enhanced routing behavior
     # These keywords trigger special actions when detected in messages
@@ -306,7 +278,7 @@ class UnifiedRouter:
                 return self._apply_rate_limit_check(decision) if check_rate_limit else decision
 
         # If user explicitly specified a provider, use it
-        if preferred_provider and preferred_provider in self.ALL_PROVIDERS:
+        if preferred_provider and preferred_provider in ALL_PROVIDERS:
             decision = RoutingDecision(
                 provider=preferred_provider,
                 channel=ChannelType.CCB_DAEMON,
@@ -471,11 +443,11 @@ class UnifiedRouter:
 
     def get_provider_command(self, provider: str) -> str:
         """Get the ask command for a provider."""
-        return self.PROVIDER_COMMANDS.get(provider, "lask")
+        return get_ask_command(provider)
 
     def get_provider_ping_command(self, provider: str) -> str:
         """Get the ping command for a provider."""
-        return self.PROVIDER_PING_COMMANDS.get(provider, "lping")
+        return get_ping_command(provider)
 
     def format_decision(self, decision: RoutingDecision) -> str:
         """Format a routing decision for display."""

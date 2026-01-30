@@ -15,6 +15,7 @@ from agent_registry import (
     AgentRegistry, AgentConfig, AgentCapability, AgentMatch,
     get_agent_registry,
 )
+from provider_commands import PROVIDER_COMMANDS, get_ask_command
 
 
 @dataclass
@@ -52,18 +53,8 @@ class AgentExecutor:
     - Iteration tracking
     """
 
-    # Provider to ask command mapping
-    PROVIDER_COMMANDS = {
-        "claude": "lask",
-        "codex": "cask",
-        "gemini": "gask",
-        "opencode": "oask",
-        "droid": "dask",
-        "iflow": "iask",
-        "kimi": "kask",
-        "qwen": "qask",
-        "deepseek": "dskask",
-    }
+    # Use unified provider commands from provider_commands module
+    PROVIDER_COMMANDS = PROVIDER_COMMANDS
 
     def __init__(
         self,

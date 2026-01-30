@@ -1,732 +1,285 @@
-# AI Router CCB - Intelligent Multi-AI Collaboration Platform
+# CCB - Multi-AI Collaboration Platform
 
-> **An optimized fork of [bfly123/claude_code_bridge](https://github.com/bfly123/claude_code_bridge) with intelligent task routing**
->
-> Special thanks to the original author **bfly123** and the community for creating this amazing multi-AI collaboration framework.
+<p align="center">
+  <strong>Intelligent Multi-AI Orchestration with 9 Providers and Specialized Agents</strong>
+</p>
 
-**English** | [中文说明](README_zh.md)
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#agents">Agents</a> •
+  <a href="#providers">Providers</a> •
+  <a href="#installation">Installation</a>
+</p>
+
+**English** | [中文](README_zh.md)
 
 ---
 
-## About This Project
+## Acknowledgements
 
-**AI Router CCB** is a unified AI collaboration platform that intelligently routes tasks to the optimal AI provider based on task type, keywords, and file patterns.
+This project stands on the shoulders of giants. Special thanks to:
 
-### Core Features
-- **Intelligent Routing**: Automatically selects the best AI provider for each task
-- **Magic Keywords**: Special keywords (`@deep`, `@review`, `@all`, etc.) trigger enhanced behaviors
-- **Task Tracking**: SQLite-backed task management with status tracking
-- **Performance Analytics**: Track provider latency, success rates, and token usage
-- **Smart Caching**: Cache responses to reduce redundant requests
-- **Auto Retry**: Automatic retry with exponential backoff and provider fallback
-- **Multi-Provider Queries**: Query multiple providers simultaneously with result aggregation
-- **Batch Processing**: Process multiple tasks in parallel
-- **Web Dashboard**: Real-time monitoring and management UI
+- **[bfly123/claude_code_bridge](https://github.com/bfly123/claude_code_bridge)** - The original multi-AI collaboration framework that inspired this project. Thank you for pioneering the concept of bridging multiple AI assistants!
+
+- **[Grafbase/Nexus](https://github.com/grafbase/nexus)** - Inspiration for our intelligent routing engine. Their work on AI gateway architecture influenced our unified router design.
+
+- **[code-yeongyu/oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)** - Inspiration for agent orchestration patterns, the Sisyphus agent concept, and magic keyword system.
+
+---
+
+## Features
+
+### Core Capabilities
 - **9 AI Providers**: Claude, Codex, Gemini, OpenCode, DeepSeek, Droid, iFlow, Kimi, Qwen
-- **Unified Interface**: Consistent command pattern across all providers
-- **Health Monitoring**: Real-time provider status checking
-- **Configurable Rules**: YAML-based routing configuration
-- **Context7 Integration**: Optional documentation lookup to reduce AI hallucinations
+- **Intelligent Routing**: Auto-select optimal provider based on task type
+- **Magic Keywords**: `@deep`, `@review`, `@all` trigger special behaviors
+- **Unified Interface**: Consistent commands across all providers
 
-### Phase 4 Advanced Features (NEW)
-- **Rate Limiting**: Token Bucket algorithm with per-provider limits
-- **MCP Aggregation**: Aggregate multiple MCP servers with unified tool discovery
-- **Specialized Agents**: 6 AI agents (Sisyphus, Oracle, Librarian, Explorer, Frontend, Reviewer)
-- **OAuth2 Authentication**: Token-based authentication for Web API
-- **LSP/AST Tools**: Code intelligence with Language Server Protocol and tree-sitter
-- **Hooks/Skills System**: Event-driven hooks and extensible skill plugins
+### Specialized Agents (9 Agents)
+| Agent | Purpose | Primary Providers |
+|-------|---------|-------------------|
+| **Sisyphus** | Code implementation | Codex, Gemini |
+| **Oracle** | Deep reasoning & analysis | DeepSeek, Claude |
+| **Librarian** | Documentation & search | Claude, Gemini |
+| **Explorer** | Codebase navigation | Gemini, Claude |
+| **Frontend** | UI/UX development | Gemini, Claude |
+| **Reviewer** | Code review & testing | Gemini, Claude |
+| **Workflow** | Multi-step automation | iFlow, Droid |
+| **Polyglot** | Translation & multilingual | Kimi, Qwen |
+| **Autonomous** | Long-running tasks | Droid, Codex |
 
-### Contributors
-- **Leo** ([@LeoLin990405](https://github.com/LeoLin990405)) - Project lead & integration
-- **Claude** (Anthropic Claude Opus 4.5) - Architecture design & code optimization
-- **Codex** (OpenAI GPT-5.2 Codex) - Script development & debugging
+### Advanced Features
+- **Rate Limiting**: Token bucket algorithm per provider
+- **MCP Aggregation**: Unified tool discovery across servers
+- **OAuth2 Authentication**: Secure Web API access
+- **LSP/AST Tools**: Code intelligence with tree-sitter
+- **Hooks & Skills**: Extensible plugin system
+- **Performance Analytics**: Track latency, success rates
+- **Smart Caching**: Reduce redundant requests
+- **Batch Processing**: Parallel task execution
 
 ---
 
-## Intelligent Task Routing
+## Quick Start
 
-The core innovation of AI Router CCB is its intelligent routing engine, inspired by [Nexus Router](https://github.com/grafbase/nexus).
-
-### Quick Start
 ```bash
 # Smart routing - auto-selects best provider
-ccb ask "添加 React 组件"        # → gemini (frontend)
-ccb ask "设计 API 接口"          # → codex (backend)
-ccb ask "分析这个算法的复杂度"    # → deepseek (reasoning)
+ccb ask "Add a React component"        # → gemini (frontend)
+ccb ask "Design an API endpoint"       # → codex (backend)
+ccb ask "Analyze algorithm complexity" # → deepseek (reasoning)
 
-# Magic keywords - trigger special behaviors
-ccb ask "@deep analyze this algorithm"   # → deepseek (forced)
-ccb ask "@review check this code"        # → gemini (code review mode)
-ccb ask "@all what is the best approach" # → multi-provider query
+# Magic keywords
+ccb ask "@deep analyze this algorithm"   # Force deep reasoning
+ccb ask "@review check this code"        # Force code review
+ccb ask "@all what's the best approach"  # Multi-provider query
 
-# Show routing decision without executing
-ccb route "帮我审查这段代码"
+# Agent execution
+ccb-agent auto "implement sorting function"  # Auto-select agent
+ccb-agent execute reviewer "audit this code" # Specific agent
 
-# Check all provider health status
-ccb health
-
-# List available magic keywords
-ccb magic
-
-# Force specific provider
-ccb ask -p claude "任何问题"
-
-# Route based on file context
-ccb route -f src/components/Button.tsx "修改这个文件"
-
-# Task tracking
-ccb ask --track "analyze this code"  # Creates tracked task
-ccb tasks list                       # List all tasks
-ccb tasks stats                      # Show task statistics
+# Provider commands
+cask "your question"   # Codex
+gask "your question"   # Gemini
+dskask "your question" # DeepSeek
 ```
 
-### Routing Rules
+---
+
+## Agents
+
+### Agent Selection
+```bash
+# List all agents
+ccb-agent list
+
+# Auto-select best agent for task
+ccb-agent auto "your task description"
+
+# Execute with specific agent
+ccb-agent execute <agent> "task"
+
+# Show which agent would be selected
+ccb-agent match "your task"
+```
+
+### Agent Capabilities
+
+| Capability | Agents | Keywords |
+|------------|--------|----------|
+| Code Writing | Sisyphus, Frontend, Autonomous | implement, create, build |
+| Code Review | Reviewer | review, audit, check |
+| Reasoning | Oracle | analyze, reason, algorithm |
+| Documentation | Librarian, Polyglot | document, explain, translate |
+| Navigation | Explorer | find, search, locate |
+| Workflow | Workflow | automate, pipeline, process |
+| Translation | Polyglot | translate, multilingual |
+| Long Tasks | Autonomous | background, long-running |
+
+---
+
+## Providers
+
+| Provider | Ask | Ping | Best For |
+|----------|-----|------|----------|
+| Claude | `lask` | `lping` | Architecture, general queries |
+| Codex | `cask` | `cping` | Backend, API development |
+| Gemini | `gask` | `gping` | Frontend, code review |
+| OpenCode | `oask` | `oping` | General coding |
+| DeepSeek | `dskask` | `dskping` | Deep reasoning, algorithms |
+| Droid | `dask` | `dping` | Autonomous execution |
+| iFlow | `iask` | `iping` | Workflow automation |
+| Kimi | `kask` | `kping` | Chinese, long context |
+| Qwen | `qask` | `qping` | Multilingual |
+
+---
+
+## Routing Rules
 
 | Task Type | Keywords | File Patterns | Provider |
 |-----------|----------|---------------|----------|
-| Frontend | react, vue, component, 前端, 组件 | `*.tsx`, `*.vue`, `components/**` | gemini |
-| Backend | api, endpoint, 后端, 接口 | `api/**`, `routes/**`, `services/**` | codex |
-| Architecture | design, architect, 设计, 架构 | - | claude |
-| Reasoning | analyze, reason, 分析, 推理, 算法 | - | deepseek |
-| Code Review | review, check, 审查, 检查 | - | gemini |
-| Quick Query | what, how, why, 什么, 怎么 | - | claude |
+| Frontend | react, vue, component | `*.tsx`, `*.vue` | Gemini |
+| Backend | api, endpoint, server | `api/**`, `routes/**` | Codex |
+| Reasoning | analyze, algorithm | - | DeepSeek |
+| Architecture | design, architect | - | Claude |
+| Review | review, check, audit | - | Gemini |
 
 ### Magic Keywords
 
-Magic keywords trigger special routing behaviors when detected in your message:
-
-| Keyword | Action | Provider | Description |
-|---------|--------|----------|-------------|
-| `@search` | web_search | gemini | Trigger web search |
-| `@docs` | context7_lookup | claude | Query Context7 documentation |
-| `@deep` | deep_reasoning | deepseek | Force deep reasoning mode |
-| `@review` | code_review | gemini | Force code review mode |
-| `@all` | multi_provider | claude,gemini,codex | Query multiple providers |
-| `smartroute` | full_auto | - | Enable all smart features |
-
-```bash
-# Examples
-ccb ask "@deep analyze the time complexity of this algorithm"
-ccb ask "@review check this code for security issues"
-ccb ask "@all what's the best approach for this problem"
-ccb route "smartroute optimize this function"
-```
-
----
-
-## Performance Analytics
-
-Track and analyze provider performance over time:
-
-```bash
-# View all provider statistics (last 24 hours)
-ccb stats
-
-# View specific provider stats
-ccb stats --provider claude --hours 48
-
-# Show recent requests
-ccb stats recent --limit 20
-
-# Get summary report
-ccb stats summary
-
-# Find best performing provider
-ccb stats best
-
-# Export data
-ccb stats --export csv > performance.csv
-ccb stats --export json > performance.json
-
-# Cleanup old data
-ccb stats cleanup --days 30
-```
-
-### Tracked Metrics
-- **Latency**: Response time in milliseconds
-- **Success Rate**: Percentage of successful requests
-- **Token Usage**: Input/output token counts (when available)
-- **Request Volume**: Total requests per provider
-
----
-
-## Smart Caching
-
-Reduce redundant requests with intelligent response caching:
-
-```bash
-# View cache statistics
-ccb cache stats
-
-# List cached entries
-ccb cache list --limit 20
-
-# Get specific cache entry
-ccb cache get <key>
-
-# Clear all cache
-ccb cache clear
-
-# Cleanup expired entries
-ccb cache cleanup
-```
-
-### Cache Features
-- **Automatic Caching**: Responses cached automatically (configurable TTL)
-- **Hit Rate Tracking**: Monitor cache effectiveness
-- **Provider-Specific**: Cache entries tagged by provider
-- **Disable Per-Request**: Use `--no-cache` flag to bypass
-
-```bash
-# Bypass cache for fresh response
-ccb ask --no-cache "what is the current time"
-```
-
----
-
-## Auto Retry & Fallback
-
-Automatic retry with exponential backoff and provider fallback chains:
-
-```bash
-# Enable retry (default)
-ccb ask --retry "your question"
-
-# Disable retry
-ccb ask --no-retry "your question"
-
-# Custom retry attempts
-ccb ask --max-retries 5 "your question"
-```
-
-### Fallback Chains
-When a provider fails, CCB automatically tries fallback providers:
-
-| Primary | Fallback Chain |
-|---------|----------------|
-| claude | gemini → codex |
-| gemini | claude → codex |
-| codex | claude → gemini |
-| deepseek | claude → gemini |
-| kimi | claude → qwen |
-| qwen | claude → kimi |
-
----
-
-## Multi-Provider Queries
-
-Query multiple providers simultaneously and aggregate results:
-
-```bash
-# Query all default providers (claude, gemini, codex)
-ccb ask "@all what is the best approach"
-
-# Specify providers
-ccb ask --multi --providers claude,gemini,deepseek "analyze this"
-
-# Different aggregation strategies
-ccb ask --multi --strategy all "your question"      # Show all results
-ccb ask --multi --strategy merge "your question"   # Merge results
-ccb ask --multi --strategy compare "your question" # Side-by-side comparison
-ccb ask --multi --strategy first_success "question" # First successful response
-```
-
----
-
-## Batch Processing
-
-Process multiple tasks in parallel with SQLite persistence:
-
-```bash
-# From file (one message per line)
-ccb batch run -f tasks.txt
-
-# From command line
-ccb batch run "msg1" "msg2" "msg3"
-
-# From stdin
-echo -e "task1\ntask2\ntask3" | ccb batch run --stdin
-
-# With specific provider
-ccb batch run -p claude -f tasks.txt
-
-# Control concurrency
-ccb batch run -c 10 -f tasks.txt  # 10 concurrent tasks
-
-# Output results to file
-ccb batch run -f tasks.txt -o results.txt
-
-# Check job status
-ccb batch status <job_id>
-
-# List recent jobs
-ccb batch list
-
-# Cancel a job
-ccb batch cancel <job_id>
-
-# Clean up old jobs
-ccb batch cleanup --hours 24
-
-# Delete a specific job
-ccb batch delete <job_id>
-```
-
-### Batch Features
-- **SQLite Persistence**: Jobs survive process restarts
-- **Parallel Execution**: Configurable concurrency
-- **Progress Tracking**: Real-time status updates
-- **Job Management**: List, cancel, cleanup, delete
-
----
-
-## Web Dashboard
-
-Real-time monitoring and management through a web interface:
-
-```bash
-# Start web server (default: localhost:8080)
-ccb web
-
-# Custom port
-ccb web --port 9000
-
-# Allow external access
-ccb web --host 0.0.0.0
-
-# Don't auto-open browser
-ccb web --no-browser
-```
-
-### Dashboard Features
-- **Overview**: Total requests, success rate, cache stats
-- **Provider Performance**: Latency, success rate per provider
-- **Task Management**: View and manage tasks
-- **Cache Management**: View and clear cache
-- **Health Status**: Real-time provider health checks
-
-**Note**: Requires `pip install fastapi uvicorn jinja2`
-
-### Configuration
-Edit `~/.ccb_config/unified-router.yaml` to customize routing rules:
-```yaml
-routing_rules:
-  - name: frontend
-    priority: 10
-    patterns:
-      - "**/components/**"
-      - "**/*.tsx"
-    keywords:
-      - react
-      - vue
-      - 前端
-    provider: gemini
-
-# Task tracking configuration
-task_tracking:
-  enabled: true
-  db_path: ~/.ccb_config/tasks.db
-  auto_cleanup: true
-  cleanup_hours: 24
-
-# Magic keywords configuration
-magic_keywords:
-  enabled: true
-  keywords:
-    - keyword: "@deep"
-      action: deep_reasoning
-      provider: deepseek
-      description: "Force deep reasoning mode"
-```
-
----
-
-## Task Tracking System
-
-Track and manage tasks across multiple AI providers:
-
-```bash
-# Create a tracked task
-ccb ask --track "analyze this code"
-# Output: [Task] Created task: abc123
-
-# List all tasks
-ccb tasks list
-ccb tasks list --status running
-ccb tasks list --provider deepseek
-
-# Get task details
-ccb tasks get abc123
-
-# Cancel a task
-ccb tasks cancel abc123
-
-# View statistics
-ccb tasks stats
-
-# Cleanup old tasks
-ccb tasks cleanup --hours 24
-```
-
-### Task Status Lifecycle
-```
-pending → running → completed
-                  → failed
-                  → cancelled
-```
-
----
-
-## Phase 4: Advanced Features
-
-### Rate Limiting
-
-Protect your API quotas with intelligent rate limiting:
-
-```bash
-# View rate limit status
-ccb-ratelimit status
-
-# Set provider limits
-ccb-ratelimit set claude --rpm 50 --tpm 100000
-
-# Reset counters
-ccb-ratelimit reset claude
-
-# Test rate limiting
-ccb-ratelimit test claude --requests 10
-```
-
-### Specialized Agents
-
-6 specialized AI agents for different task types:
-
-| Agent | Description | Preferred Providers |
-|-------|-------------|---------------------|
-| Sisyphus | Code implementation | codex, gemini |
-| Oracle | Deep reasoning & analysis | deepseek, claude |
-| Librarian | Documentation & search | claude |
-| Explorer | Codebase navigation | gemini |
-| Frontend | UI/UX development | gemini, claude |
-| Reviewer | Code review & testing | claude, deepseek |
-
-```bash
-# List available agents
-ccb-agent list
-
-# Show agent details
-ccb-agent info sisyphus
-
-# Execute with specific agent
-ccb-agent execute sisyphus "implement a sorting function"
-
-# Auto-select best agent
-ccb-agent auto "analyze this algorithm"
-
-# Show which agent would be selected
-ccb-agent match "find all API endpoints"
-```
-
-### MCP Aggregation
-
-Aggregate multiple MCP servers with unified tool discovery:
-
-```bash
-# List all tools from aggregated servers
-ccb-mcp list-tools
-
-# Call a tool
-ccb-mcp call github.list_issues --owner anthropics --repo claude
-
-# Check server health
-ccb-mcp health
-```
-
-### OAuth2 Authentication
-
-Secure your Web API with token-based authentication:
-
-```bash
-# Create access token
-curl -X POST http://localhost:8080/api/auth/token \
-  -d '{"username": "admin", "password": "admin", "scopes": ["read", "write"]}'
-
-# Use token in requests
-curl -H "Authorization: Bearer <token>" http://localhost:8080/api/stats
-```
-
-### LSP/AST Tools
-
-Code intelligence powered by Language Server Protocol and tree-sitter:
-
-- **Find References**: Locate all usages of a symbol
-- **Go to Definition**: Jump to symbol definitions
-- **Rename Symbol**: Refactor across files
-- **AST Analysis**: Parse and analyze code structure
-
-### Hooks & Skills
-
-Extend CCB with custom hooks and skills:
-
-```bash
-# Hooks: Event-driven extensions
-# Place Python files in ~/.ccb_config/hooks/
-
-# Skills: Reusable task plugins
-# Place skill folders in ~/.ccb_config/skills/
-```
-
-**Configuration**: `~/.ccb_config/phase4.yaml`
-
----
-
-## Supported Providers
-
-| Provider | Command | Ping | Description |
-|----------|---------|------|-------------|
-| Claude | `lask` | `lping` | General purpose, architecture, quick queries |
-| Codex | `cask` | `cping` | Backend, API, systems programming |
-| Gemini | `gask` | `gping` | Frontend, code review, multimodal |
-| OpenCode | `oask` | `oping` | General coding assistance |
-| DeepSeek | `dskask` | `dskping` | Deep reasoning, algorithms, optimization |
-| Droid | `dask` | `dping` | Autonomous task execution |
-| iFlow | `iask` | `iping` | Workflow automation |
-| Kimi | `kask` | `kping` | Chinese language, long context |
-| Qwen | `qask` | `qping` | Multilingual, general purpose |
+| Keyword | Action | Description |
+|---------|--------|-------------|
+| `@deep` | Deep reasoning | Force DeepSeek |
+| `@review` | Code review | Force Gemini review mode |
+| `@docs` | Documentation | Query Context7 |
+| `@search` | Web search | Trigger web search |
+| `@all` | Multi-provider | Query multiple providers |
 
 ---
 
 ## Installation
 
 ### Prerequisites
-- [WezTerm](https://wezfurlong.org/wezterm/) (recommended) or tmux
-- Provider CLIs installed:
-  - `claude` (Anthropic)
-  - `codex` (OpenAI)
-  - `gemini` (Google)
-  - Others as needed
+- [WezTerm](https://wezfurlong.org/wezterm/) or tmux
+- Provider CLIs: `claude`, `codex`, `gemini`, etc.
 
 ### Install
 ```bash
-# Clone this repository
-git clone https://github.com/LeoLin990405/ai-router-ccb.git ~/.local/share/codex-dual
-
-# Run installer
-cd ~/.local/share/codex-dual
-./install.sh
+git clone https://github.com/LeoLin990405/ccb.git ~/.local/share/codex-dual
+cd ~/.local/share/codex-dual && ./install.sh
 ```
 
 ### Environment Variables
-Add to your `~/.zshrc` or `~/.bashrc`:
 ```bash
-# CCB Core
+# Add to ~/.zshrc or ~/.bashrc
 export CCB_SIDECAR_AUTOSTART=1
 export CCB_SIDECAR_DIRECTION=right
 export CCB_CLI_READY_WAIT_S=20
-
-# DeepSeek
-export CCB_DSKASKD_QUICK_MODE=1
-export CCB_DSKASKD_ALLOW_NO_SESSION=1
-
-# Kimi - CLI starts slowly
-export CCB_KASKD_STARTUP_WAIT_S=25
-
-# iFlow (GLM) - Model responds slowly
-export CCB_IASKD_STARTUP_WAIT_S=30
 ```
 
 ---
 
-## Usage
-
-### From Claude Code
-```bash
-# Using prefixes
-@codex review this code
-@gemini search for latest React docs
-@deepseek 分析这个算法
-
-# Using ask command
-ask codex "explain this function"
-ask gemini "what is the weather today"
-```
-
-### Direct Commands
-```bash
-# Ask questions
-cask "review this code"
-gask "search for documentation"
-dskask "分析代码"
-
-# Check connectivity
-cping
-gping
-dskping
-
-# Get pending replies
-cpend
-gpend
-dskpend
-```
+## Commands
 
 ### CCB Commands
 ```bash
-# Start providers
-ccb codex gemini opencode
-
-# Intelligent routing
-ccb ask "your question"
-ccb ask --track "tracked question"  # With task tracking
-ccb ask --no-cache "fresh query"    # Bypass cache
-ccb ask --retry "reliable query"    # With auto-retry
-ccb route "show routing only"
-ccb health
-ccb magic                           # List magic keywords
+ccb ask "question"           # Smart routing
+ccb route "message"          # Show routing decision
+ccb health                   # Check provider health
+ccb magic                    # List magic keywords
 
 # Task management
 ccb tasks list
-ccb tasks get <task_id>
 ccb tasks stats
-ccb tasks cleanup
 
-# Performance analytics
-ccb stats                           # View provider stats
-ccb stats --provider claude         # Specific provider
-ccb stats best                      # Best performing provider
-
-# Cache management
-ccb cache stats                     # Cache statistics
-ccb cache list                      # List entries
-ccb cache clear                     # Clear cache
+# Performance
+ccb stats
+ccb cache stats
 
 # Batch processing
-ccb batch run -f tasks.txt          # Process batch
-ccb batch status <job_id>           # Check status
-ccb batch list                      # List jobs
+ccb batch run -f tasks.txt
 
 # Web dashboard
-ccb web                             # Start web UI
+ccb web
+```
 
-# Documentation lookup (requires Context7)
-ccb docs react "how to use hooks"
-ccb docs pandas "dataframe operations"
+### Agent Commands
+```bash
+ccb-agent list               # List agents
+ccb-agent auto "task"        # Auto-select agent
+ccb-agent execute <agent> "task"
+ccb-agent match "task"       # Show matching agent
+```
 
-# Management
-ccb kill
-ccb version
-ccb update
+### Rate Limiting
+```bash
+ccb-ratelimit status
+ccb-ratelimit set claude --rpm 50
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CCB Platform                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    Agent Layer (9 Agents)                    │   │
+│  │  Sisyphus │ Oracle │ Librarian │ Explorer │ Frontend        │   │
+│  │  Reviewer │ Workflow │ Polyglot │ Autonomous                 │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    Routing Engine                            │   │
+│  │  Task Analysis → Provider Selection → Fallback Chain         │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                 Provider Layer (9 Providers)                 │   │
+│  │  Claude │ Codex │ Gemini │ OpenCode │ DeepSeek              │   │
+│  │  Droid │ iFlow │ Kimi │ Qwen                                 │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## File Structure
+
 ```
 ~/.local/share/codex-dual/
-├── bin/                    # Command scripts (ask/ping/pend)
-│   ├── ccb-ask            # Intelligent routing CLI
-│   ├── ccb-tasks          # Task management CLI
-│   ├── ccb-stats          # Performance analytics CLI
-│   ├── ccb-cache          # Cache management CLI
-│   ├── ccb-batch          # Batch processing CLI
-│   ├── ccb-web            # Web dashboard CLI
-│   ├── ccb-docs           # Documentation lookup CLI
-│   ├── ccb-agent          # Agent execution CLI (Phase 4)
-│   ├── ccb-ratelimit      # Rate limiting CLI (Phase 4)
-│   ├── cask, gask, ...    # Provider ask commands
-│   └── cping, gping, ...  # Provider ping commands
-├── lib/                    # Library modules
-│   ├── unified_router.py  # Routing engine with magic keywords
-│   ├── task_tracker.py    # Task tracking system
-│   ├── performance_tracker.py  # Performance analytics
-│   ├── response_cache.py  # Smart caching system
-│   ├── retry_policy.py    # Auto retry with fallback
-│   ├── multi_provider.py  # Multi-provider execution
-│   ├── batch_processor.py # Batch task processing
-│   ├── web_server.py      # Web dashboard server
-│   ├── context7_client.py # Context7 integration
-│   ├── rate_limiter.py    # Rate limiting (Phase 4)
-│   ├── mcp_aggregator.py  # MCP aggregation (Phase 4)
-│   ├── agent_registry.py  # Agent registry (Phase 4)
-│   ├── agent_executor.py  # Agent executor (Phase 4)
-│   ├── auth_provider.py   # OAuth2 provider (Phase 4)
-│   ├── auth_middleware.py # Auth middleware (Phase 4)
-│   ├── lsp_client.py      # LSP client (Phase 4)
-│   ├── ast_analyzer.py    # AST analyzer (Phase 4)
-│   ├── hooks_manager.py   # Hooks system (Phase 4)
-│   ├── skills_loader.py   # Skills loader (Phase 4)
-│   ├── agents/            # Specialized agents (Phase 4)
-│   └── *_daemon.py        # Provider daemons
+├── bin/                    # CLI commands
+│   ├── ccb-ask, ccb-agent, ccb-ratelimit
+│   └── cask, gask, dskask, ...
+├── lib/                    # Core modules
+│   ├── unified_router.py   # Routing engine
+│   ├── agent_registry.py   # Agent definitions
+│   ├── agent_executor.py   # Agent execution
+│   ├── provider_commands.py # Provider mappings
+│   └── agents/             # Agent implementations
 ├── mcp/                    # MCP servers
-│   ├── ccb-delegation/    # Delegation MCP server
-│   └── ccb-aggregator/    # Aggregator MCP server (Phase 4)
-├── config/                 # Configuration templates
-├── ccb                     # Main CCB binary
-└── install.sh              # Installer script
+└── config/                 # Configuration templates
 
 ~/.ccb_config/
-├── unified-router.yaml    # Routing configuration
-├── phase4.yaml            # Phase 4 configuration
-├── tasks.db               # Task tracking database
-├── performance.db         # Performance metrics database
-├── cache.db               # Response cache database
-├── ratelimit.db           # Rate limiting database (Phase 4)
-├── auth.db                # Authentication database (Phase 4)
-├── hooks/                 # Custom hooks (Phase 4)
-├── skills/                # Custom skills (Phase 4)
-├── logs/                  # Log files
-└── .*-session             # Provider session files
+├── unified-router.yaml     # Routing rules
+├── phase4.yaml             # Advanced features config
+└── *.db                    # SQLite databases
 ```
 
 ---
 
-## Troubleshooting
+## Contributors
 
-### Provider not responding
-1. Check connectivity: `<provider>ping`
-2. Verify CLI is installed and authenticated
-3. Check environment variables
-
-### Routing not working as expected
-1. Check routing decision: `ccb route "your message"`
-2. Review `~/.ccb_config/unified-router.yaml`
-3. Use `-v` flag for verbose output: `ccb ask -v "message"`
-
-### Sidecar not opening
-1. Ensure WezTerm is running
-2. Check `CCB_SIDECAR_AUTOSTART=1`
-3. Verify `CCB_SIDECAR_DIRECTION` is set
-
----
-
-## Acknowledgements
-
-This project would not be possible without:
-
-- **[bfly123](https://github.com/bfly123)** - Original author of claude_code_bridge. Thank you for creating this innovative multi-AI collaboration framework!
-- **[Grafbase / Nexus Router](https://github.com/grafbase/nexus)** - Inspiration for the Unified Router's intelligent task routing architecture. Their work on AI gateway and provider routing influenced our implementation.
-- **[code-yeongyu / oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)** - Inspiration for agent orchestration patterns, multi-agent architecture, and background task execution. Their Sisyphus agent and magic keyword concepts influenced our design.
-- **The claude_code_bridge community** - For feedback and contributions
-- **Anthropic** - For Claude and Claude Code
-- **OpenAI** - For Codex
-- **Google** - For Gemini
-- **DeepSeek, Kimi, Qwen, iFlow teams** - For their excellent AI assistants
+- **Leo** ([@LeoLin990405](https://github.com/LeoLin990405)) - Project Lead
+- **Claude** (Anthropic Claude Opus 4.5) - Architecture & Implementation
 
 ---
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE)
 
 ---
 
-## Contributing
-
-Issues and PRs are welcome! Please feel free to:
-- Report bugs
-- Suggest new features
-- Add support for more providers
-- Improve documentation
-
----
-
-*Built with ❤️ by Leo, Claude, and Codex*
+<p align="center">
+  <sub>Built with collaboration between human and AI</sub>
+</p>

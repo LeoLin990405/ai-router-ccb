@@ -3317,22 +3317,14 @@ class AILauncher:
         inside_tmux = bool(os.environ.get("TMUX") or os.environ.get("TMUX_PANE"))
         inside_wezterm = bool(os.environ.get("WEZTERM_PANE"))
 
+        # Check for terminal override from environment
+        terminal_override = (os.environ.get("CCB_TERMINAL") or "").strip().lower()
         if terminal_override in {"wezterm", "tmux"}:
             self.terminal_type = terminal_override
             if terminal_override == "wezterm":
                 inside_wezterm = True
             elif terminal_override == "tmux":
                 inside_tmux = True
-
-        if terminal_override in {"wezterm", "tmux"}:
-            self.terminal_type = terminal_override
-            if terminal_override == "wezterm":
-                inside_wezterm = True
-            elif terminal_override == "tmux":
-                inside_tmux = True
-
-        if terminal_override in {"wezterm", "tmux"}:
-            self.terminal_type = terminal_override
 
         if self.terminal_type == "wezterm" and not inside_wezterm:
             self.terminal_type = None
@@ -3357,6 +3349,7 @@ class AILauncher:
             return 2
 
         self.anchor_provider = self.providers[-1]
+        pane_id = None  # run_up doesn't accept pane_id parameter, use current pane
         if pane_id:
             self.anchor_pane_id = str(pane_id)
         else:

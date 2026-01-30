@@ -5034,6 +5034,19 @@ def main():
         args = parser.parse_args(argv[1:])
         return cmd_sidecar(args)
 
+    # Unified Router commands: ask, route, health
+    if argv and argv[0] in {"ask", "route", "health"}:
+        ccb_ask_bin = script_dir / "bin" / "ccb-ask"
+        if argv[0] == "ask":
+            # ccb ask <message> -> ccb-ask <message>
+            return subprocess.run([sys.executable, str(ccb_ask_bin)] + argv[1:]).returncode
+        elif argv[0] == "route":
+            # ccb route <message> -> ccb-ask --route <message>
+            return subprocess.run([sys.executable, str(ccb_ask_bin), "--route"] + argv[1:]).returncode
+        elif argv[0] == "health":
+            # ccb health -> ccb-ask --health
+            return subprocess.run([sys.executable, str(ccb_ask_bin), "--health"]).returncode
+
     if argv and argv[0] in {"kill", "update", "version", "uninstall", "reinstall"}:
         parser = argparse.ArgumentParser(description="Claude AI unified launcher", add_help=True)
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
@@ -5067,7 +5080,7 @@ def main():
     start_parser = argparse.ArgumentParser(
         description="Claude AI unified launcher",
         add_help=True,
-        epilog="Other commands: ccb update | ccb version | ccb kill | ccb uninstall | ccb reinstall | ccb droid setup-delegation",
+        epilog="Other commands: ccb ask | ccb route | ccb health | ccb update | ccb version | ccb kill | ccb uninstall | ccb reinstall | ccb droid setup-delegation",
     )
     start_parser.add_argument(
         "providers",

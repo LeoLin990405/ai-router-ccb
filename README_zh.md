@@ -88,6 +88,33 @@
 - 带前缀和快捷方式的命令映射
 - 快速路径分发，最小化延迟
 
+### 8. 统一路由引擎 (Unified Router) **新增**
+受 [Nexus Router](https://github.com/grafbase/nexus) 启发，CCB 现在包含智能路由引擎，可根据任务类型自动选择最佳 AI provider：
+
+```bash
+# 智能路由 - 自动选择最佳 provider
+ccb ask "添加 React 组件"        # → gemini (前端)
+ccb ask "设计 API 接口"          # → codex (后端)
+ccb ask "分析这个算法的复杂度"    # → deepseek (推理)
+
+# 仅显示路由决策（不执行）
+ccb route "帮我审查这段代码"
+
+# 检查所有 provider 健康状态
+ccb health
+```
+
+| 任务类型 | 关键词 | 推荐 Provider |
+|----------|--------|---------------|
+| 前端开发 | react, vue, component, 前端 | gemini |
+| 后端开发 | api, endpoint, 后端, 接口 | codex |
+| 架构设计 | design, architect, 设计, 架构 | claude |
+| 深度推理 | analyze, reason, 分析, 推理 | deepseek |
+| 代码审查 | review, check, 审查, 检查 | gemini |
+| 快速问答 | what, how, why, 什么, 怎么 | claude |
+
+配置文件：`~/.ccb_config/unified-router.yaml`
+
 ---
 
 ## 快速开始
@@ -239,6 +266,7 @@ dskpend
 本项目的实现离不开：
 
 - **[bfly123](https://github.com/bfly123)** - claude_code_bridge 原作者。感谢您创建了这个创新的多 AI 协作框架！
+- **[Grafbase / Nexus Router](https://github.com/grafbase/nexus)** - 统一路由引擎的灵感来源。他们在 AI 网关和 provider 路由方面的工作影响了我们的实现。
 - **claude_code_bridge 社区** - 提供反馈和贡献
 - **Anthropic** - Claude 和 Claude Code
 - **OpenAI** - Codex

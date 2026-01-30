@@ -88,6 +88,33 @@ All providers now support the same command pattern:
 - Command map with prefixes and shortcuts
 - Fast-path dispatch for minimal latency
 
+### 8. Unified Router (Intelligent Task Routing) **NEW**
+Inspired by [Nexus Router](https://github.com/grafbase/nexus), CCB now includes an intelligent routing engine that automatically selects the optimal AI provider based on task type:
+
+```bash
+# Smart routing - auto-selects best provider
+ccb ask "添加 React 组件"        # → gemini (frontend)
+ccb ask "设计 API 接口"          # → codex (backend)
+ccb ask "分析这个算法的复杂度"    # → deepseek (reasoning)
+
+# Show routing decision without executing
+ccb route "帮我审查这段代码"
+
+# Check all provider health status
+ccb health
+```
+
+| Task Type | Keywords | Recommended Provider |
+|-----------|----------|---------------------|
+| Frontend | react, vue, component, 前端 | gemini |
+| Backend | api, endpoint, 后端, 接口 | codex |
+| Architecture | design, architect, 设计, 架构 | claude |
+| Reasoning | analyze, reason, 分析, 推理 | deepseek |
+| Code Review | review, check, 审查, 检查 | gemini |
+| Quick Query | what, how, why, 什么, 怎么 | claude |
+
+Configuration: `~/.ccb_config/unified-router.yaml`
+
 ---
 
 ## Quick Start
@@ -239,6 +266,7 @@ Set `CCB_DSKASKD_QUICK_MODE=0` for TUI mode (less stable but interactive)
 This project would not be possible without:
 
 - **[bfly123](https://github.com/bfly123)** - Original author of claude_code_bridge. Thank you for creating this innovative multi-AI collaboration framework!
+- **[Grafbase / Nexus Router](https://github.com/grafbase/nexus)** - Inspiration for the Unified Router's intelligent task routing architecture. Their work on AI gateway and provider routing influenced our implementation.
 - **The claude_code_bridge community** - For feedback and contributions
 - **Anthropic** - For Claude and Claude Code
 - **OpenAI** - For Codex

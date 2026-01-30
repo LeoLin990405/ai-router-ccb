@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+"""
+ccb-ask - Intelligent routing CLI for CCB
+
+Routes messages to the optimal AI provider based on task type,
+file patterns, and keywords.
+
+Usage:
+    ccb-ask <message>           # Auto-route to best provider
+    ccb-ask -p gemini <message> # Force specific provider
+    ccb-ask --route <message>   # Show routing decision only
+    ccb-ask --health            # Check provider health
+"""
+from __future__ import annotations
+
+import sys
+import os
+import argparse
+import subprocess
+import time
+from pathlib import Path
+
+# Add lib to path
+script_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(script_dir / "lib"))
+
+from unified_router import UnifiedRouter, ChannelType, ProviderStatus, ProviderHealth
+
+
+# Create a global router instance for command lookups
+_router = UnifiedRouter()
+
+
+def get_ask_command(provider: str) -> str:
+    """Get the ask command for a provider."""
+    return _router.get_provider_command(provider)
+
+
+def get_ping_command(provider: str) -> str:
+    """Get the ping command for a provider."""
+    return _router.get_provider_ping_command(provider)
+
+
+def check_daemon_health(provider: str) -> ProviderHealth:
+    """Check if a provider's daemon is healthy."""
+    ping_cmd = get_ping_command(provider)
+    if not ping_cmd:
+        return ProviderHealth(
+            provider=provider,
+            status=ProviderStatus.UNKNOWN,
+            error="Unknown provider",
+        )
+
+    start_time = time.time()
+    try:
+        result = subprocess.run(
+            [ping_cmd],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        latency = (time.time() - start_time) * 1000
+
+        if result.returncode == 0:
+            return ProviderHealth(
+                provider=provider,
+                status=ProviderStatus.HEALTHY,
+                latency_ms=latency,
+                last_check=time.time(),
+            )
+        else:
+            return ProviderHealth(
+                provider=provider,
+                status=ProviderStatus.UNAVAILABLE,
+                latency_ms=latency,
+                last_check=time.time(),
+                error=result.stderr.strip() if result.stderr else "Ping failed",
+            )
+    except subprocess.TimeoutExpired:
+        return ProviderHealth(
+            provider=provider,
+            status=ProviderStatus.DEGRADED,
+            last_check=time.time(),
+            error="Timeout",
+        )
+    except FileNotFoundError:
+        return ProviderHealth(
+            provider=provider,
+            status=ProviderStatus.UNAVAILABLE,
+            last_check=time.time(),
+            error=f"Command '{ping_cmd}' not found",
+        )
+    except Exception as e:
+        return ProviderHealth(
+            provider=provider,
+            status=ProviderStatus.UNAVAILABLE,
+            last_check=time.time(),
+            error=str(e),
+        )
+
+
+def execute_ask(provider: str, message: str, use_daemon: bool = True) -> int:
+    """Execute the ask command for a provider."""
+    ask_cmd = get_ask_command(provider)
+
+    if use_daemon:
+        # Use heredoc style for daemon
+        cmd = f"{ask_cmd} <<'EOF'\n{message}\nEOF"
+        result = subprocess.run(
+            ["bash", "-c", cmd],
+            capture_output=False,
+        )
+        return result.returncode
+    else:
+        # Direct CLI fallback (provider-specific)
+        print(f"[Fallback] Direct CLI not implemented for {provider}")
+        return 1
+
+
+def cmd_route(args: argparse.Namespace) -> int:
+    """Show routing decision without executing."""
+    router = UnifiedRouter()
+    message = " ".join(args.message)
+
+    decision = router.route(
+        message=message,
+        files=args.files,
+        preferred_provider=args.provider,
+    )
+
+    print("=" * 50)
+    print("Routing Decision")
+    print("=" * 50)
+    print(router.format_decision(decision))
+    print("=" * 50)
+    print(f"Command: {get_ask_command(decision.provider)}")
+
+    return 0
+
+
+def cmd_health(args: argparse.Namespace) -> int:
+    """Check health of all providers."""
+    # Use the router's ALL_PROVIDERS list
+    providers = UnifiedRouter.ALL_PROVIDERS
+
+    print("=" * 60)
+    print("Provider Health Status")
+    print("=" * 60)
+    print(f"{'Provider':<12} {'Status':<12} {'Latency':<10} {'Error'}")
+    print("-" * 60)
+
+    for provider in providers:
+        health = check_daemon_health(provider)
+        status_icon = {
+            ProviderStatus.HEALTHY: "✓",
+            ProviderStatus.DEGRADED: "~",
+            ProviderStatus.UNAVAILABLE: "✗",
+            ProviderStatus.UNKNOWN: "?",
+        }.get(health.status, "?")
+
+        latency_str = f"{health.latency_ms:.0f}ms" if health.latency_ms else "-"
+        error_str = health.error or ""
+
+        print(f"{provider:<12} {status_icon} {health.status.value:<10} {latency_str:<10} {error_str}")
+
+    print("=" * 60)
+    return 0
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    """Route and execute ask command."""
+    router = UnifiedRouter()
+    message = " ".join(args.message)
+
+    if not message.strip():
+        print("Error: No message provided", file=sys.stderr)
+        return 1
+
+    decision = router.route(
+        message=message,
+        files=args.files,
+        preferred_provider=args.provider,
+    )
+
+    # Show routing decision if verbose
+    if args.verbose:
+        print(f"[Router] {decision.reason}")
+        print(f"[Router] Using: {decision.provider} via {decision.channel.value}")
+
+    # Check daemon health
+    health = check_daemon_health(decision.provider)
+
+    use_daemon = True
+    if health.status == ProviderStatus.UNAVAILABLE:
+        if decision.fallback:
+            print(f"[Router] Daemon unavailable, using fallback: {decision.fallback.value}")
+            use_daemon = False
+        else:
+            print(f"Error: Provider {decision.provider} is unavailable", file=sys.stderr)
+            return 1
+
+    return execute_ask(decision.provider, message, use_daemon)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="ccb-ask",
+        description="Intelligent routing CLI for CCB",
+    )
+
+    parser.add_argument(
+        "message",
+        nargs="*",
+        help="Message to send to AI provider",
+    )
+    parser.add_argument(
+        "-p", "--provider",
+        choices=["claude", "gemini", "codex", "opencode", "deepseek", "droid", "iflow", "kimi", "qwen"],
+        help="Force specific provider",
+    )
+    parser.add_argument(
+        "-f", "--files",
+        nargs="*",
+        help="Files involved in the task (for routing)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Show routing decision",
+    )
+    parser.add_argument(
+        "--route",
+        action="store_true",
+        help="Show routing decision only (don't execute)",
+    )
+    parser.add_argument(
+        "--health",
+        action="store_true",
+        help="Check provider health status",
+    )
+
+    args = parser.parse_args()
+
+    if args.health:
+        return cmd_health(args)
+
+    if args.route:
+        if not args.message:
+            print("Error: No message provided for routing", file=sys.stderr)
+            return 1
+        return cmd_route(args)
+
+    if not args.message:
+        parser.print_help()
+        return 0
+
+    return cmd_ask(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

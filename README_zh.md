@@ -80,6 +80,8 @@
 | **LSP/AST 工具** | 基于 tree-sitter 的代码智能 |
 | **批量处理** | 并行任务执行 |
 | **智能缓存** | 减少重复 API 调用 |
+| **自动认证终端** | CLI 需要认证时自动打开终端 |
+| **WezTerm 集成** | 需要 TTY 的 CLI 在 WezTerm pane 中执行 |
 
 ---
 
@@ -312,13 +314,15 @@ ccb-agent match "将这份文档翻译成中文"
 |----------|------|------|----------|------|
 | **Claude** | `lask` | HTTP API | 架构设计、通用 | ✅ |
 | **Codex** | `cask` | CLI (`exec --json`) | 后端、API | ✅ |
-| **Gemini** | `gask` | CLI (`-p`) | 前端、审查 | ✅ |
+| **Gemini** | `gask` | CLI + WezTerm¹ | 前端、审查 | ✅ |
 | **OpenCode** | `oask` | CLI (`run --format json`) | 通用编码 | ✅ |
 | **DeepSeek** | `dskask` | CLI (`-q`) | 深度推理 | ✅ |
 | **Droid** | `dask` | 终端 | 自主执行 | ⚠️ |
 | **iFlow** | `iask` | CLI (`-p`) | 工作流 | ✅ |
 | **Kimi** | `kask` | CLI (`--quiet -p`) | 中文、长上下文 | ✅ |
 | **Qwen** | `qask` | CLI | 多语言 | ✅ |
+
+¹ Gemini CLI 需要 TTY 环境；Gateway 使用 WezTerm pane 执行以提供 TTY 支持。
 
 ### 路由规则
 
@@ -417,6 +421,8 @@ export CCB_SIDECAR_DIRECTION=right  # Sidecar pane 方向
 export CCB_CLI_READY_WAIT_S=20      # CLI 就绪超时
 export CCB_USE_GATEWAY=1            # 启用 Gateway 模式
 export CCB_GATEWAY_PORT=8765        # Gateway 端口
+export CCB_AUTO_OPEN_AUTH=1         # 超时时自动打开认证终端（默认：1）
+export CCB_DEBUG=1                  # 启用详细调试日志
 ```
 
 ### 验证安装

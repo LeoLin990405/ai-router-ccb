@@ -80,6 +80,8 @@
 | **LSP/AST Tools** | Code intelligence with tree-sitter |
 | **Batch Processing** | Parallel task execution |
 | **Smart Caching** | Reduce redundant API calls |
+| **Auto Auth Terminal** | Auto-open terminal for CLI authentication when needed |
+| **WezTerm Integration** | TTY-dependent CLIs execute in WezTerm panes |
 
 ---
 
@@ -312,13 +314,15 @@ ccb-agent match "translate this documentation to Chinese"
 |----------|---------|---------|----------|--------|
 | **Claude** | `lask` | HTTP API | Architecture, general | ✅ |
 | **Codex** | `cask` | CLI (`exec --json`) | Backend, API | ✅ |
-| **Gemini** | `gask` | CLI (`-p`) | Frontend, review | ✅ |
+| **Gemini** | `gask` | CLI + WezTerm¹ | Frontend, review | ✅ |
 | **OpenCode** | `oask` | CLI (`run --format json`) | General coding | ✅ |
 | **DeepSeek** | `dskask` | CLI (`-q`) | Deep reasoning | ✅ |
 | **Droid** | `dask` | Terminal | Autonomous | ⚠️ |
 | **iFlow** | `iask` | CLI (`-p`) | Workflow | ✅ |
 | **Kimi** | `kask` | CLI (`--quiet -p`) | Chinese, long context | ✅ |
 | **Qwen** | `qask` | CLI | Multilingual | ✅ |
+
+¹ Gemini CLI requires TTY environment; Gateway uses WezTerm pane execution for proper TTY support.
 
 ### Routing Rules
 
@@ -417,6 +421,8 @@ export CCB_SIDECAR_DIRECTION=right  # Sidecar pane direction
 export CCB_CLI_READY_WAIT_S=20      # CLI ready timeout
 export CCB_USE_GATEWAY=1            # Enable Gateway mode
 export CCB_GATEWAY_PORT=8765        # Gateway port
+export CCB_AUTO_OPEN_AUTH=1         # Auto-open auth terminal on timeout (default: 1)
+export CCB_DEBUG=1                  # Enable verbose debug logging
 ```
 
 ### Verify Installation

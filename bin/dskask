@@ -40,6 +40,7 @@ from askd_client import (
     signal_sidecar_done,
 )
 from providers import DSKASK_CLIENT_SPEC
+from gateway_client import is_gateway_enabled, gateway_ask_deepseek
 
 
 ASYNC_GUARDRAIL = """[CCB_ASYNC_SUBMITTED provider=deepseek]
@@ -279,6 +280,18 @@ def main(argv: list[str]) -> int:
             timeout = 3600.0
 
     try:
+        # Gateway mode: use Gateway API instead of daemon
+        if is_gateway_enabled() and not direct_mode:
+            reply, exit_code = gateway_ask_deepseek(message, timeout_s=timeout if timeout > 0 else 600.0, wait=True)
+            if reply:
+                if output_path:
+                    atomic_write_text(output_path, reply + "\n")
+                    return exit_code
+                sys.stdout.write(reply)
+                if not reply.endswith("\n"):
+                    sys.stdout.write("\n")
+            return exit_code
+
         if not direct_mode:
             work_dir, _ = resolve_work_dir_with_registry(
                 DSKASK_CLIENT_SPEC,

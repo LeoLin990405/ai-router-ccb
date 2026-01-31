@@ -33,6 +33,7 @@ from askd_client import (
     signal_sidecar_done,
 )
 from providers import OASK_CLIENT_SPEC
+from gateway_client import is_gateway_enabled, gateway_ask_opencode
 
 
 ASYNC_GUARDRAIL = """[CCB_ASYNC_SUBMITTED provider=opencode]
@@ -216,6 +217,19 @@ def main(argv: list[str]) -> int:
         if not message:
             _usage()
             return EXIT_ERROR
+
+        # Gateway mode: use Gateway API instead of daemon
+        if is_gateway_enabled():
+            reply, exit_code = gateway_ask_opencode(message, timeout_s=timeout if timeout > 0 else 120.0, wait=True)
+            if reply:
+                if output_path:
+                    atomic_write_text(output_path, reply + "\n")
+                    return exit_code
+                if not async_mode:
+                    sys.stdout.write(reply)
+                    if not reply.endswith("\n"):
+                        sys.stdout.write("\n")
+            return exit_code
 
         # Foreground execution is allowed; background-mode enforcement is handled by the caller (if any).
 

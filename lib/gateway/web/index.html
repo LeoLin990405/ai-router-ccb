@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCB Gateway Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div id="app" v-cloak>
+        <!-- Header -->
+        <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-blue-400">CCB Gateway</h1>
+                    <span class="px-2 py-1 text-xs bg-green-600 rounded" v-if="connected">Connected</span>
+                    <span class="px-2 py-1 text-xs bg-red-600 rounded" v-else>Disconnected</span>
+                </div>
+                <div class="text-sm text-gray-400">
+                    Uptime: {{ formatDuration(status.gateway?.uptime_s || 0) }}
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-gray-800 border-b border-gray-700 px-6 py-2">
+            <div class="flex space-x-4">
+                <button
+                    v-for="tab in tabs"
+                    :key="tab.id"
+                    @click="activeTab = tab.id"
+                    :class="[
+                        'px-4 py-2 rounded-t text-sm font-medium transition-colors',
+                        activeTab === tab.id
+                            ? 'bg-gray-700 text-blue-400'
+                            : 'text-gray-400 hover:text-gray-200'
+                    ]"
+                >
+                    {{ tab.name }}
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="p-6">
+            <!-- Dashboard Tab -->
+            <div v-show="activeTab === 'dashboard'">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="text-gray-400 text-sm">Total Requests</div>
+                        <div class="text-3xl font-bold text-blue-400">{{ status.gateway?.total_requests || 0 }}</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="text-gray-400 text-sm">Active Requests</div>
+                        <div class="text-3xl font-bold text-yellow-400">{{ status.gateway?.active_requests || 0 }}</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="text-gray-400 text-sm">Queue Depth</div>
+                        <div class="text-3xl font-bold text-purple-400">{{ status.gateway?.queue_depth || 0 }}</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                        <div class="text-gray-400 text-sm">Cache Hit Rate</div>
+                        <div class="text-3xl font-bold text-green-400">
+                            {{ formatPercent(status.gateway?.cache?.hit_rate || 0) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Provider Status -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 mb-6">
+                    <div class="px-4 py-3 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold">Provider Status</h2>
+                    </div>
+                    <div class="p-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-400 text-sm">
+                                        <th class="pb-2">Provider</th>
+                                        <th class="pb-2">Status</th>
+                                        <th class="pb-2">Queue</th>
+                                        <th class="pb-2">Avg Latency</th>
+                                        <th class="pb-2">Success Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="provider in status.providers" :key="provider.name" class="border-t border-gray-700">
+                                        <td class="py-2 font-medium">{{ provider.name }}</td>
+                                        <td class="py-2">
+                                            <span :class="getStatusClass(provider.status)">
+                                                {{ provider.status }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2">{{ provider.queue_depth }}</td>
+                                        <td class="py-2">{{ formatLatency(provider.avg_latency_ms) }}</td>
+                                        <td class="py-2">{{ formatPercent(provider.success_rate) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features Status -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700">
+                    <div class="px-4 py-3 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold">Features</h2>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div v-for="(enabled, feature) in status.gateway?.features" :key="feature"
+                             class="flex items-center space-x-2">
+                            <span :class="enabled ? 'text-green-400' : 'text-gray-500'">●</span>
+                            <span class="text-sm">{{ formatFeatureName(feature) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requests Tab -->
+            <div v-show="activeTab === 'requests'">
+                <div class="bg-gray-800 rounded-lg border border-gray-700">
+                    <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">Recent Requests</h2>
+                        <button @click="fetchRequests" class="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-700">
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="p-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-400 text-sm">
+                                        <th class="pb-2">ID</th>
+                                        <th class="pb-2">Provider</th>
+                                        <th class="pb-2">Status</th>
+                                        <th class="pb-2">Message</th>
+                                        <th class="pb-2">Created</th>
+                                        <th class="pb-2">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="req in requests" :key="req.id" class="border-t border-gray-700">
+                                        <td class="py-2 font-mono text-sm">{{ req.id }}</td>
+                                        <td class="py-2">{{ req.provider }}</td>
+                                        <td class="py-2">
+                                            <span :class="getRequestStatusClass(req.status)">
+                                                {{ req.status }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2 max-w-xs truncate">{{ req.message }}</td>
+                                        <td class="py-2 text-sm text-gray-400">{{ formatTime(req.created_at) }}</td>
+                                        <td class="py-2">
+                                            <button
+                                                v-if="req.status === 'queued' || req.status === 'processing'"
+                                                @click="cancelRequest(req.id)"
+                                                class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Keys Tab -->
+            <div v-show="activeTab === 'keys'">
+                <div class="bg-gray-800 rounded-lg border border-gray-700 mb-6">
+                    <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">API Keys</h2>
+                        <button @click="showCreateKeyModal = true" class="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-700">
+                            Create Key
+                        </button>
+                    </div>
+                    <div class="p-4">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-400 text-sm">
+                                        <th class="pb-2">Key ID</th>
+                                        <th class="pb-2">Name</th>
+                                        <th class="pb-2">Created</th>
+                                        <th class="pb-2">Last Used</th>
+                                        <th class="pb-2">Rate Limit</th>
+                                        <th class="pb-2">Status</th>
+                                        <th class="pb-2">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="key in apiKeys" :key="key.key_id" class="border-t border-gray-700">
+                                        <td class="py-2 font-mono text-sm">{{ key.key_id }}</td>
+                                        <td class="py-2">{{ key.name }}</td>
+                                        <td class="py-2 text-sm text-gray-400">{{ formatTime(key.created_at) }}</td>
+                                        <td class="py-2 text-sm text-gray-400">{{ key.last_used_at ? formatTime(key.last_used_at) : 'Never' }}</td>
+                                        <td class="py-2">{{ key.rate_limit_rpm || 'Default' }}</td>
+                                        <td class="py-2">
+                                            <span :class="key.enabled ? 'text-green-400' : 'text-red-400'">
+                                                {{ key.enabled ? 'Active' : 'Disabled' }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2 space-x-2">
+                                            <button
+                                                @click="toggleKey(key)"
+                                                :class="key.enabled ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'"
+                                                class="px-2 py-1 rounded text-xs"
+                                            >
+                                                {{ key.enabled ? 'Disable' : 'Enable' }}
+                                            </button>
+                                            <button
+                                                @click="deleteKey(key.key_id)"
+                                                class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Key Display -->
+                <div v-if="newApiKey" class="bg-green-900 border border-green-700 rounded-lg p-4 mb-6">
+                    <div class="font-semibold text-green-400 mb-2">New API Key Created</div>
+                    <div class="text-sm text-gray-300 mb-2">Save this key now - it won't be shown again!</div>
+                    <div class="bg-gray-800 p-2 rounded font-mono text-sm break-all">{{ newApiKey }}</div>
+                    <button @click="newApiKey = null" class="mt-2 px-3 py-1 bg-gray-700 rounded text-sm">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div v-show="activeTab === 'config'">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Auth Config -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">Authentication</h2>
+                        </div>
+                        <div class="p-4 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Enabled:</span>
+                                <span>{{ authConfig.enabled ? 'Yes' : 'No' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Header:</span>
+                                <span class="font-mono">{{ authConfig.header_name }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Allow Localhost:</span>
+                                <span>{{ authConfig.allow_localhost ? 'Yes' : 'No' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rate Limit Config -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">Rate Limiting</h2>
+                        </div>
+                        <div class="p-4 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Enabled:</span>
+                                <span>{{ rateLimitConfig.enabled ? 'Yes' : 'No' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Requests/min:</span>
+                                <span>{{ rateLimitConfig.requests_per_minute }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Burst Size:</span>
+                                <span>{{ rateLimitConfig.burst_size }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Retry Config -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">Retry & Fallback</h2>
+                        </div>
+                        <div class="p-4 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Retry Enabled:</span>
+                                <span>{{ retryConfig.enabled ? 'Yes' : 'No' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Max Retries:</span>
+                                <span>{{ retryConfig.max_retries }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Fallback Enabled:</span>
+                                <span>{{ retryConfig.fallback_enabled ? 'Yes' : 'No' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cache Config -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">Cache</h2>
+                        </div>
+                        <div class="p-4 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Hits:</span>
+                                <span>{{ status.gateway?.cache?.hits || 0 }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Misses:</span>
+                                <span>{{ status.gateway?.cache?.misses || 0 }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Total Entries:</span>
+                                <span>{{ status.gateway?.cache?.total_entries || 0 }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Tokens Saved:</span>
+                                <span>{{ status.gateway?.cache?.total_tokens_saved || 0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Create Key Modal -->
+        <div v-if="showCreateKeyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700">
+                <h3 class="text-lg font-semibold mb-4">Create API Key</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Name</label>
+                        <input v-model="newKeyName" type="text"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm"
+                               placeholder="My API Key">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Rate Limit (RPM, optional)</label>
+                        <input v-model.number="newKeyRateLimit" type="number"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm"
+                               placeholder="Leave empty for default">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2 mt-6">
+                    <button @click="showCreateKeyModal = false" class="px-4 py-2 bg-gray-700 rounded text-sm">
+                        Cancel
+                    </button>
+                    <button @click="createKey" class="px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, onUnmounted } = Vue;
+
+        createApp({
+            setup() {
+                const connected = ref(false);
+                const activeTab = ref('dashboard');
+                const status = ref({ gateway: {}, providers: [] });
+                const requests = ref([]);
+                const apiKeys = ref([]);
+                const authConfig = ref({});
+                const rateLimitConfig = ref({});
+                const retryConfig = ref({});
+                const showCreateKeyModal = ref(false);
+                const newKeyName = ref('');
+                const newKeyRateLimit = ref(null);
+                const newApiKey = ref(null);
+
+                const tabs = [
+                    { id: 'dashboard', name: 'Dashboard' },
+                    { id: 'requests', name: 'Requests' },
+                    { id: 'keys', name: 'API Keys' },
+                    { id: 'config', name: 'Configuration' },
+                ];
+
+                let ws = null;
+                let refreshInterval = null;
+
+                const connectWebSocket = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    ws = new WebSocket(`${protocol}//${window.location.host}/api/ws`);
+
+                    ws.onopen = () => {
+                        connected.value = true;
+                        ws.send(JSON.stringify({ type: 'subscribe', channels: ['all'] }));
+                    };
+
+                    ws.onclose = () => {
+                        connected.value = false;
+                        setTimeout(connectWebSocket, 3000);
+                    };
+
+                    ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketEvent(data);
+                    };
+                };
+
+                const handleWebSocketEvent = (event) => {
+                    if (event.type === 'request_submitted' ||
+                        event.type === 'request_completed' ||
+                        event.type === 'request_failed') {
+                        fetchRequests();
+                        fetchStatus();
+                    }
+                };
+
+                const fetchStatus = async () => {
+                    try {
+                        const res = await fetch('/api/status');
+                        status.value = await res.json();
+                    } catch (e) {
+                        console.error('Failed to fetch status:', e);
+                    }
+                };
+
+                const fetchRequests = async () => {
+                    try {
+                        const res = await fetch('/api/requests?limit=50');
+                        requests.value = await res.json();
+                    } catch (e) {
+                        console.error('Failed to fetch requests:', e);
+                    }
+                };
+
+                const fetchApiKeys = async () => {
+                    try {
+                        const res = await fetch('/api/admin/keys');
+                        if (res.ok) {
+                            apiKeys.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch API keys:', e);
+                    }
+                };
+
+                const fetchConfigs = async () => {
+                    try {
+                        const [auth, rateLimit, retry] = await Promise.all([
+                            fetch('/api/admin/auth/config').then(r => r.json()),
+                            fetch('/api/admin/rate-limit/config').then(r => r.json()),
+                            fetch('/api/retry/config').then(r => r.json()),
+                        ]);
+                        authConfig.value = auth;
+                        rateLimitConfig.value = rateLimit;
+                        retryConfig.value = retry;
+                    } catch (e) {
+                        console.error('Failed to fetch configs:', e);
+                    }
+                };
+
+                const createKey = async () => {
+                    try {
+                        const res = await fetch('/api/admin/keys', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: newKeyName.value,
+                                rate_limit_rpm: newKeyRateLimit.value || null,
+                            }),
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            newApiKey.value = data.api_key;
+                            showCreateKeyModal.value = false;
+                            newKeyName.value = '';
+                            newKeyRateLimit.value = null;
+                            fetchApiKeys();
+                        }
+                    } catch (e) {
+                        console.error('Failed to create key:', e);
+                    }
+                };
+
+                const toggleKey = async (key) => {
+                    const action = key.enabled ? 'disable' : 'enable';
+                    try {
+                        await fetch(`/api/admin/keys/${key.key_id}/${action}`, { method: 'POST' });
+                        fetchApiKeys();
+                    } catch (e) {
+                        console.error('Failed to toggle key:', e);
+                    }
+                };
+
+                const deleteKey = async (keyId) => {
+                    if (!confirm('Are you sure you want to delete this API key?')) return;
+                    try {
+                        await fetch(`/api/admin/keys/${keyId}`, { method: 'DELETE' });
+                        fetchApiKeys();
+                    } catch (e) {
+                        console.error('Failed to delete key:', e);
+                    }
+                };
+
+                const cancelRequest = async (requestId) => {
+                    try {
+                        await fetch(`/api/request/${requestId}`, { method: 'DELETE' });
+                        fetchRequests();
+                    } catch (e) {
+                        console.error('Failed to cancel request:', e);
+                    }
+                };
+
+                const formatDuration = (seconds) => {
+                    if (!seconds) return '0s';
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = Math.floor(seconds % 60);
+                    if (h > 0) return `${h}h ${m}m`;
+                    if (m > 0) return `${m}m ${s}s`;
+                    return `${s}s`;
+                };
+
+                const formatPercent = (value) => {
+                    return `${(value * 100).toFixed(1)}%`;
+                };
+
+                const formatLatency = (ms) => {
+                    if (!ms) return '0ms';
+                    if (ms < 1000) return `${ms.toFixed(0)}ms`;
+                    return `${(ms / 1000).toFixed(2)}s`;
+                };
+
+                const formatTime = (timestamp) => {
+                    if (!timestamp) return '-';
+                    return new Date(timestamp * 1000).toLocaleString();
+                };
+
+                const formatFeatureName = (name) => {
+                    return name.replace(/_/g, ' ').replace(/enabled/i, '').trim();
+                };
+
+                const getStatusClass = (status) => {
+                    const classes = {
+                        healthy: 'text-green-400',
+                        degraded: 'text-yellow-400',
+                        unavailable: 'text-red-400',
+                        unknown: 'text-gray-400',
+                    };
+                    return classes[status] || 'text-gray-400';
+                };
+
+                const getRequestStatusClass = (status) => {
+                    const classes = {
+                        queued: 'text-blue-400',
+                        processing: 'text-yellow-400',
+                        completed: 'text-green-400',
+                        failed: 'text-red-400',
+                        cancelled: 'text-gray-400',
+                        timeout: 'text-orange-400',
+                        retrying: 'text-purple-400',
+                    };
+                    return classes[status] || 'text-gray-400';
+                };
+
+                onMounted(() => {
+                    fetchStatus();
+                    fetchRequests();
+                    fetchApiKeys();
+                    fetchConfigs();
+                    connectWebSocket();
+                    refreshInterval = setInterval(() => {
+                        fetchStatus();
+                    }, 5000);
+                });
+
+                onUnmounted(() => {
+                    if (ws) ws.close();
+                    if (refreshInterval) clearInterval(refreshInterval);
+                });
+
+                return {
+                    connected,
+                    activeTab,
+                    tabs,
+                    status,
+                    requests,
+                    apiKeys,
+                    authConfig,
+                    rateLimitConfig,
+                    retryConfig,
+                    showCreateKeyModal,
+                    newKeyName,
+                    newKeyRateLimit,
+                    newApiKey,
+                    fetchRequests,
+                    createKey,
+                    toggleKey,
+                    deleteKey,
+                    cancelRequest,
+                    formatDuration,
+                    formatPercent,
+                    formatLatency,
+                    formatTime,
+                    formatFeatureName,
+                    getStatusClass,
+                    getRequestStatusClass,
+                };
+            },
+        }).mount('#app');
+    </script>
+</body>
+</html>

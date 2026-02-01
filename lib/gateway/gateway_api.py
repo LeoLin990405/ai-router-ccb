@@ -10,13 +10,21 @@ import json
 import time
 from typing import Optional, List, Dict, Any, Set
 
+import os
+from pathlib import Path
+
 try:
-    from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
-    from fastapi.responses import JSONResponse, StreamingResponse
+    from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Request, Depends
+    from fastapi.responses import JSONResponse, StreamingResponse, Response, PlainTextResponse, FileResponse, HTMLResponse
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from fastapi.staticfiles import StaticFiles
     from pydantic import BaseModel, Field
     HAS_FASTAPI = True
 except ImportError:
     HAS_FASTAPI = False
+
+# Web UI directory
+WEB_UI_DIR = Path(__file__).parent / "web"
 
 from .models import (
     RequestStatus,
@@ -84,6 +92,27 @@ if HAS_FASTAPI:
         success: bool = False
         error: Optional[str] = None
 
+    class CreateAPIKeyRequest(BaseModel):
+        """Request body for creating an API key."""
+        name: str = Field(..., description="Human-readable name for the key")
+        rate_limit_rpm: Optional[int] = Field(None, description="Per-key rate limit override")
+
+    class CreateAPIKeyResponse(BaseModel):
+        """Response body for creating an API key."""
+        key_id: str
+        api_key: str  # Only returned once!
+        name: str
+        created_at: float
+
+    class APIKeyInfo(BaseModel):
+        """API key information (without the actual key)."""
+        key_id: str
+        name: str
+        created_at: float
+        last_used_at: Optional[float] = None
+        rate_limit_rpm: Optional[int] = None
+        enabled: bool = True
+
 
 class WebSocketManager:
     """Manages WebSocket connections for real-time updates."""
@@ -137,6 +166,10 @@ def create_api(
     stream_manager=None,
     parallel_executor=None,
     retry_executor=None,
+    auth_middleware=None,
+    rate_limiter=None,
+    metrics=None,
+    api_key_store=None,
 ) -> "FastAPI":
     """
     Create the FastAPI application with all routes.
@@ -150,6 +183,10 @@ def create_api(
         stream_manager: Optional stream manager instance
         parallel_executor: Optional parallel executor instance
         retry_executor: Optional retry executor instance
+        auth_middleware: Optional authentication middleware
+        rate_limiter: Optional rate limiter instance
+        metrics: Optional metrics collector instance
+        api_key_store: Optional API key store instance
 
     Returns:
         Configured FastAPI application
@@ -165,6 +202,23 @@ def create_api(
 
     ws_manager = WebSocketManager()
     start_time = time.time()
+
+    # ==================== Middleware Setup ====================
+
+    # Add authentication middleware if provided
+    if auth_middleware and config.auth.enabled:
+        @app.middleware("http")
+        async def auth_middleware_handler(request: Request, call_next):
+            return await auth_middleware(request, call_next)
+
+    # Add rate limiting middleware if provided
+    if rate_limiter and config.rate_limit.enabled:
+        from .rate_limiter import RateLimitMiddleware
+        rate_limit_middleware = RateLimitMiddleware(rate_limiter)
+
+        @app.middleware("http")
+        async def rate_limit_middleware_handler(request: Request, call_next):
+            return await rate_limit_middleware(request, call_next)
 
     # ==================== Helper Functions ====================
 
@@ -604,6 +658,154 @@ def create_api(
             "fallback_chains": config.retry.fallback_chains,
         }
 
+    # ==================== Metrics Endpoint ====================
+
+    @app.get("/metrics")
+    async def get_metrics():
+        """
+        Export Prometheus metrics.
+
+        Returns metrics in Prometheus text format.
+        """
+        if not metrics:
+            return PlainTextResponse(
+                content="# Metrics not enabled\n",
+                media_type="text/plain",
+            )
+
+        return Response(
+            content=metrics.export(),
+            media_type=metrics.get_content_type(),
+        )
+
+    # ==================== Admin API Key Endpoints ====================
+
+    @app.post("/api/admin/keys", response_model=CreateAPIKeyResponse)
+    async def create_api_key(request: CreateAPIKeyRequest) -> CreateAPIKeyResponse:
+        """
+        Create a new API key.
+
+        The raw API key is only returned once - store it securely!
+        """
+        if not api_key_store:
+            raise HTTPException(
+                status_code=400,
+                detail="API key management not enabled",
+            )
+
+        api_key, raw_key = api_key_store.create_key(
+            name=request.name,
+            rate_limit_rpm=request.rate_limit_rpm,
+        )
+
+        return CreateAPIKeyResponse(
+            key_id=api_key.key_id,
+            api_key=raw_key,
+            name=api_key.name,
+            created_at=api_key.created_at,
+        )
+
+    @app.get("/api/admin/keys", response_model=List[APIKeyInfo])
+    async def list_api_keys() -> List[APIKeyInfo]:
+        """List all API keys (without the actual key values)."""
+        if not api_key_store:
+            raise HTTPException(
+                status_code=400,
+                detail="API key management not enabled",
+            )
+
+        keys = api_key_store.list_keys()
+        return [
+            APIKeyInfo(
+                key_id=k.key_id,
+                name=k.name,
+                created_at=k.created_at,
+                last_used_at=k.last_used_at,
+                rate_limit_rpm=k.rate_limit_rpm,
+                enabled=k.enabled,
+            )
+            for k in keys
+        ]
+
+    @app.delete("/api/admin/keys/{key_id}")
+    async def delete_api_key(key_id: str) -> Dict[str, Any]:
+        """Delete an API key."""
+        if not api_key_store:
+            raise HTTPException(
+                status_code=400,
+                detail="API key management not enabled",
+            )
+
+        deleted = api_key_store.delete_key(key_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="API key not found")
+
+        return {"deleted": True, "key_id": key_id}
+
+    @app.post("/api/admin/keys/{key_id}/disable")
+    async def disable_api_key(key_id: str) -> Dict[str, Any]:
+        """Disable an API key."""
+        if not api_key_store:
+            raise HTTPException(
+                status_code=400,
+                detail="API key management not enabled",
+            )
+
+        disabled = api_key_store.disable_key(key_id)
+        if not disabled:
+            raise HTTPException(status_code=404, detail="API key not found")
+
+        return {"disabled": True, "key_id": key_id}
+
+    @app.post("/api/admin/keys/{key_id}/enable")
+    async def enable_api_key(key_id: str) -> Dict[str, Any]:
+        """Enable an API key."""
+        if not api_key_store:
+            raise HTTPException(
+                status_code=400,
+                detail="API key management not enabled",
+            )
+
+        enabled = api_key_store.enable_key(key_id)
+        if not enabled:
+            raise HTTPException(status_code=404, detail="API key not found")
+
+        return {"enabled": True, "key_id": key_id}
+
+    # ==================== Rate Limit Endpoints ====================
+
+    @app.get("/api/admin/rate-limit/stats")
+    async def get_rate_limit_stats() -> Dict[str, Any]:
+        """Get rate limiter statistics."""
+        if not rate_limiter:
+            return {"enabled": False}
+
+        return rate_limiter.get_stats()
+
+    @app.get("/api/admin/rate-limit/config")
+    async def get_rate_limit_config() -> Dict[str, Any]:
+        """Get rate limit configuration."""
+        return {
+            "enabled": config.rate_limit.enabled,
+            "requests_per_minute": config.rate_limit.requests_per_minute,
+            "burst_size": config.rate_limit.burst_size,
+            "by_api_key": config.rate_limit.by_api_key,
+            "by_ip": config.rate_limit.by_ip,
+            "endpoint_limits": config.rate_limit.endpoint_limits,
+        }
+
+    # ==================== Auth Config Endpoints ====================
+
+    @app.get("/api/admin/auth/config")
+    async def get_auth_config() -> Dict[str, Any]:
+        """Get authentication configuration."""
+        return {
+            "enabled": config.auth.enabled,
+            "header_name": config.auth.header_name,
+            "allow_localhost": config.auth.allow_localhost,
+            "public_paths": config.auth.public_paths,
+        }
+
     # ==================== WebSocket Endpoint ====================
 
     @app.websocket("/api/ws")
@@ -649,5 +851,22 @@ def create_api(
 
     # Store ws_manager on app for external access
     app.state.ws_manager = ws_manager
+
+    # ==================== Web UI Static Files ====================
+
+    @app.get("/", response_class=HTMLResponse)
+    async def serve_dashboard():
+        """Serve the Web UI dashboard."""
+        index_path = WEB_UI_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path, media_type="text/html")
+        return HTMLResponse(
+            content="<h1>CCB Gateway</h1><p>Web UI not found. API is running at /api/</p>",
+            status_code=200
+        )
+
+    # Mount static files if web directory exists
+    if WEB_UI_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(WEB_UI_DIR)), name="static")
 
     return app

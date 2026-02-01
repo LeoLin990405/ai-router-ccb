@@ -508,6 +508,9 @@ class CLIBackend(BaseBackend):
                 continue
             try:
                 data = json.loads(line)
+                # Only process dict objects
+                if not isinstance(data, dict):
+                    continue
                 # Codex JSON format: look for agent_message
                 if data.get("type") == "item.completed":
                     item = data.get("item", {})

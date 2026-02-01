@@ -146,6 +146,46 @@ class ParallelConfig:
 
 
 @dataclass
+class AuthConfig:
+    """Configuration for API authentication."""
+    enabled: bool = False  # Disabled by default for backward compatibility
+    header_name: str = "X-API-Key"
+    allow_localhost: bool = True  # Allow unauthenticated access from localhost
+    # Paths that don't require authentication
+    public_paths: List[str] = field(default_factory=lambda: [
+        "/api/health",
+        "/metrics",
+        "/",
+        "/docs",
+        "/openapi.json",
+    ])
+
+
+@dataclass
+class RateLimitConfig:
+    """Configuration for rate limiting."""
+    enabled: bool = True
+    requests_per_minute: int = 60  # Default: 60 RPM
+    burst_size: int = 10  # Allow burst of up to 10 requests
+    by_api_key: bool = True  # Rate limit per API key
+    by_ip: bool = True  # Rate limit per IP address
+    # Separate limits for different endpoint types
+    endpoint_limits: Dict[str, int] = field(default_factory=lambda: {
+        "/api/ask": 30,  # More restrictive for AI requests
+        "/api/ask/stream": 30,
+        "/api/admin": 10,  # Very restrictive for admin endpoints
+    })
+
+
+@dataclass
+class MetricsConfig:
+    """Configuration for Prometheus metrics."""
+    enabled: bool = True
+    endpoint: str = "/metrics"
+    use_prometheus_client: bool = True  # Use prometheus_client if available
+
+
+@dataclass
 class GatewayConfig:
     """Gateway configuration."""
     # Server settings
@@ -174,6 +214,9 @@ class GatewayConfig:
     cache: CacheConfig = field(default_factory=CacheConfig)
     streaming: StreamConfig = field(default_factory=StreamConfig)
     parallel: ParallelConfig = field(default_factory=ParallelConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
+    rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
+    metrics: MetricsConfig = field(default_factory=MetricsConfig)
 
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> "GatewayConfig":

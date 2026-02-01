@@ -32,6 +32,9 @@ from .retry import RetryExecutor, RetryConfig, RetryState
 from .cache import CacheManager, CacheConfig
 from .streaming import StreamManager, StreamConfig
 from .parallel import ParallelExecutor, ParallelConfig, AggregationStrategy
+from .auth import AuthMiddleware, APIKeyStore
+from .rate_limiter import RateLimiter, RateLimitMiddleware
+from .metrics import GatewayMetrics
 
 
 class GatewayServer:
@@ -74,7 +77,15 @@ class GatewayServer:
         self.stream_manager: Optional[StreamManager] = None
         self.parallel_executor: Optional[ParallelExecutor] = None
         self.retry_executor: Optional[RetryExecutor] = None
+
+        # Security and observability
+        self.auth_middleware: Optional[AuthMiddleware] = None
+        self.api_key_store: Optional[APIKeyStore] = None
+        self.rate_limiter: Optional[RateLimiter] = None
+        self.metrics: Optional[GatewayMetrics] = None
+
         self._init_advanced_features()
+        self._init_security_features()
 
         # Router (lazy import to avoid circular deps)
         self._router = None
@@ -136,6 +147,25 @@ class GatewayServer:
                 self.backends,
                 list(self.backends.keys()),
             )
+
+    def _init_security_features(self) -> None:
+        """Initialize security and observability features."""
+        # Metrics (always enabled for observability)
+        self.metrics = GatewayMetrics()
+
+        # API Key store (always created, auth can be toggled)
+        self.api_key_store = APIKeyStore(self.store)
+
+        # Auth middleware
+        if self.config.auth:
+            self.auth_middleware = AuthMiddleware(
+                self.config.auth,
+                self.api_key_store,
+            )
+
+        # Rate limiter
+        if self.config.rate_limit:
+            self.rate_limiter = RateLimiter(self.config.rate_limit)
 
     def _get_router(self):
         """Get or create the router instance."""
@@ -497,6 +527,10 @@ class GatewayServer:
             stream_manager=self.stream_manager,
             parallel_executor=self.parallel_executor,
             retry_executor=self.retry_executor,
+            auth_middleware=self.auth_middleware,
+            rate_limiter=self.rate_limiter,
+            metrics=self.metrics,
+            api_key_store=self.api_key_store,
         )
         # Store backends on app for streaming access
         self._app.state.backends = self.backends
@@ -520,6 +554,9 @@ class GatewayServer:
         print(f"  Cache: {'enabled' if self.config.cache.enabled else 'disabled'}")
         print(f"  Streaming: {'enabled' if self.config.streaming.enabled else 'disabled'}")
         print(f"  Parallel: {'enabled' if self.config.parallel.enabled else 'disabled'}")
+        print(f"  Auth: {'enabled' if self.config.auth and self.config.auth.enabled else 'disabled'}")
+        print(f"  Rate Limit: {'enabled' if self.config.rate_limit and self.config.rate_limit.enabled else 'disabled'}")
+        print(f"  Metrics: enabled")
 
     async def stop(self) -> None:
         """Stop the gateway server."""
@@ -575,7 +612,9 @@ class GatewayServer:
         app.router.lifespan_context = lifespan
 
         print(f"Starting CCB Gateway at http://{host}:{port}")
-        print(f"API docs available at http://{host}:{port}/docs")
+        print(f"  Web UI: http://{host}:{port}/")
+        print(f"  API docs: http://{host}:{port}/docs")
+        print(f"  Metrics: http://{host}:{port}/metrics")
 
         uvicorn.run(app, host=host, port=port, log_level=self.config.log_level.lower())
         return 0

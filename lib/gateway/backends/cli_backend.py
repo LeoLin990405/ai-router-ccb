@@ -471,7 +471,8 @@ class CLIBackend(BaseBackend):
                     )
 
         # Try to extract just the response if there's metadata
-        response_text = self._clean_output(stdout)
+        response_text, thinking = self._clean_output(stdout)
+        raw_output = stdout  # Store raw output for monitoring
 
         # If we have valid output, consider it a success even if exit code is non-zero
         # Many CLI tools return non-zero exit codes for various reasons but still produce valid output
@@ -480,6 +481,8 @@ class CLIBackend(BaseBackend):
                 response=response_text,
                 latency_ms=latency_ms,
                 metadata={"exit_code": returncode},
+                thinking=thinking,
+                raw_output=raw_output,
             )
 
         # No valid output - check return code for error
@@ -492,16 +495,83 @@ class CLIBackend(BaseBackend):
             response="",
             latency_ms=latency_ms,
             metadata={"exit_code": returncode},
+            raw_output=raw_output,
         )
 
-    def _clean_output(self, output: str) -> str:
-        """Clean CLI output to extract just the response."""
+    def _extract_thinking(self, text: str) -> tuple:
+        """Extract thinking/reasoning chain from text.
+
+        Returns:
+            Tuple of (cleaned_text, thinking_content)
+        """
+        import re
+
+        thinking_parts = []
+        cleaned_text = text
+
+        # Pattern 1: <thinking>...</thinking> tags (Claude style)
+        thinking_pattern = re.compile(r'<thinking>(.*?)</thinking>', re.DOTALL | re.IGNORECASE)
+        matches = thinking_pattern.findall(text)
+        if matches:
+            thinking_parts.extend(matches)
+            cleaned_text = thinking_pattern.sub('', cleaned_text)
+
+        # Pattern 2: <antThinking>...</antThinking> tags
+        ant_pattern = re.compile(r'<antThinking>(.*?)</antThinking>', re.DOTALL | re.IGNORECASE)
+        matches = ant_pattern.findall(cleaned_text)
+        if matches:
+            thinking_parts.extend(matches)
+            cleaned_text = ant_pattern.sub('', cleaned_text)
+
+        # Pattern 3: [Thinking] ... [/Thinking] or similar markers
+        bracket_pattern = re.compile(r'\[Thinking\](.*?)\[/Thinking\]', re.DOTALL | re.IGNORECASE)
+        matches = bracket_pattern.findall(cleaned_text)
+        if matches:
+            thinking_parts.extend(matches)
+            cleaned_text = bracket_pattern.sub('', cleaned_text)
+
+        # Pattern 4: Lines starting with "Thinking:" or "Reasoning:"
+        lines = cleaned_text.split('\n')
+        new_lines = []
+        in_thinking = False
+        thinking_buffer = []
+
+        for line in lines:
+            lower_line = line.lower().strip()
+            if lower_line.startswith('thinking:') or lower_line.startswith('reasoning:'):
+                in_thinking = True
+                thinking_buffer.append(line)
+            elif in_thinking and (line.startswith('  ') or line.startswith('\t') or not line.strip()):
+                thinking_buffer.append(line)
+            else:
+                if thinking_buffer:
+                    thinking_parts.append('\n'.join(thinking_buffer))
+                    thinking_buffer = []
+                in_thinking = False
+                new_lines.append(line)
+
+        if thinking_buffer:
+            thinking_parts.append('\n'.join(thinking_buffer))
+
+        cleaned_text = '\n'.join(new_lines)
+        thinking = '\n\n---\n\n'.join(thinking_parts) if thinking_parts else None
+
+        return cleaned_text.strip(), thinking
+
+    def _clean_output(self, output: str) -> tuple:
+        """Clean CLI output to extract just the response.
+
+        Returns:
+            Tuple of (cleaned_response, thinking_content)
+        """
         # Check if output is JSONL (Codex --json mode or OpenCode --format json)
         lines = output.strip().split("\n")
 
         # Try to parse as JSONL and extract response text
         import json
         text_parts = []
+        thinking_parts = []
+
         for line in lines:
             line = line.strip()
             if not line:
@@ -511,26 +581,37 @@ class CLIBackend(BaseBackend):
                 # Only process dict objects
                 if not isinstance(data, dict):
                     continue
-                # Codex JSON format: look for agent_message
+                # Codex JSON format: look for agent_message and thinking
                 if data.get("type") == "item.completed":
                     item = data.get("item", {})
                     if item.get("type") == "agent_message":
-                        return item.get("text", "")
+                        text_parts.append(item.get("text", ""))
+                    elif item.get("type") == "thinking":
+                        thinking_parts.append(item.get("text", ""))
+                # Codex thinking events
+                if data.get("type") == "thinking":
+                    thinking_parts.append(data.get("text", ""))
                 # OpenCode JSON format: look for text type
                 if data.get("type") == "text":
                     part = data.get("part", {})
                     if part.get("type") == "text" and part.get("text"):
                         text_parts.append(part.get("text"))
+                    elif part.get("type") == "thinking" and part.get("text"):
+                        thinking_parts.append(part.get("text"))
             except json.JSONDecodeError:
                 continue
 
-        # Return collected text parts from OpenCode format
+        # Return collected text parts from JSON format
         if text_parts:
-            return "\n".join(text_parts)
+            response = "\n".join(text_parts)
+            thinking = "\n\n---\n\n".join(thinking_parts) if thinking_parts else None
+            return response, thinking
 
-        # Fallback: clean regular output
+        # Fallback: clean regular output and extract thinking
+        cleaned_text, thinking = self._extract_thinking(output)
+
         cleaned_lines = []
-        for line in lines:
+        for line in cleaned_text.split("\n"):
             # Skip common status lines
             if any(skip in line.lower() for skip in [
                 "loading",
@@ -556,7 +637,7 @@ class CLIBackend(BaseBackend):
                 continue
             cleaned_lines.append(line)
 
-        return "\n".join(cleaned_lines).strip()
+        return "\n".join(cleaned_lines).strip(), thinking
 
     async def health_check(self) -> bool:
         """Check if the CLI is available.

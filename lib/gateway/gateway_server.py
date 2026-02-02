@@ -386,6 +386,8 @@ class GatewayServer:
             latency_ms=latency_ms,
             tokens_used=result.tokens_used,
             metadata=metadata,
+            thinking=result.thinking,
+            raw_output=result.raw_output,
         ))
         self.queue.mark_completed(request.id, response=result.response)
 

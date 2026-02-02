@@ -95,9 +95,21 @@ class StateStore:
                     tokens_used INTEGER,
                     created_at REAL NOT NULL,
                     metadata TEXT,
+                    thinking TEXT,
+                    raw_output TEXT,
                     FOREIGN KEY (request_id) REFERENCES requests(id)
                 )
             """)
+
+            # Add thinking and raw_output columns if they don't exist (migration)
+            try:
+                conn.execute("ALTER TABLE responses ADD COLUMN thinking TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            try:
+                conn.execute("ALTER TABLE responses ADD COLUMN raw_output TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             # Provider status table
             conn.execute("""
@@ -319,8 +331,9 @@ class StateStore:
             conn.execute("""
                 INSERT OR REPLACE INTO responses (
                     request_id, status, response, error, provider,
-                    latency_ms, tokens_used, created_at, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    latency_ms, tokens_used, created_at, metadata,
+                    thinking, raw_output
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 response.request_id,
                 response.status.value,
@@ -331,6 +344,8 @@ class StateStore:
                 response.tokens_used,
                 time.time(),
                 json.dumps(response.metadata) if response.metadata else None,
+                response.thinking,
+                response.raw_output,
             ))
 
     def get_response(self, request_id: str) -> Optional[GatewayResponse]:
@@ -351,6 +366,8 @@ class StateStore:
                     latency_ms=row["latency_ms"],
                     tokens_used=row["tokens_used"],
                     metadata=json.loads(row["metadata"]) if row["metadata"] else None,
+                    thinking=row["thinking"] if "thinking" in row.keys() else None,
+                    raw_output=row["raw_output"] if "raw_output" in row.keys() else None,
                 )
         return None
 

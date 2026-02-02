@@ -120,6 +120,9 @@ class GatewayResponse:
     latency_ms: Optional[float] = None
     tokens_used: Optional[int] = None
     metadata: Optional[Dict[str, Any]] = None
+    # Extended output fields for monitoring
+    thinking: Optional[str] = None  # Extracted thinking/reasoning chain
+    raw_output: Optional[str] = None  # Full raw CLI output
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""

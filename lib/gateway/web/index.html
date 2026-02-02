@@ -1138,6 +1138,21 @@
                         <span class="text-gray-400 text-sm block mb-2">{{ t('response') }}:</span>
                         <pre class="bg-gray-900/50 rounded-xl p-4 text-sm overflow-auto max-h-48 font-mono text-emerald-300">{{ selectedRequest.response }}</pre>
                     </div>
+                    <div v-if="selectedRequestResponse?.thinking">
+                        <span class="text-gray-400 text-sm block mb-2 flex items-center">
+                            <i class="fas fa-brain text-purple-400 mr-2"></i>{{ t('thinking') }}:
+                        </span>
+                        <pre class="bg-purple-900/20 border border-purple-500/30 rounded-xl p-4 text-sm overflow-auto max-h-48 font-mono text-purple-300">{{ selectedRequestResponse.thinking }}</pre>
+                    </div>
+                    <div v-if="selectedRequestResponse?.raw_output">
+                        <details class="group">
+                            <summary class="text-gray-400 text-sm cursor-pointer hover:text-gray-300 flex items-center">
+                                <i class="fas fa-terminal text-cyan-400 mr-2"></i>{{ t('rawOutput') }}
+                                <i class="fas fa-chevron-right ml-2 text-xs transition-transform group-open:rotate-90"></i>
+                            </summary>
+                            <pre class="mt-2 bg-gray-900/50 rounded-xl p-4 text-sm overflow-auto max-h-64 font-mono text-gray-400">{{ selectedRequestResponse.raw_output }}</pre>
+                        </details>
+                    </div>
                     <div v-if="selectedRequest.error">
                         <span class="text-gray-400 text-sm block mb-2">{{ t('error') }}:</span>
                         <pre class="bg-gray-900/50 rounded-xl p-4 text-sm overflow-auto max-h-32 font-mono text-rose-300">{{ selectedRequest.error }}</pre>
@@ -1304,7 +1319,7 @@
                         endpoint: 'Endpoint', openApiSwagger: 'OpenAPI / Swagger UI', interactiveApi: 'Interactive API documentation',
                         headerName: 'Header', allowLocalhost: 'Allow Localhost',
                         // Request detail modal
-                        requestDetails: 'Request Details',
+                        requestDetails: 'Request Details', thinking: 'Thinking Chain', rawOutput: 'Raw Output',
                         // Shortcuts modal
                         keyboardShortcuts: 'Keyboard Shortcuts', closeModal: 'Close Modal',
                         // Misc
@@ -1400,7 +1415,7 @@
                         endpoint: '端点', openApiSwagger: 'OpenAPI / Swagger UI', interactiveApi: '交互式 API 文档',
                         headerName: '请求头', allowLocalhost: '允许本地访问',
                         // Request detail modal
-                        requestDetails: '请求详情',
+                        requestDetails: '请求详情', thinking: '思考链', rawOutput: '原始输出',
                         // Shortcuts modal
                         keyboardShortcuts: '键盘快捷键', closeModal: '关闭弹窗',
                         // Misc
@@ -1922,10 +1937,17 @@
                         const res = await fetch(`/api/reply/${req.id}`);
                         if (res.ok) {
                             const data = await res.json();
-                            selectedRequestResponse.value = data.response || data.error || 'No response yet';
+                            // Store full response data including thinking and raw_output
+                            selectedRequestResponse.value = data;
+                            // Also update the request with response/error for display
+                            if (data.response) {
+                                selectedRequest.value = { ...req, response: data.response };
+                            } else if (data.error) {
+                                selectedRequest.value = { ...req, error: data.error };
+                            }
                         }
                     } catch (e) {
-                        selectedRequestResponse.value = 'Failed to load response';
+                        selectedRequestResponse.value = { error: 'Failed to load response' };
                     }
                 };
 
@@ -1934,12 +1956,8 @@
                     testResult.value = null;
                     const startTime = performance.now();
 
-                    // Build message with agent prompt if selected
+                    // Use message directly (agent is assigned by orchestrator, not manually)
                     let message = testForm.value.message;
-                    const agent = selectedAgent.value;
-                    if (agent && agent.prompt) {
-                        message = `[System: ${agent.prompt}]\n\n${message}`;
-                    }
 
                     try {
                         const endpoint = testForm.value.stream ? '/api/ask/stream' : '/api/ask';

@@ -23,6 +23,9 @@ class BackendResult:
     latency_ms: float = 0.0
     tokens_used: Optional[int] = None
     metadata: Optional[Dict[str, Any]] = None
+    # Extended output fields for monitoring
+    thinking: Optional[str] = None  # Extracted thinking/reasoning chain
+    raw_output: Optional[str] = None  # Full raw CLI output
 
     @classmethod
     def ok(
@@ -31,6 +34,8 @@ class BackendResult:
         latency_ms: float = 0.0,
         tokens_used: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        thinking: Optional[str] = None,
+        raw_output: Optional[str] = None,
     ) -> "BackendResult":
         """Create a successful result."""
         return cls(
@@ -39,6 +44,8 @@ class BackendResult:
             latency_ms=latency_ms,
             tokens_used=tokens_used,
             metadata=metadata,
+            thinking=thinking,
+            raw_output=raw_output,
         )
 
     @classmethod

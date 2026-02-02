@@ -68,6 +68,9 @@ if HAS_FASTAPI:
         latency_ms: Optional[float] = None
         cached: bool = False
         retry_info: Optional[Dict[str, Any]] = None
+        # Extended output fields for monitoring
+        thinking: Optional[str] = None
+        raw_output: Optional[str] = None
 
     class StatusResponse(BaseModel):
         """Response body for /api/status endpoint."""
@@ -381,6 +384,8 @@ def create_api(
             latency_ms=response.latency_ms if response else None,
             cached=response.metadata.get("cached", False) if response and response.metadata else False,
             retry_info=response.metadata.get("retry_info") if response and response.metadata else None,
+            thinking=response.thinking if response else None,
+            raw_output=response.raw_output if response else None,
         )
 
     @app.post("/api/ask/stream")

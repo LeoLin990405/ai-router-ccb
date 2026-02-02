@@ -146,6 +146,12 @@ curl http://localhost:8765/metrics
 
 Access the Web UI at `http://localhost:8765/` after starting the gateway.
 
+<p align="center">
+  <img src="screenshots/dashboard.png" alt="Dashboard" width="800">
+  <br>
+  <em>Dashboard - Real-time gateway stats and provider status</em>
+</p>
+
 ### Dashboard
 - Real-time gateway stats and provider status
 - Request timeline visualization
@@ -157,10 +163,38 @@ Access the Web UI at `http://localhost:8765/` after starting the gateway.
 - Retry failed requests with one click
 - **View thinking chain and raw output** for each request
 
+<p align="center">
+  <img src="screenshots/requests.png" alt="Request Management" width="800">
+  <br>
+  <em>Request Management - View and manage all requests</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/request-detail.png" alt="Request Detail" width="800">
+  <br>
+  <em>Request Detail - Thinking chain and raw output</em>
+</p>
+
 ### Test Console
 - Interactive API testing
 - Provider selection with auto-routing option
 - Streaming support toggle
+
+<p align="center">
+  <img src="screenshots/test-console.png" alt="Test Console" width="800">
+  <br>
+  <em>Test Console - Interactive API testing</em>
+</p>
+
+### Compare Mode
+- Side-by-side provider comparison
+- Query multiple providers simultaneously
+
+<p align="center">
+  <img src="screenshots/compare.png" alt="Compare Mode" width="800">
+  <br>
+  <em>Compare Mode - Side-by-side provider comparison</em>
+</p>
 
 ### Features
 - **Dark/Light Theme** - Toggle with localStorage persistence
@@ -168,6 +202,18 @@ Access the Web UI at `http://localhost:8765/` after starting the gateway.
 - **Keyboard Shortcuts** - `1-6` tabs, `R` refresh, `T` test, `?` help
 - **Confirmation Dialogs** - Prevent accidental deletions
 - **Copy to Clipboard** - One-click copy for API keys
+
+<p align="center">
+  <img src="screenshots/api-keys.png" alt="API Keys" width="800">
+  <br>
+  <em>API Keys Management</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/dashboard-light.png" alt="Light Theme" width="800">
+  <br>
+  <em>Light Theme Support</em>
+</p>
 
 ---
 

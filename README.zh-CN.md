@@ -146,6 +146,12 @@ curl http://localhost:8765/metrics
 
 启动网关后访问 `http://localhost:8765/` 打开 Web UI。
 
+<p align="center">
+  <img src="screenshots/dashboard.png" alt="仪表盘" width="800">
+  <br>
+  <em>仪表盘 - 实时网关统计和 Provider 状态</em>
+</p>
+
 ### 仪表盘
 - 实时网关统计和 Provider 状态
 - 请求时间线可视化
@@ -157,10 +163,38 @@ curl http://localhost:8765/metrics
 - 一键重试失败请求
 - **查看每个请求的思考链和原始输出**
 
+<p align="center">
+  <img src="screenshots/requests.png" alt="请求管理" width="800">
+  <br>
+  <em>请求管理 - 查看和管理所有请求</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/request-detail.png" alt="请求详情" width="800">
+  <br>
+  <em>请求详情 - 思考链和原始输出</em>
+</p>
+
 ### 测试控制台
 - 交互式 API 测试
 - Provider 选择，支持自动路由
 - 流式响应开关
+
+<p align="center">
+  <img src="screenshots/test-console.png" alt="测试控制台" width="800">
+  <br>
+  <em>测试控制台 - 交互式 API 测试</em>
+</p>
+
+### 对比模式
+- 并排 Provider 对比
+- 同时查询多个 Provider
+
+<p align="center">
+  <img src="screenshots/compare.png" alt="对比模式" width="800">
+  <br>
+  <em>对比模式 - 并排 Provider 对比</em>
+</p>
 
 ### 功能特性
 - **深色/浅色主题** - 切换并持久化到 localStorage
@@ -168,6 +202,18 @@ curl http://localhost:8765/metrics
 - **键盘快捷键** - `1-6` 切换标签页，`R` 刷新，`T` 测试，`?` 帮助
 - **确认对话框** - 防止误删除
 - **复制到剪贴板** - 一键复制 API Key
+
+<p align="center">
+  <img src="screenshots/api-keys.png" alt="API Keys" width="800">
+  <br>
+  <em>API Key 管理</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/dashboard-light.png" alt="浅色主题" width="800">
+  <br>
+  <em>浅色主题支持</em>
+</p>
 
 ---
 

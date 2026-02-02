@@ -7,7 +7,7 @@
 
 <h1 align="center">
   <br>
-  <img src="https://raw.githubusercontent.com/anthropics/anthropic-cookbook/main/misc/anthropic_logo.svg" alt="CCB Gateway" width="80">
+  🤖
   <br>
   CCB Gateway
   <br>

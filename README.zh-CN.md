@@ -13,34 +13,34 @@
   <br>
 </h1>
 
-<h4 align="center">Enterprise-Grade Multi-AI Orchestration Platform</h4>
+<h4 align="center">企业级多 AI 编排平台</h4>
 
 <p align="center">
-  <em>Claude as orchestrator, unified Gateway API managing 7 AI providers with real-time monitoring</em>
+  <em>Claude 作为主脑，通过统一 Gateway API 调度 7 个 AI Provider，支持实时监控</em>
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-特性">特性</a> •
+  <a href="#-快速开始">快速开始</a> •
   <a href="#-web-ui">Web UI</a> •
-  <a href="#-api-reference">API</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-installation">Installation</a>
+  <a href="#-api-参考">API</a> •
+  <a href="#-架构">架构</a> •
+  <a href="#-安装">安装</a>
 </p>
 
 <p align="center">
-  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
+  <a href="README.md">English</a> | <strong>简体中文</strong>
 </p>
 
 ---
 
-## Overview
+## 概述
 
-**CCB Gateway** is a production-ready multi-AI orchestration platform where **Claude serves as the orchestrator**, intelligently dispatching tasks to 7 AI providers through a unified Gateway API.
+**CCB Gateway** 是一个生产级多 AI 编排平台，**Claude 作为主脑（Orchestrator）**，通过统一的 Gateway API 智能调度 7 个 AI Provider。
 
 ```
                     ┌─────────────────────────────┐
-                    │   Claude (Orchestrator)     │
+                    │     Claude (主脑)           │
                     │      Claude Code CLI        │
                     └─────────────┬───────────────┘
                                   │
@@ -59,84 +59,84 @@
                       └─────────┘ └─────────┘
 ```
 
-### Why CCB Gateway?
+### 为什么选择 CCB Gateway？
 
-| Challenge | Solution |
-|-----------|----------|
-| Multiple AI CLIs with different interfaces | **Unified Gateway API** for all providers |
-| Manual provider selection | **Intelligent routing** based on task analysis |
-| No visibility into AI operations | **Real-time monitoring** with WebSocket + Web UI |
-| No caching or retry logic | **Built-in caching, retry, and fallback** |
-| Can't see AI thinking process | **Thinking chain & raw output capture** |
+| 挑战 | 解决方案 |
+|------|----------|
+| 多个 AI CLI 接口不统一 | **统一 Gateway API**，所有 Provider 一致 |
+| 手动选择 Provider | **智能路由**，基于任务分析自动选择 |
+| 无法观察 AI 操作 | **实时监控**，WebSocket + Web UI |
+| 无缓存或重试逻辑 | **内置缓存、重试和降级** |
+| 看不到 AI 思考过程 | **思考链 & 原始输出捕获** |
 
 ---
 
-## ✨ Features
+## ✨ 特性
 
-### Core Gateway
+### 核心网关
 
 - **REST API** - `POST /api/ask`, `GET /api/reply/{id}`, `GET /api/status`
-- **WebSocket** - Real-time events at `/api/ws`
-- **Priority Queue** - SQLite-backed request prioritization
-- **Multi-Backend** - HTTP API, CLI Exec, WezTerm integration
-- **Health Monitoring** - Automatic provider health checks
+- **WebSocket** - 实时事件推送 `/api/ws`
+- **优先级队列** - SQLite 持久化的请求优先级队列
+- **多后端** - HTTP API、CLI 执行、WezTerm 集成
+- **健康监控** - 自动 Provider 健康检查
 
-### Production Features
+### 生产级功能
 
-- **API Authentication** - API key-based auth with SHA-256 hashing
-- **Rate Limiting** - Token bucket algorithm, per-key limits
-- **Response Caching** - SQLite cache with TTL and pattern exclusion
-- **Retry & Fallback** - Exponential backoff, automatic provider fallback
-- **Parallel Queries** - Query multiple providers simultaneously
-- **Prometheus Metrics** - `/metrics` endpoint for monitoring
-- **Streaming** - Server-Sent Events for real-time responses
+- **API 认证** - 基于 API Key 的认证，SHA-256 哈希
+- **限流** - 令牌桶算法，支持按 Key 限流
+- **响应缓存** - SQLite 缓存，支持 TTL 和模式排除
+- **重试与降级** - 指数退避，自动 Provider 降级
+- **并行查询** - 同时查询多个 Provider
+- **Prometheus 指标** - `/metrics` 端点用于监控
+- **流式响应** - Server-Sent Events 实时响应
 
-### CLI Monitoring (New)
+### CLI 监控（新功能）
 
-- **Thinking Chain Capture** - Extract reasoning from `<thinking>` tags, `[Thinking]` blocks
-- **Raw Output Storage** - Full CLI output preserved for debugging
-- **JSONL Parsing** - Codex/OpenCode structured output extraction
-- **Web UI Display** - Collapsible thinking chain and raw output in request details
+- **思考链捕获** - 从 `<thinking>` 标签、`[Thinking]` 块中提取推理过程
+- **原始输出存储** - 完整 CLI 输出保存用于调试
+- **JSONL 解析** - Codex/OpenCode 结构化输出提取
+- **Web UI 展示** - 请求详情中可折叠的思考链和原始输出
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Start Gateway
+### 启动网关
 
 ```bash
-# Start the gateway server
+# 启动网关服务器
 cd ~/.local/share/codex-dual
 python3 -m lib.gateway.gateway_server --port 8765
 
-# Or with config file
+# 或使用配置文件
 python3 -m lib.gateway.gateway_server --config ~/.ccb/gateway.yaml
 ```
 
-### Send Requests
+### 发送请求
 
 ```bash
-# Submit request
+# 提交请求
 curl -X POST http://localhost:8765/api/ask \
   -H "Content-Type: application/json" \
-  -d '{"provider": "qwen", "message": "Hello"}'
+  -d '{"provider": "qwen", "message": "你好"}'
 
-# Get response (with wait)
+# 获取响应（等待完成）
 curl "http://localhost:8765/api/reply/{request_id}?wait=true"
 
-# Parallel query to all providers
+# 并行查询所有 Provider
 curl -X POST http://localhost:8765/api/ask \
   -H "Content-Type: application/json" \
-  -d '{"provider": "@all", "message": "What is 2+2?", "aggregation_strategy": "first_success"}'
+  -d '{"provider": "@all", "message": "2+2等于多少？", "aggregation_strategy": "first_success"}'
 ```
 
-### Check Status
+### 检查状态
 
 ```bash
-# Gateway status
+# 网关状态
 curl http://localhost:8765/api/status
 
-# Prometheus metrics
+# Prometheus 指标
 curl http://localhost:8765/metrics
 ```
 
@@ -144,56 +144,56 @@ curl http://localhost:8765/metrics
 
 ## 🖥️ Web UI
 
-Access the Web UI at `http://localhost:8765/` after starting the gateway.
+启动网关后访问 `http://localhost:8765/` 打开 Web UI。
 
-### Dashboard
-- Real-time gateway stats and provider status
-- Request timeline visualization
-- Activity logs with WebSocket updates
+### 仪表盘
+- 实时网关统计和 Provider 状态
+- 请求时间线可视化
+- WebSocket 实时活动日志
 
-### Request Management
-- Pagination with configurable page size
-- Search and filter by provider, status, content
-- Retry failed requests with one click
-- **View thinking chain and raw output** for each request
+### 请求管理
+- 可配置页面大小的分页
+- 按 Provider、状态、内容搜索和过滤
+- 一键重试失败请求
+- **查看每个请求的思考链和原始输出**
 
-### Test Console
-- Interactive API testing
-- Provider selection with auto-routing option
-- Streaming support toggle
+### 测试控制台
+- 交互式 API 测试
+- Provider 选择，支持自动路由
+- 流式响应开关
 
-### Features
-- **Dark/Light Theme** - Toggle with localStorage persistence
-- **i18n Support** - English and Chinese localization
-- **Keyboard Shortcuts** - `1-6` tabs, `R` refresh, `T` test, `?` help
-- **Confirmation Dialogs** - Prevent accidental deletions
-- **Copy to Clipboard** - One-click copy for API keys
+### 功能特性
+- **深色/浅色主题** - 切换并持久化到 localStorage
+- **国际化支持** - 中英文双语
+- **键盘快捷键** - `1-6` 切换标签页，`R` 刷新，`T` 测试，`?` 帮助
+- **确认对话框** - 防止误删除
+- **复制到剪贴板** - 一键复制 API Key
 
 ---
 
-## 📡 API Reference
+## 📡 API 参考
 
-### Endpoints
+### 端点
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/ask` | Submit a request to a provider |
-| `GET` | `/api/reply/{id}` | Get response (`?wait=true` supported) |
-| `GET` | `/api/status` | Gateway and provider status |
-| `GET` | `/api/requests` | List recent requests with pagination |
-| `DELETE` | `/api/request/{id}` | Cancel a pending request |
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/cache/stats` | Cache statistics |
-| `DELETE` | `/api/cache` | Clear cache |
-| `GET` | `/metrics` | Prometheus metrics |
-| `GET` | `/docs` | Interactive API documentation |
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| `POST` | `/api/ask` | 向 Provider 提交请求 |
+| `GET` | `/api/reply/{id}` | 获取响应（支持 `?wait=true`） |
+| `GET` | `/api/status` | 网关和 Provider 状态 |
+| `GET` | `/api/requests` | 列出最近请求（支持分页） |
+| `DELETE` | `/api/request/{id}` | 取消待处理请求 |
+| `GET` | `/api/health` | 健康检查 |
+| `GET` | `/api/cache/stats` | 缓存统计 |
+| `DELETE` | `/api/cache` | 清除缓存 |
+| `GET` | `/metrics` | Prometheus 指标 |
+| `GET` | `/docs` | 交互式 API 文档 |
 
-### Request Body
+### 请求体
 
 ```json
 {
   "provider": "qwen",
-  "message": "Your question here",
+  "message": "你的问题",
   "timeout_s": 300,
   "priority": 50,
   "cache_bypass": false,
@@ -201,67 +201,67 @@ Access the Web UI at `http://localhost:8765/` after starting the gateway.
 }
 ```
 
-### Response (with thinking/raw_output)
+### 响应（包含 thinking/raw_output）
 
 ```json
 {
   "request_id": "abc123-def",
   "status": "completed",
-  "response": "The answer is...",
-  "thinking": "<extracted thinking chain if available>",
-  "raw_output": "<full CLI output for debugging>",
+  "response": "答案是...",
+  "thinking": "<提取的思考链（如有）>",
+  "raw_output": "<完整 CLI 输出用于调试>",
   "latency_ms": 1234.56,
   "cached": false
 }
 ```
 
-### API Authentication
+### API 认证
 
 ```bash
-# Create API key
+# 创建 API Key
 curl -X POST http://localhost:8765/api/admin/keys \
   -H "Content-Type: application/json" \
   -d '{"name": "my-app", "rate_limit_rpm": 100}'
 
-# Use API key
+# 使用 API Key
 curl -X POST http://localhost:8765/api/ask \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"provider": "qwen", "message": "Hello"}'
+  -d '{"provider": "qwen", "message": "你好"}'
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      CCB Gateway Architecture                        │
+│                      CCB Gateway 架构                                │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                 Claude (Orchestrator / 主脑)                   │ │
-│  │            Intelligent task dispatch and coordination          │ │
+│  │                 Claude (主脑 / Orchestrator)                   │ │
+│  │                  智能任务调度与协调                             │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 │                                  │                                   │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                      Gateway API Layer                         │ │
+│  │                      Gateway API 层                            │ │
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │ │
-│  │  │REST API │ │WebSocket│ │  Auth   │ │  Rate   │ │ Metrics │  │ │
-│  │  │(FastAPI)│ │(Events) │ │(API Key)│ │ Limit   │ │(Prometh)│  │ │
+│  │  │REST API │ │WebSocket│ │  认证   │ │  限流   │ │  指标   │  │ │
+│  │  │(FastAPI)│ │ (事件)  │ │(API Key)│ │(令牌桶) │ │(Prometh)│  │ │
 │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘  │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 │                                  │                                   │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                     Processing Layer                           │ │
+│  │                        处理层                                  │ │
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │ │
-│  │  │  Cache  │ │  Retry  │ │Parallel │ │Streaming│ │Thinking │  │ │
-│  │  │(SQLite) │ │(Fallback│ │(Multi-AI│ │  (SSE)  │ │ Extract │  │ │
+│  │  │  缓存   │ │  重试   │ │  并行   │ │  流式   │ │ 思考链  │  │ │
+│  │  │(SQLite) │ │ (降级)  │ │(多AI)   │ │ (SSE)   │ │  提取   │  │ │
 │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘  │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 │                                  │                                   │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                  Provider Layer (7 Providers)                  │ │
+│  │                  Provider 层 (7 个 Provider)                   │ │
 │  │  ┌───────┐ ┌────────┐ ┌───────┐ ┌────────┐ ┌──────┐ ┌──────┐  │ │
 │  │  │Gemini │ │DeepSeek│ │ Codex │ │OpenCode│ │ Kimi │ │ Qwen │  │ │
 │  │  └───────┘ └────────┘ └───────┘ └────────┘ └──────┘ └──────┘  │ │
@@ -273,48 +273,48 @@ curl -X POST http://localhost:8765/api/ask \
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Provider Matrix
+### Provider 矩阵
 
-| Provider | Backend | Best For | Avg Latency |
-|----------|---------|----------|-------------|
-| **Kimi** | CLI Exec | Chinese, long context | ~8s |
-| **Qwen** | CLI Exec | Multilingual | ~14s |
-| **iFlow** | CLI Exec | Workflow automation | ~15s |
-| **Codex** | CLI Exec | Code generation | ~19s |
-| **DeepSeek** | CLI Exec | Deep reasoning | ~55s |
-| **Gemini** | CLI Exec | Frontend, review | ~100s |
-| **OpenCode** | CLI Exec | General coding | ~237s |
+| Provider | 后端 | 最佳用途 | 平均延迟 |
+|----------|------|----------|----------|
+| **Kimi** | CLI 执行 | 中文、长上下文 | ~8s |
+| **Qwen** | CLI 执行 | 多语言 | ~14s |
+| **iFlow** | CLI 执行 | 工作流自动化 | ~15s |
+| **Codex** | CLI 执行 | 代码生成 | ~19s |
+| **DeepSeek** | CLI 执行 | 深度推理 | ~55s |
+| **Gemini** | CLI 执行 | 前端、代码审查 | ~100s |
+| **OpenCode** | CLI 执行 | 通用编程 | ~237s |
 
-> **Note**: Claude is the orchestrator and does not participate in task dispatch.
+> **注意**: Claude 是主脑，不参与任务调度。
 
 ---
 
-## 📦 Installation
+## 📦 安装
 
-### Prerequisites
+### 前置条件
 
 - **Python 3.9+**
-- **WezTerm** (recommended) or tmux
-- Provider CLIs installed: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`
+- **WezTerm**（推荐）或 tmux
+- 已安装 Provider CLI: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`
 
-### Install
+### 安装步骤
 
 ```bash
-# Clone repository
+# 克隆仓库
 git clone https://github.com/LeoLin990405/ai-router-ccb.git ~/.local/share/codex-dual
 
-# Install dependencies
+# 安装依赖
 pip install fastapi uvicorn pyyaml aiohttp prometheus-client
 
-# Start gateway
+# 启动网关
 cd ~/.local/share/codex-dual
 python3 -m lib.gateway.gateway_server --port 8765
 
-# Open Web UI
+# 打开 Web UI
 open http://localhost:8765/
 ```
 
-### Configuration
+### 配置
 
 ```yaml
 # ~/.ccb/gateway.yaml
@@ -334,49 +334,49 @@ providers:
     enabled: true
     backend_type: "cli_exec"
     cli_command: "codex"
-  # ... other providers
+  # ... 其他 provider
 ```
 
 ---
 
-## 🔄 Recent Updates
+## 🔄 最近更新
 
-### v0.8.x - CLI Monitoring
-- **Thinking Chain Capture** - Extract and display AI reasoning process
-- **Raw Output Storage** - Full CLI output preserved in database
-- **Improved Output Cleaning** - Better JSON extraction for Gemini format
-- **Web UI Enhancements** - Collapsible thinking/raw output display
+### v0.8.x - CLI 监控
+- **思考链捕获** - 提取并展示 AI 推理过程
+- **原始输出存储** - 完整 CLI 输出保存到数据库
+- **改进输出清理** - 更好的 Gemini 格式 JSON 提取
+- **Web UI 增强** - 可折叠的思考链/原始输出展示
 
-### v0.7.x - Production Features
-- API Authentication with rate limiting
-- Response caching with TTL
-- Retry and fallback mechanisms
-- Prometheus metrics integration
-
----
-
-## 🙏 Acknowledgements
-
-- **[bfly123/claude_code_bridge](https://github.com/bfly123/claude_code_bridge)** - Original multi-AI collaboration framework
-- **[Grafbase/Nexus](https://github.com/grafbase/nexus)** - AI gateway architecture inspiration
+### v0.7.x - 生产级功能
+- API 认证与限流
+- 响应缓存与 TTL
+- 重试与降级机制
+- Prometheus 指标集成
 
 ---
 
-## 👥 Contributors
+## 🙏 致谢
 
-- **Leo** ([@LeoLin990405](https://github.com/LeoLin990405)) - Project Lead
-- **Claude** (Anthropic Claude Opus 4.5) - Architecture & Implementation
+- **[bfly123/claude_code_bridge](https://github.com/bfly123/claude_code_bridge)** - 原始多 AI 协作框架
+- **[Grafbase/Nexus](https://github.com/grafbase/nexus)** - AI 网关架构灵感
 
 ---
 
-## 📄 License
+## 👥 贡献者
 
-MIT License - See [LICENSE](LICENSE)
+- **Leo** ([@LeoLin990405](https://github.com/LeoLin990405)) - 项目负责人
+- **Claude** (Anthropic Claude Opus 4.5) - 架构与实现
+
+---
+
+## 📄 许可证
+
+MIT 许可证 - 详见 [LICENSE](LICENSE)
 
 ---
 
 <p align="center">
-  <sub>Built with collaboration between human and AI</sub>
+  <sub>人机协作共同构建</sub>
   <br>
-  <sub>⭐ Star this repo if you find it useful!</sub>
+  <sub>⭐ 如果觉得有用，请给个 Star！</sub>
 </p>

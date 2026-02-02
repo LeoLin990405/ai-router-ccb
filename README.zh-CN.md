@@ -331,7 +331,6 @@ curl -X POST http://localhost:8765/api/ask \
 | **Qwen** | CLI 执行 | 多语言 | ~14s |
 | **iFlow** | CLI 执行 | 工作流自动化 | ~15s |
 | **Codex** | CLI 执行 | 代码生成 | ~19s |
-| **Copilot** | CLI 执行 | GitHub 集成 | ~20s |
 | **DeepSeek** | CLI 执行 | 深度推理 | ~55s |
 | **Gemini** | CLI 执行 | 前端、代码审查 | ~100s |
 | **OpenCode** | CLI 执行 | 通用编程 | ~237s |
@@ -346,7 +345,7 @@ curl -X POST http://localhost:8765/api/ask \
 
 - **Python 3.9+**
 - **WezTerm**（推荐）或 tmux
-- 已安装 Provider CLI: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`, `github-copilot-cli`
+- 已安装 Provider CLI: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`
 
 ### 安装步骤
 

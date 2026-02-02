@@ -331,7 +331,6 @@ curl -X POST http://localhost:8765/api/ask \
 | **Qwen** | CLI Exec | Multilingual | ~14s |
 | **iFlow** | CLI Exec | Workflow automation | ~15s |
 | **Codex** | CLI Exec | Code generation | ~19s |
-| **Copilot** | CLI Exec | GitHub integration | ~20s |
 | **DeepSeek** | CLI Exec | Deep reasoning | ~55s |
 | **Gemini** | CLI Exec | Frontend, review | ~100s |
 | **OpenCode** | CLI Exec | General coding | ~237s |
@@ -346,7 +345,7 @@ curl -X POST http://localhost:8765/api/ask \
 
 - **Python 3.9+**
 - **WezTerm** (recommended) or tmux
-- Provider CLIs installed: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`, `github-copilot-cli`
+- Provider CLIs installed: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`
 
 ### Install
 

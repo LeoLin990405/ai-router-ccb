@@ -24,15 +24,14 @@ DEFAULT_FALLBACK_CHAINS: Dict[str, List[str]] = {
     "kimi": ["qwen", "deepseek"],
     "qwen": ["kimi", "deepseek"],
     "iflow": ["deepseek", "gemini"],
-    "copilot": ["codex", "opencode"],  # GitHub Copilot CLI
 }
 
 # Default provider groups for parallel queries
 DEFAULT_PROVIDER_GROUPS: Dict[str, List[str]] = {
-    "all": ["gemini", "deepseek", "codex", "opencode", "kimi", "qwen", "iflow", "copilot"],
+    "all": ["gemini", "deepseek", "codex", "opencode", "kimi", "qwen", "iflow"],
     "fast": ["deepseek", "kimi"],
     "reasoning": ["deepseek", "gemini"],
-    "coding": ["codex", "opencode", "gemini", "copilot"],
+    "coding": ["codex", "opencode", "gemini"],
     "chinese": ["deepseek", "kimi", "qwen"],
 }
 
@@ -413,16 +412,6 @@ class GatewayConfig:
             backend_type=BackendType.CLI_EXEC,
             cli_command="qwen",
             timeout_s=300.0,
-        )
-
-        # GitHub Copilot CLI - use 'exec' for non-interactive mode
-        # Requires: npm install -g @github/copilot
-        self.providers["copilot"] = ProviderConfig(
-            name="copilot",
-            backend_type=BackendType.CLI_EXEC,
-            cli_command="github-copilot-cli",
-            cli_args=["what-the-shell"],  # or "git-assist", "gh-assist"
-            timeout_s=120.0,
         )
 
     def get_provider(self, name: str) -> Optional[ProviderConfig]:

@@ -1256,7 +1256,7 @@
                 const warmupRunning = ref(false);
                 const warmupMessage = ref('Hello! Please respond with a brief greeting to confirm you are ready.');
                 const warmupResults = ref([]);
-                const defaultProviderList = ['claude', 'codex', 'gemini', 'opencode', 'iflow', 'kimi', 'qwen', 'deepseek', 'copilot'];
+                const defaultProviderList = ['claude', 'codex', 'gemini', 'opencode', 'iflow', 'kimi', 'qwen', 'deepseek'];
                 const warmupProviders = ref(defaultProviderList.map(name => ({ name, selected: true, status: null })));
 
                 // Cost tracking state
@@ -1264,7 +1264,6 @@
                     claude: { input: 0.003, output: 0.015 },
                     gemini: { input: 0.00025, output: 0.0005 },
                     openai: { input: 0.005, output: 0.015 },
-                    copilot: { input: 0.001, output: 0.002 },
                     default: { input: 0.001, output: 0.002 }
                 };
 

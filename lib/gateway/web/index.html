@@ -558,6 +558,7 @@
                                 <tr>
                                     <th>{{ t('id') }}</th>
                                     <th>{{ t('provider') }}</th>
+                                    <th>{{ t('agent') }}</th>
                                     <th>{{ t('status') }}</th>
                                     <th>{{ t('message') }}</th>
                                     <th>{{ t('created') }}</th>
@@ -568,6 +569,12 @@
                                 <tr v-for="req in paginatedRequests" :key="req.id">
                                     <td class="font-mono text-sm text-indigo-400">{{ req.id }}</td>
                                     <td><span class="badge badge-info">{{ req.provider }}</span></td>
+                                    <td>
+                                        <span v-if="req.metadata?.agent" class="badge bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                            {{ getAgentIcon(req.metadata.agent) }} {{ req.metadata.agent }}
+                                        </span>
+                                        <span v-else class="text-gray-500 text-sm">-</span>
+                                    </td>
                                     <td>
                                         <span :class="getRequestStatusClass(req.status)" class="badge">
                                             <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(req.status)"></span>
@@ -1137,6 +1144,12 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div><span class="text-gray-400 text-sm">{{ t('id') }}:</span><div class="font-mono text-indigo-400">{{ selectedRequest.id }}</div></div>
                         <div><span class="text-gray-400 text-sm">{{ t('provider') }}:</span><div><span class="badge badge-info">{{ selectedRequest.provider }}</span></div></div>
+                        <div><span class="text-gray-400 text-sm">{{ t('agent') }}:</span><div>
+                            <span v-if="selectedRequest.metadata?.agent" class="badge bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                {{ getAgentIcon(selectedRequest.metadata.agent) }} {{ selectedRequest.metadata.agent }}
+                            </span>
+                            <span v-else class="text-gray-500">-</span>
+                        </div></div>
                         <div><span class="text-gray-400 text-sm">{{ t('status') }}:</span><div><span :class="getRequestStatusClass(selectedRequest.status)" class="badge">{{ selectedRequest.status }}</span></div></div>
                         <div><span class="text-gray-400 text-sm">{{ t('created') }}:</span><div>{{ formatTime(selectedRequest.created_at) }}</div></div>
                     </div>
@@ -1316,7 +1329,7 @@
                         // Requests tab
                         recentRequests: 'Recent Requests', allStatus: 'All Status', queued: 'Queued', processing: 'Processing',
                         completed: 'Completed', failed: 'Failed', allProviders: 'All Providers', refresh: 'Refresh',
-                        id: 'ID', provider: 'Provider', status: 'Status', message: 'Message', created: 'Created', actions: 'Actions',
+                        id: 'ID', provider: 'Provider', agent: 'Agent', status: 'Status', message: 'Message', created: 'Created', actions: 'Actions',
                         view: 'View', cancel: 'Cancel', noRequests: 'No requests found',
                         // Test tab
                         quickTest: 'Quick Test', autoDefault: 'Auto (Default)', parallel: 'Parallel', fastProviders: 'Fast providers',
@@ -1413,7 +1426,7 @@
                         // Requests tab
                         recentRequests: '最近请求', allStatus: '全部状态', queued: '排队中', processing: '处理中',
                         completed: '已完成', failed: '失败', allProviders: '全部提供者', refresh: '刷新',
-                        id: 'ID', provider: '提供者', status: '状态', message: '消息', created: '创建时间', actions: '操作',
+                        id: 'ID', provider: '提供者', agent: 'Agent', status: '状态', message: '消息', created: '创建时间', actions: '操作',
                         view: '查看', cancel: '取消', noRequests: '未找到请求',
                         // Test tab
                         quickTest: '快速测试', autoDefault: '自动（默认）', parallel: '并行', fastProviders: '快速提供者',
@@ -2512,6 +2525,11 @@
                     warn: 'text-amber-300', error: 'text-rose-300'
                 }[type] || 'text-gray-300');
 
+                const getAgentIcon = (agent) => ({
+                    sisyphus: '🪨', oracle: '🔮', librarian: '📚', explorer: '🧭',
+                    frontend: '🎨', reviewer: '🔍', workflow: '⚙️', polyglot: '🌐', autonomous: '🤖'
+                }[agent] || '🤖');
+
                 // Lifecycle
                 onMounted(() => {
                     // Initialize theme on page load
@@ -2572,7 +2590,7 @@
                     sendTestRequest, exportData, toggleFullscreen, showShortcuts, toasts, showToast,
                     timelineRange, benchmarkMessage, benchmarkRunning, benchmarkResults, runBenchmark,
                     formatDuration, formatPercent, formatLatency, formatTime, formatFeatureName,
-                    getStatusClass, getStatusBadgeClass, getRequestStatusClass, getStatusDotClass, getLogClass, getScoreColor,
+                    getStatusClass, getStatusBadgeClass, getRequestStatusClass, getStatusDotClass, getLogClass, getAgentIcon, getScoreColor,
                     lang, t, toggleLang,
                 };
             },

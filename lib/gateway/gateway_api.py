@@ -48,6 +48,7 @@ if HAS_FASTAPI:
         priority: int = Field(50, description="Request priority (higher = more urgent)")
         cache_bypass: bool = Field(False, description="Bypass cache for this request")
         aggregation_strategy: Optional[str] = Field(None, description="Strategy for parallel queries: first_success, fastest, all, consensus")
+        agent: Optional[str] = Field(None, description="Agent role assigned by orchestrator (e.g., sisyphus, oracle, reviewer)")
 
     class AskResponse(BaseModel):
         """Response body for /api/ask endpoint."""
@@ -56,6 +57,7 @@ if HAS_FASTAPI:
         status: str
         cached: bool = False
         parallel: bool = False
+        agent: Optional[str] = None
 
     class ReplyResponse(BaseModel):
         """Response body for /api/reply endpoint."""
@@ -311,6 +313,7 @@ def create_api(
                 "parallel": is_parallel,
                 "providers": providers if is_parallel else None,
                 "aggregation_strategy": request.aggregation_strategy,
+                "agent": request.agent,
             },
         )
 
@@ -339,6 +342,7 @@ def create_api(
             status=gw_request.status.value,
             cached=False,
             parallel=is_parallel,
+            agent=request.agent,
         )
 
     @app.get("/api/reply/{request_id}", response_model=ReplyResponse)

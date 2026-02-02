@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/demo/ccb-demo.gif" alt="CCB Gateway Demo" width="800">
+  <img src="screenshots/dashboard.png" alt="CCB Gateway Dashboard" width="800">
 </p>
 
 ---

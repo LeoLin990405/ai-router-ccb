@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/demo/ccb-demo.gif" alt="CCB Gateway 演示" width="800">
+  <img src="screenshots/dashboard.png" alt="CCB Gateway 仪表盘" width="800">
 </p>
 
 ---

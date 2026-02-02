@@ -432,7 +432,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div v-for="provider in sortedProviders" :key="provider.name" class="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="font-medium text-white">{{ provider.name }}</span>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-lg">{{ getProviderTierIcon(provider.name) }}</span>
+                                    <span class="font-medium text-white">{{ provider.name }}</span>
+                                </div>
                                 <span :class="getStatusBadgeClass(provider.status)" class="text-xs px-2 py-0.5 rounded-full border">{{ provider.status }}</span>
                             </div>
                             <div class="space-y-1 text-sm">
@@ -481,7 +484,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             <div v-for="provider in status.providers" :key="provider.name" class="provider-card">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="font-semibold text-white">{{ provider.name }}</span>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">{{ getProviderTierIcon(provider.name) }}</span>
+                                        <span class="font-semibold text-white">{{ provider.name }}</span>
+                                        <span :class="getProviderTierClass(provider.name)" class="text-xs px-2 py-0.5 rounded-full border">{{ getProviderTierLabel(provider.name) }}</span>
+                                    </div>
                                     <div class="flex items-center space-x-2">
                                         <span :class="getStatusBadgeClass(provider.status)" class="badge"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>{{ provider.status }}</span>
                                         <div @click="toggleProvider(provider)" :class="['toggle-switch', provider.enabled ? 'active' : '']" :title="provider.enabled ? t('clickToDisable') : t('clickToEnable')"></div>
@@ -634,9 +641,25 @@
                                     <label class="block text-sm text-gray-400 mb-2">{{ t('provider') }}</label>
                                     <select v-model="testForm.provider" class="input-field">
                                         <option value="">{{ t('autoDefault') }}</option>
-                                        <option v-for="p in status.providers" :key="p.name" :value="p.name">{{ p.name }}</option>
-                                        <option value="@all">@all ({{ t('parallel') }})</option>
-                                        <option value="@fast">@fast ({{ t('fastProviders') }})</option>
+                                        <optgroup label="🚀 Fast (5-15s)">
+                                            <option value="kimi">🚀 kimi</option>
+                                            <option value="qwen">🚀 qwen</option>
+                                        </optgroup>
+                                        <optgroup label="⚡ Medium (15-60s)">
+                                            <option value="deepseek">⚡ deepseek</option>
+                                            <option value="iflow">⚡ iflow</option>
+                                            <option value="opencode">⚡ opencode</option>
+                                        </optgroup>
+                                        <optgroup label="🐢 Slow (60-120s)">
+                                            <option value="codex">🐢 codex</option>
+                                            <option value="gemini">🐢 gemini</option>
+                                        </optgroup>
+                                        <optgroup label="📦 Groups">
+                                            <option value="@all">@all - {{ t('allProvidersGroup') }}</option>
+                                            <option value="@fast">@fast - {{ t('fastProviders') }}</option>
+                                            <option value="@chinese">@chinese - {{ t('chineseProviders') }}</option>
+                                            <option value="@coding">@coding - {{ t('codingProviders') }}</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -1350,7 +1373,9 @@
                         id: 'ID', provider: 'Provider', agent: 'Agent', status: 'Status', message: 'Message', created: 'Created', actions: 'Actions',
                         view: 'View', cancel: 'Cancel', noRequests: 'No requests found',
                         // Test tab
-                        quickTest: 'Quick Test', autoDefault: 'Auto (Default)', parallel: 'Parallel', fastProviders: 'Fast providers',
+                        quickTest: 'Quick Test', autoDefault: 'Auto (Default)', parallel: 'Parallel', fastProviders: 'Fast Providers 🚀',
+                        mediumProviders: 'Medium Providers ⚡', slowProviders: 'Slow Providers 🐢', chineseProviders: 'Chinese Providers',
+                        codingProviders: 'Coding Providers', allProvidersGroup: 'All Providers @all',
                         enterMessage: 'Enter your test message...', stream: 'Stream', bypassCache: 'Bypass Cache',
                         sendTest: 'Send Test Request', sending: 'Sending...', result: 'Result', requestId: 'Request ID',
                         cached: 'Cached', response: 'Response', sendToSee: 'Send a test request to see results',
@@ -1449,7 +1474,9 @@
                         id: 'ID', provider: '提供者', agent: 'Agent', status: '状态', message: '消息', created: '创建时间', actions: '操作',
                         view: '查看', cancel: '取消', noRequests: '未找到请求',
                         // Test tab
-                        quickTest: '快速测试', autoDefault: '自动（默认）', parallel: '并行', fastProviders: '快速提供者',
+                        quickTest: '快速测试', autoDefault: '自动（默认）', parallel: '并行', fastProviders: '快速提供者 🚀',
+                        mediumProviders: '中速提供者 ⚡', slowProviders: '慢速提供者 🐢', chineseProviders: '中文提供者',
+                        codingProviders: '编程提供者', allProvidersGroup: '全部提供者 @all',
                         enterMessage: '输入测试消息...', stream: '流式', bypassCache: '绕过缓存',
                         sendTest: '发送测试请求', sending: '发送中...', result: '结果', requestId: '请求 ID',
                         cached: '已缓存', response: '响应', sendToSee: '发送测试请求以查看结果',
@@ -2493,6 +2520,31 @@
                     if (ms < 1000) return `${ms.toFixed(0)}ms`;
                     return `${(ms / 1000).toFixed(2)}s`;
                 };
+
+                // Provider speed tiers
+                const providerSpeedTiers = {
+                    kimi: { tier: 'fast', icon: '🚀', label: 'Fast', color: 'emerald' },
+                    qwen: { tier: 'fast', icon: '🚀', label: 'Fast', color: 'emerald' },
+                    deepseek: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
+                    iflow: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
+                    opencode: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
+                    codex: { tier: 'slow', icon: '🐢', label: 'Slow', color: 'rose' },
+                    gemini: { tier: 'slow', icon: '🐢', label: 'Slow', color: 'rose' },
+                };
+
+                const getProviderTier = (name) => providerSpeedTiers[name?.toLowerCase()] || { tier: 'unknown', icon: '❓', label: 'Unknown', color: 'gray' };
+                const getProviderTierIcon = (name) => getProviderTier(name).icon;
+                const getProviderTierLabel = (name) => getProviderTier(name).label;
+                const getProviderTierClass = (name) => {
+                    const tier = getProviderTier(name);
+                    return {
+                        fast: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                        medium: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                        slow: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+                        unknown: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                    }[tier.tier] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+                };
+
                 const formatTime = (timestamp) => {
                     if (!timestamp) return '-';
                     return new Date(timestamp * 1000).toLocaleString();
@@ -2616,6 +2668,7 @@
                     timelineRange, benchmarkMessage, benchmarkRunning, benchmarkResults, runBenchmark,
                     formatDuration, formatPercent, formatLatency, formatTime, formatFeatureName,
                     getStatusClass, getStatusBadgeClass, getRequestStatusClass, getStatusDotClass, getLogClass, getAgentIcon, getScoreColor,
+                    getProviderTier, getProviderTierIcon, getProviderTierLabel, getProviderTierClass,
                     lang, t, toggleLang,
                 };
             },

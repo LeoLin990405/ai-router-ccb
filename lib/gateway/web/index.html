@@ -262,7 +262,7 @@
         }
         .input-field:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--glow-primary); }
         .input-field::placeholder { color: var(--text-muted); }
-        
+
         .toggle-switch {
             position: relative; width: 44px; height: 24px;
             background: var(--bg-secondary); border-radius: 12px;
@@ -276,7 +276,31 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         .toggle-switch.active::after { transform: translateX(20px); }
-        
+
+        /* Monitor output styles */
+        .monitor-output {
+            background: rgba(0,0,0,0.3);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-subtle) transparent;
+        }
+        .monitor-output::-webkit-scrollbar { width: 6px; }
+        .monitor-output::-webkit-scrollbar-track { background: transparent; }
+        .monitor-output::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+        .monitor-output::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        .monitor-line-info { color: var(--accent-cyan); }
+        .monitor-line-error { color: var(--accent-rose); }
+        .monitor-line-success { color: var(--accent-emerald); }
+        .monitor-line-thinking { color: var(--accent-amber); opacity: 0.8; }
+        .monitor-line-default { color: var(--text-primary); }
+
+        @keyframes loading-bar {
+            0% { width: 0%; margin-left: 0; }
+            50% { width: 60%; margin-left: 20%; }
+            100% { width: 0%; margin-left: 100%; }
+        }
+        .animate-loading-bar { animation: loading-bar 1.5s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
         .badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.375rem; }
         .badge-success { background: rgba(16,185,129,0.15); color: #10b981; }
         .badge-warning { background: rgba(245,158,11,0.15); color: #f59e0b; }
@@ -525,6 +549,129 @@
                             <span :class="enabled ? 'text-emerald-400' : 'text-gray-500'" class="text-lg"><i :class="enabled ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i></span>
                             <span class="text-sm font-medium">{{ formatFeatureName(feature) }}</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitor Tab - Live AI Output -->
+            <div v-show="activeTab === 'monitor'" class="space-y-6">
+                <div class="glass-card p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-desktop text-cyan-400 mr-3"></i>{{ t('liveMonitor') }}
+                            <span v-if="liveRequests.length > 0" class="ml-3 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full animate-pulse">
+                                {{ liveRequests.length }} {{ t('active') }}
+                            </span>
+                        </h2>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" v-model="monitorAutoScroll" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-500">
+                                <span class="text-sm text-gray-400">{{ t('autoScroll') }}</span>
+                            </label>
+                            <button @click="monitorLayout = monitorLayout === 'grid' ? 'focus' : 'grid'" class="btn-secondary text-sm">
+                                <i :class="monitorLayout === 'grid' ? 'fas fa-th-large' : 'fas fa-expand'"></i>
+                                {{ monitorLayout === 'grid' ? t('gridView') : t('focusView') }}
+                            </button>
+                            <button @click="clearMonitorStreams" class="btn-secondary text-sm">
+                                <i class="fas fa-trash-alt mr-1"></i>{{ t('clear') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Request Cards -->
+                    <div v-if="liveRequests.length > 0" class="mb-6">
+                        <h3 class="text-sm font-medium text-gray-400 mb-3">{{ t('processingNow') }}</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            <div v-for="req in liveRequests" :key="req.id"
+                                 class="bg-gray-800/50 rounded-lg p-3 border border-indigo-500/30 animate-pulse-slow">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">{{ getProviderTierIcon(req.provider) }}</span>
+                                        <span class="font-medium text-white">{{ req.provider }}</span>
+                                    </div>
+                                    <span class="text-xs text-indigo-400 font-mono">{{ req.id.slice(0, 11) }}</span>
+                                </div>
+                                <div class="text-xs text-gray-400 truncate">{{ req.message?.slice(0, 50) }}...</div>
+                                <div class="mt-2 flex items-center space-x-2">
+                                    <div class="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                        <div class="h-full bg-indigo-500 rounded-full animate-loading-bar"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-500">{{ formatDuration((Date.now()/1000) - req.created_at) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Provider Output Panels -->
+                    <div :class="monitorLayout === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4' : ''">
+                        <template v-if="monitorLayout === 'grid'">
+                            <div v-for="provider in monitorProviders" :key="provider.name"
+                                 class="bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden"
+                                 :class="{ 'border-emerald-500/30': provider.hasNewOutput }">
+                                <div class="flex items-center justify-between px-4 py-3 bg-gray-800/50 border-b border-gray-700/30">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">{{ getProviderTierIcon(provider.name) }}</span>
+                                        <span class="font-semibold text-white">{{ provider.name }}</span>
+                                        <span v-if="provider.active" class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span v-if="provider.requestId" class="text-xs text-gray-500 font-mono">{{ provider.requestId }}</span>
+                                        <button @click="monitorFocusProvider = provider.name; monitorLayout = 'focus'"
+                                                class="text-gray-400 hover:text-white transition-colors" title="Focus">
+                                            <i class="fas fa-expand-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="monitor-output h-64 overflow-y-auto p-4 font-mono text-sm"
+                                     :ref="el => setMonitorRef(provider.name, el)">
+                                    <div v-if="provider.output.length === 0" class="text-center text-gray-600 py-8">
+                                        <i class="fas fa-hourglass-half text-2xl mb-2"></i>
+                                        <p>{{ t('waitingForOutput') }}</p>
+                                    </div>
+                                    <div v-for="(line, i) in provider.output" :key="i" class="whitespace-pre-wrap break-words"
+                                         :class="getOutputLineClass(line)">{{ line.text }}</div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Focus View (Single Provider) -->
+                        <template v-else>
+                            <div v-if="monitorFocusProvider" class="bg-gray-900/50 rounded-xl border border-gray-700/50 overflow-hidden">
+                                <div class="flex items-center justify-between px-4 py-3 bg-gray-800/50 border-b border-gray-700/30">
+                                    <div class="flex items-center space-x-3">
+                                        <button @click="monitorLayout = 'grid'" class="text-gray-400 hover:text-white">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        <span class="text-xl">{{ getProviderTierIcon(monitorFocusProvider) }}</span>
+                                        <span class="text-lg font-semibold text-white">{{ monitorFocusProvider }}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <select v-model="monitorFocusProvider" class="input-field text-sm">
+                                            <option v-for="p in monitorProviders" :key="p.name" :value="p.name">{{ p.name }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="monitor-output h-[calc(100vh-400px)] overflow-y-auto p-4 font-mono text-sm"
+                                     :ref="el => setMonitorRef(monitorFocusProvider, el)">
+                                    <div v-if="getMonitorOutput(monitorFocusProvider).length === 0" class="text-center text-gray-600 py-16">
+                                        <i class="fas fa-satellite-dish text-4xl mb-4"></i>
+                                        <p class="text-lg">{{ t('waitingForOutput') }}</p>
+                                        <p class="text-sm mt-2">{{ t('sendRequestToMonitor') }}</p>
+                                    </div>
+                                    <div v-for="(line, i) in getMonitorOutput(monitorFocusProvider)" :key="i"
+                                         class="whitespace-pre-wrap break-words py-0.5"
+                                         :class="getOutputLineClass(line)">{{ line.text }}</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-if="Object.keys(monitorStreams).length === 0 && liveRequests.length === 0"
+                         class="text-center py-16 text-gray-500">
+                        <i class="fas fa-satellite-dish text-5xl mb-4"></i>
+                        <p class="text-lg">{{ t('noActiveStreams') }}</p>
+                        <p class="text-sm mt-2">{{ t('sendRequestToMonitor') }}</p>
                     </div>
                 </div>
             </div>
@@ -1312,6 +1459,13 @@
                 let radarChartInstance = null;
                 let timelineChartInstance = null;
                 const timelineRange = ref('1h');
+
+                // Monitor tab state
+                const monitorStreams = ref({});  // { provider: { active: bool, output: string[], requestId: string } }
+                const monitorAutoScroll = ref(true);
+                const monitorLayout = ref('grid');  // 'grid' or 'focus'
+                const monitorFocusProvider = ref(null);
+                const liveRequests = ref([]);  // Currently processing requests
                 const benchmarkMessage = ref('Hello! Please respond briefly.');
                 const benchmarkRunning = ref(false);
                 const benchmarkResults = ref([]);
@@ -1450,6 +1604,10 @@
                         providersSelected: 'providers selected', startWarmup: 'Start Warmup', warming: 'Warming...',
                         warmupResults: 'Results', warmupComplete: 'Warmup complete', warmupFailed: 'Warmup failed',
                         close: 'Close',
+                        // Monitor tab
+                        liveMonitor: 'Live Monitor', autoScroll: 'Auto Scroll', gridView: 'Grid', focusView: 'Focus',
+                        waitingForOutput: 'Waiting for output...', sendRequestToMonitor: 'Send a request to see live output',
+                        noActiveStreams: 'No active streams', streamingOutput: 'Streaming Output',
                     },
                     zh: {
                         // Header
@@ -1551,6 +1709,10 @@
                         providersSelected: '个提供者已选中', startWarmup: '开始预热', warming: '预热中...',
                         warmupResults: '结果', warmupComplete: '预热完成', warmupFailed: '预热失败',
                         close: '关闭',
+                        // Monitor tab
+                        liveMonitor: '实时监控', autoScroll: '自动滚动', gridView: '网格', focusView: '聚焦',
+                        waitingForOutput: '等待输出...', sendRequestToMonitor: '发送请求以查看实时输出',
+                        noActiveStreams: '无活跃流', streamingOutput: '流式输出',
                     }
                 };
 
@@ -1571,11 +1733,12 @@
 
                 const tabs = [
                     { id: 'dashboard', name: 'Dashboard', icon: '<i class="fas fa-chart-line"></i>', shortcut: '1' },
-                    { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '2' },
-                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '3' },
-                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '4' },
-                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '5' },
-                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '6' },
+                    { id: 'monitor', name: 'Monitor', icon: '<i class="fas fa-desktop"></i>', shortcut: '2' },
+                    { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '3' },
+                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '4' },
+                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '5' },
+                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '6' },
+                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '7' },
                 ];
 
                 // Computed
@@ -1603,6 +1766,13 @@
                     pagination.value.page = 1;
                 });
 
+                // Watch for status changes to set default monitor focus provider
+                watch(() => status.value.providers, (providers) => {
+                    if (providers && providers.length > 0 && !monitorFocusProvider.value) {
+                        monitorFocusProvider.value = providers[0].name;
+                    }
+                }, { immediate: true });
+
                 // Pagination computed properties
                 const totalPages = computed(() => Math.max(1, Math.ceil(filteredRequests.value.length / pagination.value.pageSize)));
                 const paginationStart = computed(() => Math.min((pagination.value.page - 1) * pagination.value.pageSize + 1, filteredRequests.value.length));
@@ -1618,6 +1788,21 @@
                         ...p,
                         score: calculateProviderScore(p)
                     })).sort((a, b) => (b.score || 0) - (a.score || 0));
+                });
+
+                // Monitor tab computed properties
+                const monitorProviders = computed(() => {
+                    const providers = status.value.providers || [];
+                    return providers.map(p => {
+                        const stream = monitorStreams.value[p.name] || { output: [], active: false, requestId: null };
+                        return {
+                            name: p.name,
+                            active: stream.active,
+                            requestId: stream.requestId,
+                            output: stream.output,
+                            hasNewOutput: stream.hasNewOutput || false
+                        };
+                    });
                 });
 
                 // Token tracking computed properties
@@ -1702,15 +1887,35 @@
                     const type = event.type;
                     const data = event.data || {};
                     const reqId = data.request_id ? data.request_id.slice(0, 11) : 'unknown';
+                    const provider = data.provider;
 
                     if (type === 'request_queued' || type === 'request_submitted') {
-                        addLog('info', `Request ${reqId} queued → ${data.provider}`);
+                        addLog('info', `Request ${reqId} queued → ${provider}`);
                         statusCounts.value.queued++;
+                        // Add to live requests for monitor
+                        if (provider && data.request_id) {
+                            liveRequests.value.push({
+                                id: data.request_id,
+                                provider: provider,
+                                message: data.message || '',
+                                created_at: Date.now() / 1000
+                            });
+                            addMonitorOutput(provider, `[${reqId}] Request queued`, 'info');
+                        }
                         fetchRequests();
                         fetchStatus();
                     } else if (type === 'request_processing') {
                         addLog('info', `Request ${reqId} processing...`);
                         statusCounts.value.processing++;
+                        // Update monitor stream status
+                        if (provider) {
+                            if (!monitorStreams.value[provider]) {
+                                monitorStreams.value[provider] = { output: [], active: true, requestId: reqId, hasNewOutput: false };
+                            }
+                            monitorStreams.value[provider].active = true;
+                            monitorStreams.value[provider].requestId = reqId;
+                            addMonitorOutput(provider, `[${reqId}] Processing started...`, 'info');
+                        }
                     } else if (type === 'request_completed') {
                         const latency = data.latency_ms ? `${Math.round(data.latency_ms)}ms` : '';
                         addLog('success', `Request ${reqId} completed ${latency}`);
@@ -1720,16 +1925,52 @@
                             if (latencyData.value.length > 100) latencyData.value.shift();
                             updateLatencyChart();
                         }
+                        // Remove from live requests
+                        liveRequests.value = liveRequests.value.filter(r => r.id !== data.request_id);
+                        // Update monitor with completion
+                        if (provider) {
+                            if (monitorStreams.value[provider]) {
+                                monitorStreams.value[provider].active = false;
+                            }
+                            addMonitorOutput(provider, `[${reqId}] Completed in ${latency}`, 'success');
+                            // Add response preview if available
+                            if (data.response) {
+                                const preview = data.response.slice(0, 500) + (data.response.length > 500 ? '...' : '');
+                                addMonitorOutput(provider, preview, 'default');
+                            }
+                        }
                         fetchRequests();
                         fetchStatus();
                     } else if (type === 'request_failed') {
                         const errMsg = data.error ? data.error.slice(0, 50) : 'unknown error';
                         addLog('error', `Request ${reqId} failed: ${errMsg}`);
                         statusCounts.value.failed++;
+                        // Remove from live requests
+                        liveRequests.value = liveRequests.value.filter(r => r.id !== data.request_id);
+                        // Update monitor with error
+                        if (provider) {
+                            if (monitorStreams.value[provider]) {
+                                monitorStreams.value[provider].active = false;
+                            }
+                            addMonitorOutput(provider, `[${reqId}] Failed: ${errMsg}`, 'error');
+                        }
                         fetchRequests();
                         fetchStatus();
+                    } else if (type === 'stream_chunk' || type === 'output_chunk') {
+                        // Handle streaming output for real-time monitoring
+                        if (provider && data.chunk) {
+                            addMonitorOutput(provider, data.chunk, data.is_thinking ? 'thinking' : 'default');
+                        }
+                    } else if (type === 'thinking_started') {
+                        if (provider) {
+                            addMonitorOutput(provider, `[${reqId}] Thinking...`, 'thinking');
+                        }
+                    } else if (type === 'thinking_complete') {
+                        if (provider && data.thinking) {
+                            addMonitorOutput(provider, `[Thinking] ${data.thinking.slice(0, 200)}...`, 'thinking');
+                        }
                     }
-                    
+
                     updateStatusChart();
                 };
 
@@ -2478,6 +2719,54 @@
                     showToast('success', 'Benchmark completed');
                 };
 
+                // Monitor tab methods
+                const monitorRefs = {};
+                const setMonitorRef = (provider, el) => {
+                    if (el) monitorRefs[provider] = el;
+                };
+
+                const getMonitorOutput = (provider) => {
+                    return monitorStreams.value[provider]?.output || [];
+                };
+
+                const getOutputLineClass = (line) => {
+                    if (!line || !line.type) return 'monitor-line-default';
+                    return {
+                        info: 'monitor-line-info',
+                        error: 'monitor-line-error',
+                        success: 'monitor-line-success',
+                        thinking: 'monitor-line-thinking'
+                    }[line.type] || 'monitor-line-default';
+                };
+
+                const clearMonitorStreams = () => {
+                    monitorStreams.value = {};
+                    liveRequests.value = [];
+                };
+
+                const addMonitorOutput = (provider, text, type = 'default') => {
+                    if (!monitorStreams.value[provider]) {
+                        monitorStreams.value[provider] = { output: [], active: false, requestId: null, hasNewOutput: false };
+                    }
+                    monitorStreams.value[provider].output.push({ text, type, timestamp: Date.now() });
+                    monitorStreams.value[provider].hasNewOutput = true;
+
+                    // Auto-scroll if enabled
+                    if (monitorAutoScroll.value) {
+                        nextTick(() => {
+                            const el = monitorRefs[provider];
+                            if (el) el.scrollTop = el.scrollHeight;
+                        });
+                    }
+
+                    // Clear hasNewOutput after animation
+                    setTimeout(() => {
+                        if (monitorStreams.value[provider]) {
+                            monitorStreams.value[provider].hasNewOutput = false;
+                        }
+                    }, 1000);
+                };
+
                 const handleKeydown = (e) => {
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -2662,6 +2951,9 @@
                     // Warmup
                     showWarmupModal, warmupRunning, warmupMessage, warmupResults, warmupProviders,
                     toggleAllWarmupProviders, getWarmupStatusClass, getWarmupStatusIcon, runWarmup,
+                    // Monitor tab
+                    monitorStreams, monitorAutoScroll, monitorLayout, monitorFocusProvider, liveRequests,
+                    monitorProviders, setMonitorRef, getMonitorOutput, getOutputLineClass, clearMonitorStreams,
                     // Original functions
                     fetchRequests, createKey, toggleKey, deleteKey, cancelRequest, viewRequest,
                     sendTestRequest, exportData, toggleFullscreen, showShortcuts, toasts, showToast,

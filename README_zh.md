@@ -17,7 +17,7 @@
   <a href="#-快速开始">快速开始</a> •
   <a href="#-架构">架构</a> •
   <a href="#-gateway-api">Gateway API</a> •
-  <a href="#-phase-7-功能">Phase 7</a> •
+  <a href="#-phase-8-web-ui">Phase 8</a> •
   <a href="#-安装">安装</a>
 </p>
 
@@ -297,6 +297,77 @@ gateway_request_latency_seconds_bucket{provider="qwen",le="5.0"} 120
 gateway_cache_hits_total 15
 gateway_cache_misses_total 45
 ```
+
+---
+
+## 🖥️ Phase 8 Web UI
+
+Phase 8 引入了全面的 Web UI，用于管理和监控 Gateway。
+
+### Web UI 功能
+
+| 功能 | 描述 |
+|------|------|
+| **仪表盘** | 实时统计、Provider 状态、请求时间线 |
+| **请求管理** | 分页、搜索、过滤、重试失败请求 |
+| **测试控制台** | 交互式 API 测试，支持模板 |
+| **Provider 对比** | 并排对比 Provider 响应 |
+| **API Key 管理** | 创建、列表、删除 Key，一键复制 |
+| **配置管理** | 查看和管理 Gateway 配置 |
+
+### Phase 8A: 关键修复
+
+| 功能 | 描述 |
+|------|------|
+| **复制到剪贴板** | API Key 一键复制 |
+| **分页** | 请求表格分页，可配置每页数量 |
+| **加载状态** | 异步操作的骨架屏和加载动画 |
+| **错误处理** | 统一错误处理，友好的错误提示 |
+
+### Phase 8B: 用户体验增强
+
+| 功能 | 描述 |
+|------|------|
+| **确认对话框** | 防止误删除操作 |
+| **Toast 改进** | 可关闭的通知，带关闭按钮 |
+| **请求搜索** | 按内容、Provider、状态过滤请求 |
+| **键盘快捷键** | `1-6` 切换标签，`R` 刷新，`T` 测试，`?` 帮助 |
+
+### Phase 8C: 功能扩展
+
+| 功能 | 描述 |
+|------|------|
+| **Provider 控制** | 从 UI 启用/禁用 Provider |
+| **缓存管理** | 查看统计、清除缓存、清理过期条目 |
+| **测试模板** | 保存和加载常用测试配置 |
+| **请求重试** | 一键重试失败的请求 |
+
+### Phase 8D: 高级功能
+
+| 功能 | 描述 |
+|------|------|
+| **成本追踪** | 基于 Token 使用量估算成本 |
+| **告警系统** | 可配置的延迟、成功率、队列深度告警 |
+| **主题切换** | 深色/浅色主题，localStorage 持久化 |
+| **国际化** | 完整的中英文本地化支持 |
+
+### 访问 Web UI
+
+```bash
+# 启动 Gateway
+python3 -m lib.gateway.gateway_server --config ~/.ccb/gateway.yaml
+
+# 打开 Web UI
+open http://localhost:8765/
+```
+
+### 新增 API 端点 (Phase 8)
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| `POST` | `/api/admin/providers/{name}/enable` | 启用 Provider |
+| `POST` | `/api/admin/providers/{name}/disable` | 禁用 Provider |
+| `DELETE` | `/api/cache/cleanup` | 清理过期缓存条目 |
 
 ---
 

@@ -17,7 +17,7 @@
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-gateway-api">Gateway API</a> •
-  <a href="#-phase-7-features">Phase 7</a> •
+  <a href="#-phase-8-web-ui">Phase 8</a> •
   <a href="#-installation">Installation</a>
 </p>
 
@@ -297,6 +297,77 @@ gateway_request_latency_seconds_bucket{provider="qwen",le="5.0"} 120
 gateway_cache_hits_total 15
 gateway_cache_misses_total 45
 ```
+
+---
+
+## 🖥️ Phase 8 Web UI
+
+Phase 8 introduces a comprehensive Web UI for managing and monitoring the Gateway.
+
+### Web UI Features
+
+| Feature | Description |
+|---------|-------------|
+| **Dashboard** | Real-time stats, provider status, request timeline |
+| **Request Management** | Pagination, search, filtering, retry failed requests |
+| **Test Console** | Interactive API testing with templates |
+| **Provider Comparison** | Side-by-side provider response comparison |
+| **API Key Management** | Create, list, delete keys with copy-to-clipboard |
+| **Configuration** | View and manage gateway configuration |
+
+### Phase 8A: Critical Fixes
+
+| Feature | Description |
+|---------|-------------|
+| **Copy to Clipboard** | One-click copy for API keys |
+| **Pagination** | Request table pagination with configurable page size |
+| **Loading States** | Skeleton loaders and spinners for async operations |
+| **Error Handling** | Unified error handling with user-friendly messages |
+
+### Phase 8B: UX Enhancements
+
+| Feature | Description |
+|---------|-------------|
+| **Confirmation Dialogs** | Prevent accidental deletions |
+| **Toast Improvements** | Dismissible notifications with close button |
+| **Request Search** | Filter requests by content, provider, status |
+| **Keyboard Shortcuts** | `1-6` for tabs, `R` refresh, `T` test, `?` help |
+
+### Phase 8C: Feature Expansion
+
+| Feature | Description |
+|---------|-------------|
+| **Provider Control** | Enable/disable providers from UI |
+| **Cache Management** | View stats, clear cache, cleanup expired entries |
+| **Test Templates** | Save and load frequently used test configurations |
+| **Request Retry** | Retry failed requests with one click |
+
+### Phase 8D: Advanced Features
+
+| Feature | Description |
+|---------|-------------|
+| **Cost Tracking** | Estimated cost based on token usage per provider |
+| **Alert System** | Configurable alerts for latency, success rate, queue depth |
+| **Theme Toggle** | Dark/Light theme with localStorage persistence |
+| **i18n Support** | Full English and Chinese localization |
+
+### Access Web UI
+
+```bash
+# Start gateway
+python3 -m lib.gateway.gateway_server --config ~/.ccb/gateway.yaml
+
+# Open Web UI
+open http://localhost:8765/
+```
+
+### New API Endpoints (Phase 8)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/admin/providers/{name}/enable` | Enable a provider |
+| `POST` | `/api/admin/providers/{name}/disable` | Disable a provider |
+| `DELETE` | `/api/cache/cleanup` | Remove expired cache entries |
 
 ---
 

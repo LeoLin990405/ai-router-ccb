@@ -544,6 +544,22 @@ def create_api(
         """List all configured provider groups for parallel queries."""
         return config.parallel.provider_groups
 
+    @app.post("/api/admin/providers/{provider_name}/enable")
+    async def enable_provider(provider_name: str) -> Dict[str, Any]:
+        """Enable a provider."""
+        if provider_name not in config.providers:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_name}' not found")
+        config.providers[provider_name].enabled = True
+        return {"status": "ok", "provider": provider_name, "enabled": True}
+
+    @app.post("/api/admin/providers/{provider_name}/disable")
+    async def disable_provider(provider_name: str) -> Dict[str, Any]:
+        """Disable a provider."""
+        if provider_name not in config.providers:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_name}' not found")
+        config.providers[provider_name].enabled = False
+        return {"status": "ok", "provider": provider_name, "enabled": False}
+
     @app.get("/api/health")
     async def health_check() -> Dict[str, str]:
         """Simple health check endpoint."""

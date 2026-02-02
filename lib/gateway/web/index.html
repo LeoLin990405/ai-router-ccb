@@ -7,43 +7,103 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         [v-cloak] { display: none; }
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
+        /* Custom scrollbar for activity log */
+        .activity-log::-webkit-scrollbar { width: 6px; }
+        .activity-log::-webkit-scrollbar-track { background: #1e293b; }
+        .activity-log::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        /* Pulse animation for active status */
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+        /* Keyboard shortcut hints */
+        .kbd { @apply px-1.5 py-0.5 bg-gray-700 rounded text-xs font-mono; }
+        /* Timeline chart */
+        .timeline-container { height: 120px; }
+        /* Toast notifications */
+        .toast { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        /* Comparison radar */
+        .radar-container { max-width: 400px; margin: 0 auto; }
+        /* Light theme overrides */
+        .light-theme { background-color: #f3f4f6 !important; color: #1f2937 !important; }
+        .light-theme .bg-gray-800 { background-color: #ffffff !important; }
+        .light-theme .bg-gray-900 { background-color: #f3f4f6 !important; }
+        .light-theme .bg-gray-700 { background-color: #e5e7eb !important; }
+        .light-theme .bg-gray-700\/50 { background-color: rgba(229, 231, 235, 0.5) !important; }
+        .light-theme .bg-gray-950 { background-color: #f9fafb !important; }
+        .light-theme .border-gray-700 { border-color: #d1d5db !important; }
+        .light-theme .border-gray-600 { border-color: #d1d5db !important; }
+        .light-theme .text-gray-100 { color: #1f2937 !important; }
+        .light-theme .text-gray-300 { color: #374151 !important; }
+        .light-theme .text-gray-400 { color: #6b7280 !important; }
+        .light-theme .text-gray-500 { color: #9ca3af !important; }
+        .light-theme .kbd { background-color: #e5e7eb !important; }
+        .light-theme .activity-log::-webkit-scrollbar-track { background: #e5e7eb; }
+        .light-theme .activity-log::-webkit-scrollbar-thumb { background: #9ca3af; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
+<body :class="['min-h-screen', theme === 'light' ? 'light-theme bg-gray-100 text-gray-900' : 'bg-gray-900 text-gray-100']">
     <div id="app" v-cloak>
         <!-- Header -->
         <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <h1 class="text-2xl font-bold text-blue-400">CCB Gateway</h1>
-                    <span class="px-2 py-1 text-xs bg-green-600 rounded" v-if="connected">Connected</span>
-                    <span class="px-2 py-1 text-xs bg-red-600 rounded" v-else>Disconnected</span>
+                    <span class="px-2 py-1 text-xs rounded flex items-center space-x-1"
+                          :class="connected ? 'bg-green-600' : 'bg-red-600'">
+                        <span class="w-2 h-2 rounded-full bg-white" :class="connected ? 'pulse-dot' : ''"></span>
+                        <span>{{ connected ? t('connected') : t('disconnected') }}</span>
+                    </span>
                 </div>
-                <div class="text-sm text-gray-400">
-                    Uptime: {{ formatDuration(status.gateway?.uptime_s || 0) }}
+                <div class="flex items-center space-x-4 text-sm text-gray-400">
+                    <span>{{ t('uptime') }}: {{ formatDuration(status.gateway?.uptime_s || 0) }}</span>
+                    <span class="text-gray-600">|</span>
+                    <span>{{ new Date().toLocaleTimeString() }}</span>
+                    <span class="text-gray-600">|</span>
+                    <button @click="toggleTheme" class="text-gray-500 hover:text-gray-300" :title="t('toggleTheme')">
+                        <i :class="theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                    </button>
+                    <button @click="showShortcuts = true" class="text-gray-500 hover:text-gray-300" title="Keyboard Shortcuts">
+                        <i class="fas fa-keyboard"></i>
+                    </button>
+                    <button @click="showAlertSettings = true" class="text-gray-500 hover:text-gray-300" :title="t('alertSettings')">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button @click="exportData" class="text-gray-500 hover:text-gray-300" title="Export Data">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button @click="toggleFullscreen" class="text-gray-500 hover:text-gray-300" title="Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button @click="toggleLang" class="text-gray-500 hover:text-gray-300 font-medium" :title="t('switchLang')">
+                        {{ lang === 'en' ? '中文' : 'EN' }}
+                    </button>
                 </div>
             </div>
         </header>
 
         <!-- Navigation -->
         <nav class="bg-gray-800 border-b border-gray-700 px-6 py-2">
-            <div class="flex space-x-4">
+            <div class="flex space-x-1">
                 <button
                     v-for="tab in tabs"
                     :key="tab.id"
                     @click="activeTab = tab.id"
                     :class="[
-                        'px-4 py-2 rounded-t text-sm font-medium transition-colors',
+                        'px-4 py-2 rounded-t text-sm font-medium transition-all duration-200',
                         activeTab === tab.id
-                            ? 'bg-gray-700 text-blue-400'
-                            : 'text-gray-400 hover:text-gray-200'
+                            ? 'bg-gray-700 text-blue-400 border-b-2 border-blue-400'
+                            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
                     ]"
                 >
-                    {{ tab.name }}
+                    <span class="flex items-center space-x-2">
+                        <span v-html="tab.icon"></span>
+                        <span>{{ t(tab.id) }}</span>
+                    </span>
                 </button>
             </div>
         </nav>
@@ -53,58 +113,131 @@
             <!-- Dashboard Tab -->
             <div v-show="activeTab === 'dashboard'">
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                        <div class="text-gray-400 text-sm">Total Requests</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-blue-900/50 to-blue-800/30 rounded-lg p-4 border border-blue-700/50">
+                        <div class="text-blue-300 text-sm font-medium">{{ t('totalRequests') }}</div>
                         <div class="text-3xl font-bold text-blue-400">{{ status.gateway?.total_requests || 0 }}</div>
+                        <div class="text-xs text-blue-400/60 mt-1">{{ t('allTime') }}</div>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                        <div class="text-gray-400 text-sm">Active Requests</div>
+                    <div class="bg-gradient-to-br from-yellow-900/50 to-yellow-800/30 rounded-lg p-4 border border-yellow-700/50">
+                        <div class="text-yellow-300 text-sm font-medium">{{ t('active') }}</div>
                         <div class="text-3xl font-bold text-yellow-400">{{ status.gateway?.active_requests || 0 }}</div>
+                        <div class="text-xs text-yellow-400/60 mt-1">{{ t('processingNow') }}</div>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                        <div class="text-gray-400 text-sm">Queue Depth</div>
+                    <div class="bg-gradient-to-br from-purple-900/50 to-purple-800/30 rounded-lg p-4 border border-purple-700/50">
+                        <div class="text-purple-300 text-sm font-medium">{{ t('queue') }}</div>
                         <div class="text-3xl font-bold text-purple-400">{{ status.gateway?.queue_depth || 0 }}</div>
+                        <div class="text-xs text-purple-400/60 mt-1">{{ t('waiting') }}</div>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                        <div class="text-gray-400 text-sm">Cache Hit Rate</div>
-                        <div class="text-3xl font-bold text-green-400">
-                            {{ formatPercent(status.gateway?.cache?.hit_rate || 0) }}
+                    <div class="bg-gradient-to-br from-green-900/50 to-green-800/30 rounded-lg p-4 border border-green-700/50">
+                        <div class="text-green-300 text-sm font-medium">{{ t('cacheHit') }}</div>
+                        <div class="text-3xl font-bold text-green-400">{{ formatPercent(status.gateway?.cache?.hit_rate || 0) }}</div>
+                        <div class="text-xs text-green-400/60 mt-1">{{ status.gateway?.cache?.hits || 0 }} {{ t('hits') }}</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-cyan-900/50 to-cyan-800/30 rounded-lg p-4 border border-cyan-700/50">
+                        <div class="text-cyan-300 text-sm font-medium">{{ t('providers') }}</div>
+                        <div class="text-3xl font-bold text-cyan-400">{{ healthyProviders }}/{{ status.providers?.length || 0 }}</div>
+                        <div class="text-xs text-cyan-400/60 mt-1">{{ t('healthy') }}</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-900/50 to-orange-800/30 rounded-lg p-4 border border-orange-700/50">
+                        <div class="text-orange-300 text-sm font-medium">{{ t('estimatedCost') }}</div>
+                        <div class="text-3xl font-bold text-orange-400">${{ formatCost(estimatedCost) }}</div>
+                        <div class="text-xs text-orange-400/60 mt-1">{{ formatNumber(totalTokens) }} tokens</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Latency Chart -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('latencyDistribution') }}</h2>
+                            <span class="text-xs text-gray-500">{{ t('last100') }}</span>
+                        </div>
+                        <div class="p-4">
+                            <canvas ref="latencyChart" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Request Status Pie -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('statusDistribution') }}</h2>
+                            <span class="text-xs text-gray-500">{{ t('currentSession') }}</span>
+                        </div>
+                        <div class="p-4 flex justify-center">
+                            <canvas ref="statusChart" height="200" style="max-width: 300px;"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- Provider Status -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 mb-6">
-                    <div class="px-4 py-3 border-b border-gray-700">
-                        <h2 class="text-lg font-semibold">Provider Status</h2>
-                    </div>
-                    <div class="p-4">
-                        <div class="overflow-x-auto">
-                            <table class="w-full">
-                                <thead>
-                                    <tr class="text-left text-gray-400 text-sm">
-                                        <th class="pb-2">Provider</th>
-                                        <th class="pb-2">Status</th>
-                                        <th class="pb-2">Queue</th>
-                                        <th class="pb-2">Avg Latency</th>
-                                        <th class="pb-2">Success Rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="provider in status.providers" :key="provider.name" class="border-t border-gray-700">
-                                        <td class="py-2 font-medium">{{ provider.name }}</td>
-                                        <td class="py-2">
-                                            <span :class="getStatusClass(provider.status)">
+                <!-- Provider Status & Activity Log -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Provider Status -->
+                    <div class="lg:col-span-2 bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">{{ t('providerStatus') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div v-for="provider in status.providers" :key="provider.name"
+                                     class="bg-gray-700/50 rounded-lg p-3 border border-gray-600/50 hover:border-gray-500 transition-colors">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-medium">{{ provider.name }}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <span :class="getStatusBadgeClass(provider.status)" class="px-2 py-0.5 rounded text-xs">
                                                 {{ provider.status }}
                                             </span>
-                                        </td>
-                                        <td class="py-2">{{ provider.queue_depth }}</td>
-                                        <td class="py-2">{{ formatLatency(provider.avg_latency_ms) }}</td>
-                                        <td class="py-2">{{ formatPercent(provider.success_rate) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                            <button @click="toggleProvider(provider)"
+                                                    :class="provider.enabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-500'"
+                                                    class="w-8 h-4 rounded-full relative transition-colors"
+                                                    :title="provider.enabled ? t('clickToDisable') : t('clickToEnable')">
+                                                <span :class="provider.enabled ? 'translate-x-4' : 'translate-x-0'"
+                                                      class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <span class="text-gray-400">{{ t('latency') }}:</span>
+                                            <span class="ml-1">{{ formatLatency(provider.avg_latency_ms) }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">{{ t('success') }}:</span>
+                                            <span class="ml-1" :class="provider.success_rate >= 0.9 ? 'text-green-400' : 'text-yellow-400'">
+                                                {{ formatPercent(provider.success_rate) }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">{{ t('queue') }}:</span>
+                                            <span class="ml-1">{{ provider.queue_depth }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">{{ t('requests') }}:</span>
+                                            <span class="ml-1">{{ provider.total_requests || 0 }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Log -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('activityLog') }}</h2>
+                            <button @click="activityLogs = []" class="text-xs text-gray-500 hover:text-gray-300">{{ t('clear') }}</button>
+                        </div>
+                        <div class="activity-log bg-gray-950 m-2 rounded p-2 h-64 overflow-auto font-mono text-xs">
+                            <div v-for="(log, i) in activityLogs" :key="i"
+                                 :class="getLogClass(log.type)"
+                                 class="py-0.5 border-b border-gray-800/50">
+                                <span class="text-gray-500">[{{ log.time }}]</span>
+                                <span class="ml-1">{{ log.message }}</span>
+                            </div>
+                            <div v-if="activityLogs.length === 0" class="text-gray-600 text-center py-4">
+                                {{ t('noActivity') }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -112,12 +245,14 @@
                 <!-- Features Status -->
                 <div class="bg-gray-800 rounded-lg border border-gray-700">
                     <div class="px-4 py-3 border-b border-gray-700">
-                        <h2 class="text-lg font-semibold">Features</h2>
+                        <h2 class="text-lg font-semibold">{{ t('features') }}</h2>
                     </div>
-                    <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         <div v-for="(enabled, feature) in status.gateway?.features" :key="feature"
-                             class="flex items-center space-x-2">
-                            <span :class="enabled ? 'text-green-400' : 'text-gray-500'">●</span>
+                             class="flex items-center space-x-2 bg-gray-700/30 rounded px-3 py-2">
+                            <span :class="enabled ? 'text-green-400' : 'text-gray-500'" class="text-lg">
+                                {{ enabled ? '✓' : '✗' }}
+                            </span>
                             <span class="text-sm">{{ formatFeatureName(feature) }}</span>
                         </div>
                     </div>
@@ -128,47 +263,209 @@
             <div v-show="activeTab === 'requests'">
                 <div class="bg-gray-800 rounded-lg border border-gray-700">
                     <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                        <h2 class="text-lg font-semibold">Recent Requests</h2>
-                        <button @click="fetchRequests" class="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-700">
-                            Refresh
-                        </button>
+                        <h2 class="text-lg font-semibold">{{ t('recentRequests') }}</h2>
+                        <div class="flex items-center space-x-2">
+                            <input v-model="searchQuery" type="text"
+                                   :placeholder="t('searchRequests')"
+                                   class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm w-48">
+                            <select v-model="requestFilter" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <option value="">{{ t('allStatus') }}</option>
+                                <option value="queued">{{ t('queued') }}</option>
+                                <option value="processing">{{ t('processing') }}</option>
+                                <option value="completed">{{ t('completed') }}</option>
+                                <option value="failed">{{ t('failed') }}</option>
+                            </select>
+                            <select v-model="providerFilter" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <option value="">{{ t('allProviders') }}</option>
+                                <option v-for="p in status.providers" :key="p.name" :value="p.name">{{ p.name }}</option>
+                            </select>
+                            <button @click="fetchRequests" class="px-3 py-1 bg-blue-600 rounded text-sm hover:bg-blue-700">
+                                <i v-if="loading.requests" class="fas fa-spinner fa-spin mr-1"></i>
+                                {{ t('refresh') }}
+                            </button>
+                        </div>
                     </div>
                     <div class="p-4">
-                        <div class="overflow-x-auto">
+                        <!-- Loading skeleton -->
+                        <div v-if="loading.requests" class="space-y-3">
+                            <div v-for="i in 5" :key="i" class="animate-pulse flex space-x-4">
+                                <div class="h-4 bg-gray-700 rounded w-24"></div>
+                                <div class="h-4 bg-gray-700 rounded w-20"></div>
+                                <div class="h-4 bg-gray-700 rounded w-16"></div>
+                                <div class="h-4 bg-gray-700 rounded flex-1"></div>
+                                <div class="h-4 bg-gray-700 rounded w-32"></div>
+                            </div>
+                        </div>
+                        <div v-else class="overflow-x-auto">
                             <table class="w-full">
                                 <thead>
                                     <tr class="text-left text-gray-400 text-sm">
-                                        <th class="pb-2">ID</th>
-                                        <th class="pb-2">Provider</th>
-                                        <th class="pb-2">Status</th>
-                                        <th class="pb-2">Message</th>
-                                        <th class="pb-2">Created</th>
-                                        <th class="pb-2">Actions</th>
+                                        <th class="pb-2 pr-4">{{ t('id') }}</th>
+                                        <th class="pb-2 pr-4">{{ t('provider') }}</th>
+                                        <th class="pb-2 pr-4">{{ t('status') }}</th>
+                                        <th class="pb-2 pr-4">{{ t('message') }}</th>
+                                        <th class="pb-2 pr-4">{{ t('created') }}</th>
+                                        <th class="pb-2">{{ t('actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="req in requests" :key="req.id" class="border-t border-gray-700">
-                                        <td class="py-2 font-mono text-sm">{{ req.id }}</td>
-                                        <td class="py-2">{{ req.provider }}</td>
-                                        <td class="py-2">
-                                            <span :class="getRequestStatusClass(req.status)">
-                                                {{ req.status }}
+                                    <tr v-for="req in paginatedRequests" :key="req.id"
+                                        class="border-t border-gray-700 hover:bg-gray-700/30 transition-colors">
+                                        <td class="py-2 pr-4 font-mono text-sm text-blue-400">{{ req.id }}</td>
+                                        <td class="py-2 pr-4">
+                                            <span class="px-2 py-0.5 bg-gray-700 rounded text-sm">{{ req.provider }}</span>
+                                        </td>
+                                        <td class="py-2 pr-4">
+                                            <span :class="getRequestStatusClass(req.status)" class="flex items-center space-x-1">
+                                                <span class="w-2 h-2 rounded-full" :class="getStatusDotClass(req.status)"></span>
+                                                <span>{{ req.status }}</span>
                                             </span>
                                         </td>
-                                        <td class="py-2 max-w-xs truncate">{{ req.message }}</td>
-                                        <td class="py-2 text-sm text-gray-400">{{ formatTime(req.created_at) }}</td>
+                                        <td class="py-2 pr-4 max-w-xs truncate text-gray-300" :title="req.message">
+                                            {{ req.message }}
+                                        </td>
+                                        <td class="py-2 pr-4 text-sm text-gray-400">{{ formatTime(req.created_at) }}</td>
                                         <td class="py-2">
-                                            <button
-                                                v-if="req.status === 'queued' || req.status === 'processing'"
-                                                @click="cancelRequest(req.id)"
-                                                class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700"
-                                            >
-                                                Cancel
-                                            </button>
+                                            <div class="flex space-x-1">
+                                                <button
+                                                    @click="viewRequest(req)"
+                                                    class="px-2 py-1 bg-gray-700 rounded text-xs hover:bg-gray-600"
+                                                >
+                                                    {{ t('view') }}
+                                                </button>
+                                                <button
+                                                    v-if="req.status === 'failed'"
+                                                    @click="retryRequest(req)"
+                                                    class="px-2 py-1 bg-blue-600 rounded text-xs hover:bg-blue-700"
+                                                    :title="t('retry')"
+                                                >
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                                <button
+                                                    v-if="req.status === 'queued' || req.status === 'processing'"
+                                                    @click="showConfirmDialog(t('cancelRequest'), t('confirmCancelRequest'), () => cancelRequest(req.id))"
+                                                    class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700"
+                                                >
+                                                    {{ t('cancel') }}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
+                            <div v-if="filteredRequests.length === 0" class="text-center py-8 text-gray-500">
+                                {{ t('noRequests') }}
+                            </div>
+                            <!-- Pagination -->
+                            <div v-if="filteredRequests.length > 0" class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+                                <span class="text-sm text-gray-400">
+                                    {{ t('showing') }} {{ paginationStart }}-{{ paginationEnd }} {{ t('of') }} {{ filteredRequests.length }}
+                                </span>
+                                <div class="flex items-center space-x-2">
+                                    <select v-model="pagination.pageSize" @change="pagination.page = 1" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                        <option :value="10">10</option>
+                                        <option :value="20">20</option>
+                                        <option :value="50">50</option>
+                                        <option :value="100">100</option>
+                                    </select>
+                                    <span class="text-sm text-gray-400">{{ t('perPage') }}</span>
+                                    <button @click="pagination.page--" :disabled="pagination.page <= 1"
+                                            class="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                    <span class="text-sm">{{ pagination.page }} / {{ totalPages }}</span>
+                                    <button @click="pagination.page++" :disabled="pagination.page >= totalPages"
+                                            class="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Tab -->
+            <div v-show="activeTab === 'test'">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Quick Test Panel -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('quickTest') }}</h2>
+                            <div class="flex items-center space-x-2">
+                                <select v-model="selectedTemplate" @change="loadTemplate" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                    <option value="">{{ t('selectTemplate') }}</option>
+                                    <option v-for="(tpl, i) in testTemplates" :key="i" :value="i">{{ tpl.name }}</option>
+                                </select>
+                                <button @click="showSaveTemplateModal = true" class="px-2 py-1 bg-green-600 rounded text-xs hover:bg-green-700" :title="t('saveTemplate')">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('provider') }}</label>
+                                <select v-model="testForm.provider" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                                    <option value="">{{ t('autoDefault') }}</option>
+                                    <option v-for="p in status.providers" :key="p.name" :value="p.name">{{ p.name }}</option>
+                                    <option value="@all">@all ({{ t('parallel') }})</option>
+                                    <option value="@fast">@fast ({{ t('fastProviders') }})</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('message') }}</label>
+                                <textarea v-model="testForm.message" rows="4"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 font-mono text-sm"
+                                    :placeholder="t('enterMessage')"></textarea>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" v-model="testForm.stream" class="rounded">
+                                    <span class="text-sm">{{ t('stream') }}</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" v-model="testForm.cacheBypass" class="rounded">
+                                    <span class="text-sm">{{ t('bypassCache') }}</span>
+                                </label>
+                            </div>
+                            <button @click="sendTestRequest" :disabled="testSending"
+                                class="w-full px-4 py-2 bg-blue-600 rounded font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {{ testSending ? t('sending') : t('sendTest') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Test Result -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('result') }}</h2>
+                            <span v-if="testResult" class="text-sm" :class="testResult.success ? 'text-green-400' : 'text-red-400'">
+                                {{ testResult.latency }}ms
+                            </span>
+                        </div>
+                        <div class="p-4">
+                            <div v-if="testResult" class="space-y-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-gray-400">{{ t('status') }}:</span>
+                                    <span :class="testResult.success ? 'text-green-400' : 'text-red-400'">
+                                        {{ testResult.success ? t('completed') : t('failed') }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-gray-400">{{ t('requestId') }}:</span>
+                                    <span class="font-mono text-blue-400">{{ testResult.requestId }}</span>
+                                </div>
+                                <div v-if="testResult.cached" class="flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 bg-green-600/30 text-green-400 rounded text-xs">{{ t('cached') }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400 block mb-1">{{ t('response') }}:</span>
+                                    <pre class="bg-gray-950 rounded p-3 text-sm overflow-auto max-h-64 font-mono text-green-300">{{ testResult.response || testResult.error }}</pre>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-8 text-gray-500">
+                                {{ t('sendToSee') }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -178,9 +475,9 @@
             <div v-show="activeTab === 'keys'">
                 <div class="bg-gray-800 rounded-lg border border-gray-700 mb-6">
                     <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                        <h2 class="text-lg font-semibold">API Keys</h2>
+                        <h2 class="text-lg font-semibold">{{ t('apiKeys') }}</h2>
                         <button @click="showCreateKeyModal = true" class="px-3 py-1 bg-green-600 rounded text-sm hover:bg-green-700">
-                            Create Key
+                            {{ t('createKey') }}
                         </button>
                     </div>
                     <div class="p-4">
@@ -188,13 +485,13 @@
                             <table class="w-full">
                                 <thead>
                                     <tr class="text-left text-gray-400 text-sm">
-                                        <th class="pb-2">Key ID</th>
-                                        <th class="pb-2">Name</th>
-                                        <th class="pb-2">Created</th>
-                                        <th class="pb-2">Last Used</th>
-                                        <th class="pb-2">Rate Limit</th>
-                                        <th class="pb-2">Status</th>
-                                        <th class="pb-2">Actions</th>
+                                        <th class="pb-2">{{ t('keyId') }}</th>
+                                        <th class="pb-2">{{ t('name') }}</th>
+                                        <th class="pb-2">{{ t('createdAt') }}</th>
+                                        <th class="pb-2">{{ t('lastUsed') }}</th>
+                                        <th class="pb-2">{{ t('rateLimit') }}</th>
+                                        <th class="pb-2">{{ t('status') }}</th>
+                                        <th class="pb-2">{{ t('actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -202,11 +499,11 @@
                                         <td class="py-2 font-mono text-sm">{{ key.key_id }}</td>
                                         <td class="py-2">{{ key.name }}</td>
                                         <td class="py-2 text-sm text-gray-400">{{ formatTime(key.created_at) }}</td>
-                                        <td class="py-2 text-sm text-gray-400">{{ key.last_used_at ? formatTime(key.last_used_at) : 'Never' }}</td>
-                                        <td class="py-2">{{ key.rate_limit_rpm || 'Default' }}</td>
+                                        <td class="py-2 text-sm text-gray-400">{{ key.last_used_at ? formatTime(key.last_used_at) : t('never') }}</td>
+                                        <td class="py-2">{{ key.rate_limit_rpm || t('default') }}</td>
                                         <td class="py-2">
                                             <span :class="key.enabled ? 'text-green-400' : 'text-red-400'">
-                                                {{ key.enabled ? 'Active' : 'Disabled' }}
+                                                {{ key.enabled ? t('activeStatus') : t('disabled') }}
                                             </span>
                                         </td>
                                         <td class="py-2 space-x-2">
@@ -215,13 +512,13 @@
                                                 :class="key.enabled ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'"
                                                 class="px-2 py-1 rounded text-xs"
                                             >
-                                                {{ key.enabled ? 'Disable' : 'Enable' }}
+                                                {{ key.enabled ? t('disable') : t('enable') }}
                                             </button>
                                             <button
-                                                @click="deleteKey(key.key_id)"
+                                                @click="showConfirmDialog(t('deleteKey'), t('confirmDeleteKey'), () => deleteKey(key.key_id))"
                                                 class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700"
                                             >
-                                                Delete
+                                                {{ t('delete') }}
                                             </button>
                                         </td>
                                     </tr>
@@ -232,36 +529,46 @@
                 </div>
 
                 <!-- New Key Display -->
-                <div v-if="newApiKey" class="bg-green-900 border border-green-700 rounded-lg p-4 mb-6">
-                    <div class="font-semibold text-green-400 mb-2">New API Key Created</div>
-                    <div class="text-sm text-gray-300 mb-2">Save this key now - it won't be shown again!</div>
-                    <div class="bg-gray-800 p-2 rounded font-mono text-sm break-all">{{ newApiKey }}</div>
-                    <button @click="newApiKey = null" class="mt-2 px-3 py-1 bg-gray-700 rounded text-sm">
-                        Dismiss
+                <div v-if="newApiKey" class="bg-green-900/50 border border-green-700 rounded-lg p-4 mb-6">
+                    <div class="font-semibold text-green-400 mb-2">{{ t('newKeyCreated') }}</div>
+                    <div class="text-sm text-gray-300 mb-2">{{ t('saveKeyNow') }}</div>
+                    <div class="flex items-center space-x-2">
+                        <div class="flex-1 bg-gray-800 p-3 rounded font-mono text-sm break-all select-all">{{ newApiKey }}</div>
+                        <button @click="copyToClipboard(newApiKey)"
+                                class="px-3 py-3 bg-blue-600 rounded text-sm hover:bg-blue-700 flex items-center space-x-1"
+                                :title="t('copyToClipboard')">
+                            <i class="fas fa-copy"></i>
+                            <span>{{ t('copy') }}</span>
+                        </button>
+                    </div>
+                    <button @click="newApiKey = null" class="mt-3 px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">
+                        {{ t('dismiss') }}
                     </button>
                 </div>
             </div>
 
             <!-- Config Tab -->
             <div v-show="activeTab === 'config'">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Auth Config -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700">
                         <div class="px-4 py-3 border-b border-gray-700">
-                            <h2 class="text-lg font-semibold">Authentication</h2>
+                            <h2 class="text-lg font-semibold">{{ t('authentication') }}</h2>
                         </div>
                         <div class="p-4 space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Enabled:</span>
-                                <span>{{ authConfig.enabled ? 'Yes' : 'No' }}</span>
+                                <span class="text-gray-400">{{ t('enabled') }}:</span>
+                                <span :class="authConfig.enabled ? 'text-green-400' : 'text-gray-400'">
+                                    {{ authConfig.enabled ? t('yes') : t('no') }}
+                                </span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Header:</span>
-                                <span class="font-mono">{{ authConfig.header_name }}</span>
+                                <span class="text-gray-400">{{ t('headerName') }}:</span>
+                                <span class="font-mono text-blue-400">{{ authConfig.header_name }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Allow Localhost:</span>
-                                <span>{{ authConfig.allow_localhost ? 'Yes' : 'No' }}</span>
+                                <span class="text-gray-400">{{ t('allowLocalhost') }}:</span>
+                                <span>{{ authConfig.allow_localhost ? t('yes') : t('no') }}</span>
                             </div>
                         </div>
                     </div>
@@ -269,19 +576,21 @@
                     <!-- Rate Limit Config -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700">
                         <div class="px-4 py-3 border-b border-gray-700">
-                            <h2 class="text-lg font-semibold">Rate Limiting</h2>
+                            <h2 class="text-lg font-semibold">{{ t('rateLimiting') }}</h2>
                         </div>
                         <div class="p-4 space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Enabled:</span>
-                                <span>{{ rateLimitConfig.enabled ? 'Yes' : 'No' }}</span>
+                                <span class="text-gray-400">{{ t('enabled') }}:</span>
+                                <span :class="rateLimitConfig.enabled ? 'text-green-400' : 'text-gray-400'">
+                                    {{ rateLimitConfig.enabled ? t('yes') : t('no') }}
+                                </span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Requests/min:</span>
-                                <span>{{ rateLimitConfig.requests_per_minute }}</span>
+                                <span class="text-gray-400">{{ t('requestsPerMin') }}:</span>
+                                <span class="text-blue-400">{{ rateLimitConfig.requests_per_minute }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Burst Size:</span>
+                                <span class="text-gray-400">{{ t('burstSize') }}:</span>
                                 <span>{{ rateLimitConfig.burst_size }}</span>
                             </div>
                         </div>
@@ -290,45 +599,201 @@
                     <!-- Retry Config -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700">
                         <div class="px-4 py-3 border-b border-gray-700">
-                            <h2 class="text-lg font-semibold">Retry & Fallback</h2>
+                            <h2 class="text-lg font-semibold">{{ t('retryFallback') }}</h2>
                         </div>
                         <div class="p-4 space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Retry Enabled:</span>
-                                <span>{{ retryConfig.enabled ? 'Yes' : 'No' }}</span>
+                                <span class="text-gray-400">{{ t('retryEnabled') }}:</span>
+                                <span :class="retryConfig.enabled ? 'text-green-400' : 'text-gray-400'">
+                                    {{ retryConfig.enabled ? t('yes') : t('no') }}
+                                </span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Max Retries:</span>
+                                <span class="text-gray-400">{{ t('maxRetries') }}:</span>
                                 <span>{{ retryConfig.max_retries }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Fallback Enabled:</span>
-                                <span>{{ retryConfig.fallback_enabled ? 'Yes' : 'No' }}</span>
+                                <span class="text-gray-400">{{ t('fallbackEnabled') }}:</span>
+                                <span :class="retryConfig.fallback_enabled ? 'text-green-400' : 'text-gray-400'">
+                                    {{ retryConfig.fallback_enabled ? t('yes') : t('no') }}
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Cache Config -->
+                    <!-- Cache Stats -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700">
-                        <div class="px-4 py-3 border-b border-gray-700">
-                            <h2 class="text-lg font-semibold">Cache</h2>
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">{{ t('cacheManagement') }}</h2>
+                            <div class="flex space-x-2">
+                                <button @click="cleanupCache" class="px-2 py-1 bg-yellow-600 rounded text-xs hover:bg-yellow-700" :title="t('cleanupExpired')">
+                                    <i class="fas fa-broom mr-1"></i>{{ t('cleanup') }}
+                                </button>
+                                <button @click="showConfirmDialog(t('clearCache'), t('confirmClearCache'), clearCache)" class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700">
+                                    <i class="fas fa-trash mr-1"></i>{{ t('clearAll') }}
+                                </button>
+                            </div>
                         </div>
                         <div class="p-4 space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Hits:</span>
-                                <span>{{ status.gateway?.cache?.hits || 0 }}</span>
+                                <span class="text-gray-400">{{ t('hits') }}:</span>
+                                <span class="text-green-400">{{ status.gateway?.cache?.hits || 0 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Misses:</span>
-                                <span>{{ status.gateway?.cache?.misses || 0 }}</span>
+                                <span class="text-gray-400">{{ t('misses') }}:</span>
+                                <span class="text-yellow-400">{{ status.gateway?.cache?.misses || 0 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Total Entries:</span>
+                                <span class="text-gray-400">{{ t('hitRate') }}:</span>
+                                <span class="text-blue-400">{{ formatPercent(status.gateway?.cache?.hit_rate || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">{{ t('totalEntries') }}:</span>
                                 <span>{{ status.gateway?.cache?.total_entries || 0 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-400">Tokens Saved:</span>
-                                <span>{{ status.gateway?.cache?.total_tokens_saved || 0 }}</span>
+                                <span class="text-gray-400">{{ t('tokensSaved') }}:</span>
+                                <span class="text-blue-400">{{ formatNumber(status.gateway?.cache?.total_tokens_saved || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">{{ t('memorySaved') }}:</span>
+                                <span class="text-purple-400">{{ formatBytes(status.gateway?.cache?.memory_bytes || 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">{{ t('prometheusMetrics') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <a href="/metrics" target="_blank"
+                               class="inline-flex items-center space-x-2 text-blue-400 hover:text-blue-300">
+                                <span>{{ t('viewRawMetrics') }}</span>
+                                <span>→</span>
+                            </a>
+                            <p class="text-xs text-gray-500 mt-2">
+                                {{ t('endpoint') }}: <code class="bg-gray-700 px-1 rounded">/metrics</code>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- API Docs -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold">{{ t('apiDocs') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <a href="/docs" target="_blank"
+                               class="inline-flex items-center space-x-2 text-blue-400 hover:text-blue-300">
+                                <span>{{ t('openApiSwagger') }}</span>
+                                <span>→</span>
+                            </a>
+                            <p class="text-xs text-gray-500 mt-2">
+                                {{ t('interactiveApi') }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compare Tab -->
+            <div v-show="activeTab === 'compare'">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Provider Comparison Radar -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold"><i class="fas fa-chart-radar mr-2"></i>{{ t('providerComparison') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <div class="radar-container">
+                                <canvas ref="radarChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Table -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold"><i class="fas fa-table mr-2"></i>{{ t('performanceMetrics') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-gray-400">
+                                        <th class="pb-2">{{ t('provider') }}</th>
+                                        <th class="pb-2">{{ t('avgLatency') }}</th>
+                                        <th class="pb-2">{{ t('successRate') }}</th>
+                                        <th class="pb-2">{{ t('requests') }}</th>
+                                        <th class="pb-2">{{ t('score') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="p in sortedProviders" :key="p.name" class="border-t border-gray-700">
+                                        <td class="py-2 font-medium">{{ p.name }}</td>
+                                        <td class="py-2">{{ formatLatency(p.avg_latency_ms) }}</td>
+                                        <td class="py-2" :class="p.success_rate >= 0.9 ? 'text-green-400' : 'text-yellow-400'">
+                                            {{ formatPercent(p.success_rate) }}
+                                        </td>
+                                        <td class="py-2">{{ p.total_requests || 0 }}</td>
+                                        <td class="py-2">
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-16 bg-gray-700 rounded-full h-2">
+                                                    <div class="h-2 rounded-full"
+                                                         :class="getScoreColor(p.score)"
+                                                         :style="{width: (p.score || 0) + '%'}"></div>
+                                                </div>
+                                                <span class="text-xs">{{ Math.round(p.score || 0) }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Request Timeline -->
+                    <div class="lg:col-span-2 bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold"><i class="fas fa-clock mr-2"></i>{{ t('requestTimeline') }}</h2>
+                            <select v-model="timelineRange" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <option value="1h">{{ t('last1h') }}</option>
+                                <option value="6h">{{ t('last6h') }}</option>
+                                <option value="24h">{{ t('last24h') }}</option>
+                            </select>
+                        </div>
+                        <div class="p-4 timeline-container">
+                            <canvas ref="timelineChart" height="100"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Quick Benchmark -->
+                    <div class="lg:col-span-2 bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="px-4 py-3 border-b border-gray-700">
+                            <h2 class="text-lg font-semibold"><i class="fas fa-stopwatch mr-2"></i>{{ t('quickBenchmark') }}</h2>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-center space-x-4 mb-4">
+                                <input v-model="benchmarkMessage" type="text"
+                                       class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm"
+                                       :placeholder="t('enterBenchmark')">
+                                <button @click="runBenchmark" :disabled="benchmarkRunning"
+                                        class="px-4 py-2 bg-blue-600 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+                                    {{ benchmarkRunning ? t('running') : t('runBenchmark') }}
+                                </button>
+                            </div>
+                            <div v-if="benchmarkResults.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div v-for="result in benchmarkResults" :key="result.provider"
+                                     class="bg-gray-700/50 rounded p-3 border border-gray-600/50">
+                                    <div class="font-medium mb-1">{{ result.provider }}</div>
+                                    <div class="text-2xl font-bold" :class="result.success ? 'text-green-400' : 'text-red-400'">
+                                        {{ result.success ? formatLatency(result.latency) : t('failed') }}
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        {{ result.success ? t('completed') : result.error }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -336,41 +801,276 @@
             </div>
         </main>
 
+        <!-- Keyboard Shortcuts Modal -->
+        <div v-if="showShortcuts" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" @click.self="showShortcuts = false">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold"><i class="fas fa-keyboard mr-2"></i>{{ t('keyboardShortcuts') }}</h3>
+                    <button @click="showShortcuts = false" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('dashboard') }}</span>
+                        <kbd class="kbd">1</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('requests') }}</span>
+                        <kbd class="kbd">2</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('test') }}</span>
+                        <kbd class="kbd">3</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('compare') }}</span>
+                        <kbd class="kbd">4</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('keys') }}</span>
+                        <kbd class="kbd">5</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('config') }}</span>
+                        <kbd class="kbd">6</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>{{ t('refresh') }}</span>
+                        <kbd class="kbd">R</kbd>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-gray-700">
+                        <span>Export</span>
+                        <kbd class="kbd">E</kbd>
+                    </div>
+                    <div class="flex justify-between py-1">
+                        <span>{{ t('closeModal') }}</span>
+                        <kbd class="kbd">Esc</kbd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="fixed bottom-4 right-4 space-y-2 z-50">
+            <div v-for="(toast, i) in toasts" :key="i"
+                 class="toast px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2"
+                 :class="toast.type === 'success' ? 'bg-green-600' : toast.type === 'error' ? 'bg-red-600' : toast.type === 'warn' ? 'bg-yellow-600' : 'bg-blue-600'">
+                <i :class="toast.type === 'success' ? 'fas fa-check' : toast.type === 'error' ? 'fas fa-times' : toast.type === 'warn' ? 'fas fa-exclamation-triangle' : 'fas fa-info'"></i>
+                <span class="flex-1">{{ toast.message }}</span>
+                <button @click="removeToast(i)" class="ml-2 text-white/70 hover:text-white">&times;</button>
+            </div>
+        </div>
+
+        <!-- Confirm Dialog -->
+        <div v-if="confirmDialog.show" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" @click.self="confirmDialog.show = false">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700 shadow-xl">
+                <h3 class="text-lg font-semibold mb-2">{{ confirmDialog.title }}</h3>
+                <p class="text-gray-400 mb-4">{{ confirmDialog.message }}</p>
+                <div class="flex justify-end space-x-2">
+                    <button @click="confirmDialog.show = false" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+                        {{ t('cancelBtn') }}
+                    </button>
+                    <button @click="executeConfirmAction" class="px-4 py-2 bg-red-600 rounded hover:bg-red-700">
+                        {{ t('confirm') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Create Key Modal -->
-        <div v-if="showCreateKeyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700">
-                <h3 class="text-lg font-semibold mb-4">Create API Key</h3>
+        <div v-if="showCreateKeyModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700 shadow-xl">
+                <h3 class="text-lg font-semibold mb-4">{{ t('createApiKey') }}</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Name</label>
+                        <label class="block text-sm text-gray-400 mb-1">{{ t('name') }}</label>
                         <input v-model="newKeyName" type="text"
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                                placeholder="My API Key">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Rate Limit (RPM, optional)</label>
+                        <label class="block text-sm text-gray-400 mb-1">{{ t('rateLimitRpm') }}</label>
                         <input v-model.number="newKeyRateLimit" type="number"
-                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm"
-                               placeholder="Leave empty for default">
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                               :placeholder="t('leaveEmpty')">
                     </div>
                 </div>
                 <div class="flex justify-end space-x-2 mt-6">
-                    <button @click="showCreateKeyModal = false" class="px-4 py-2 bg-gray-700 rounded text-sm">
-                        Cancel
+                    <button @click="showCreateKeyModal = false" class="px-4 py-2 bg-gray-700 rounded text-sm hover:bg-gray-600">
+                        {{ t('cancelBtn') }}
                     </button>
                     <button @click="createKey" class="px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700">
-                        Create
+                        {{ t('create') }}
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Template Modal -->
+        <div v-if="showSaveTemplateModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700 shadow-xl">
+                <h3 class="text-lg font-semibold mb-4">{{ t('saveTemplate') }}</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">{{ t('templateName') }}</label>
+                        <input v-model="newTemplateName" type="text"
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                               :placeholder="t('enterTemplateName')">
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        <div class="mb-1">{{ t('templatePreview') }}:</div>
+                        <div class="bg-gray-700 rounded p-2 space-y-1">
+                            <div><span class="text-gray-500">{{ t('provider') }}:</span> {{ testForm.provider || t('autoDefault') }}</div>
+                            <div><span class="text-gray-500">{{ t('message') }}:</span> {{ testForm.message.slice(0, 50) }}{{ testForm.message.length > 50 ? '...' : '' }}</div>
+                            <div><span class="text-gray-500">{{ t('stream') }}:</span> {{ testForm.stream ? t('yes') : t('no') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2 mt-6">
+                    <button @click="showSaveTemplateModal = false" class="px-4 py-2 bg-gray-700 rounded text-sm hover:bg-gray-600">
+                        {{ t('cancelBtn') }}
+                    </button>
+                    <button @click="saveTemplate" class="px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700">
+                        {{ t('save') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Templates Modal -->
+        <div v-if="showManageTemplatesModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-lg p-6 w-96 border border-gray-700 shadow-xl max-h-[80vh] overflow-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">{{ t('manageTemplates') }}</h3>
+                    <button @click="showManageTemplatesModal = false" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div v-if="testTemplates.length === 0" class="text-center py-4 text-gray-500">
+                    {{ t('noTemplates') }}
+                </div>
+                <div v-else class="space-y-2">
+                    <div v-for="(tpl, i) in testTemplates" :key="i"
+                         class="flex items-center justify-between bg-gray-700/50 rounded p-2">
+                        <div>
+                            <div class="font-medium">{{ tpl.name }}</div>
+                            <div class="text-xs text-gray-400">{{ tpl.provider || t('autoDefault') }} | {{ tpl.message.slice(0, 30) }}...</div>
+                        </div>
+                        <button @click="deleteTemplate(i)" class="px-2 py-1 bg-red-600 rounded text-xs hover:bg-red-700">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Settings Modal -->
+        <div v-if="showAlertSettings" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" @click.self="showAlertSettings = false">
+            <div class="bg-gray-800 rounded-lg p-6 w-[450px] border border-gray-700 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold"><i class="fas fa-bell mr-2"></i>{{ t('alertSettings') }}</h3>
+                    <button @click="showAlertSettings = false" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    <!-- High Latency Alert -->
+                    <div class="bg-gray-700/50 rounded p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium">{{ t('highLatencyAlert') }}</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="alerts.highLatency.enabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-600 peer-checked:bg-green-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="text-gray-400">{{ t('threshold') }}:</span>
+                            <input type="number" v-model.number="alerts.highLatency.threshold"
+                                   class="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm">
+                            <span class="text-gray-400">ms</span>
+                        </div>
+                    </div>
+                    <!-- Low Success Rate Alert -->
+                    <div class="bg-gray-700/50 rounded p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium">{{ t('lowSuccessRateAlert') }}</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="alerts.lowSuccessRate.enabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-600 peer-checked:bg-green-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="text-gray-400">{{ t('threshold') }}:</span>
+                            <input type="number" v-model.number="alerts.lowSuccessRate.threshold" step="0.01" min="0" max="1"
+                                   class="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm">
+                            <span class="text-gray-400">(0-1)</span>
+                        </div>
+                    </div>
+                    <!-- Queue Depth Alert -->
+                    <div class="bg-gray-700/50 rounded p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium">{{ t('queueDepthAlert') }}</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="alerts.queueDepth.enabled" class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-600 peer-checked:bg-green-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <span class="text-gray-400">{{ t('threshold') }}:</span>
+                            <input type="number" v-model.number="alerts.queueDepth.threshold" min="1"
+                                   class="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm">
+                            <span class="text-gray-400">{{ t('items') }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button @click="saveAlerts" class="px-4 py-2 bg-blue-600 rounded text-sm hover:bg-blue-700">
+                        {{ t('saveSettings') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Request Detail Modal -->
+        <div v-if="selectedRequest" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-lg p-6 w-2/3 max-w-3xl border border-gray-700 shadow-xl max-h-[80vh] overflow-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">{{ t('requestDetails') }}</h3>
+                    <button @click="selectedRequest = null" class="text-gray-400 hover:text-white text-xl">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-400">{{ t('id') }}:</span>
+                            <span class="ml-2 font-mono text-blue-400">{{ selectedRequest.id }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">{{ t('provider') }}:</span>
+                            <span class="ml-2">{{ selectedRequest.provider }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">{{ t('status') }}:</span>
+                            <span class="ml-2" :class="getRequestStatusClass(selectedRequest.status)">{{ selectedRequest.status }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">{{ t('created') }}:</span>
+                            <span class="ml-2">{{ formatTime(selectedRequest.created_at) }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 block mb-1">{{ t('message') }}:</span>
+                        <pre class="bg-gray-950 rounded p-3 text-sm overflow-auto max-h-32">{{ selectedRequest.message }}</pre>
+                    </div>
+                    <div v-if="selectedRequestResponse">
+                        <span class="text-gray-400 block mb-1">{{ t('response') }}:</span>
+                        <pre class="bg-gray-950 rounded p-3 text-sm overflow-auto max-h-64 text-green-300">{{ selectedRequestResponse }}</pre>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, onMounted, onUnmounted } = Vue;
+        const { createApp, ref, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
 
         createApp({
             setup() {
+                // State
                 const connected = ref(false);
                 const activeTab = ref('dashboard');
                 const status = ref({ gateway: {}, providers: [] });
@@ -383,14 +1083,365 @@
                 const newKeyName = ref('');
                 const newKeyRateLimit = ref(null);
                 const newApiKey = ref(null);
+                const activityLogs = ref([]);
+                const requestFilter = ref('');
+                const providerFilter = ref('');
+                const searchQuery = ref('');
+                const selectedRequest = ref(null);
+                const selectedRequestResponse = ref(null);
+
+                // Loading states
+                const loading = ref({
+                    status: false,
+                    requests: false,
+                    keys: false,
+                    test: false
+                });
+
+                // Pagination state
+                const pagination = ref({
+                    page: 1,
+                    pageSize: 20
+                });
+
+                // Confirm dialog state
+                const confirmDialog = ref({
+                    show: false,
+                    title: '',
+                    message: '',
+                    onConfirm: null
+                });
+                
+                // Test panel state
+                const testForm = ref({
+                    provider: '',
+                    message: 'Hello! Please respond with a short greeting.',
+                    stream: false,
+                    cacheBypass: false
+                });
+                const testSending = ref(false);
+                const testResult = ref(null);
+
+                // Test templates state
+                const testTemplates = ref(JSON.parse(localStorage.getItem('ccb-test-templates') || '[]'));
+                const selectedTemplate = ref('');
+                const showSaveTemplateModal = ref(false);
+                const showManageTemplatesModal = ref(false);
+                const newTemplateName = ref('');
+
+                // Compare tab state
+                const radarChart = ref(null);
+                const timelineChart = ref(null);
+                let radarChartInstance = null;
+                let timelineChartInstance = null;
+                const timelineRange = ref('1h');
+                const benchmarkMessage = ref('Hello! Please respond briefly.');
+                const benchmarkRunning = ref(false);
+                const benchmarkResults = ref([]);
+
+                // UI state
+                const showShortcuts = ref(false);
+                const toasts = ref([]);
+                const showAlertSettings = ref(false);
+
+                // Theme state
+                const theme = ref(localStorage.getItem('ccb-theme') || 'dark');
+
+                // Alert settings state
+                const alerts = ref(JSON.parse(localStorage.getItem('ccb-alerts') || JSON.stringify({
+                    highLatency: { enabled: true, threshold: 5000 },
+                    lowSuccessRate: { enabled: true, threshold: 0.9 },
+                    queueDepth: { enabled: true, threshold: 10 }
+                })));
+
+                // Cost tracking state
+                const tokenPricing = {
+                    claude: { input: 0.003, output: 0.015 },
+                    gemini: { input: 0.00025, output: 0.0005 },
+                    openai: { input: 0.005, output: 0.015 },
+                    default: { input: 0.001, output: 0.002 }
+                };
+
+                // i18n - Language support
+                const lang = ref(localStorage.getItem('ccb-lang') || 'en');
+                const i18n = {
+                    en: {
+                        // Header
+                        connected: 'Connected', disconnected: 'Disconnected', uptime: 'Uptime', switchLang: 'Switch Language',
+                        // Tabs
+                        dashboard: 'Dashboard', requests: 'Requests', test: 'Test', compare: 'Compare', keys: 'API Keys', config: 'Config',
+                        // Dashboard cards
+                        totalRequests: 'Total Requests', allTime: 'All time', active: 'Active', processingNow: 'Processing now',
+                        queue: 'Queue', waiting: 'Waiting', cacheHit: 'Cache Hit', hits: 'hits', providers: 'Providers', healthy: 'Healthy',
+                        // Charts
+                        latencyDistribution: 'Request Latency Distribution', last100: 'Last 100 requests',
+                        statusDistribution: 'Request Status Distribution', currentSession: 'Current session',
+                        // Provider status
+                        providerStatus: 'Provider Status', latency: 'Latency', success: 'Success', enabled: 'Enabled', yes: 'Yes', no: 'No',
+                        // Activity log
+                        activityLog: 'Activity Log', clear: 'Clear', noActivity: 'No activity yet...',
+                        // Features
+                        features: 'Features',
+                        // Requests tab
+                        recentRequests: 'Recent Requests', allStatus: 'All Status', queued: 'Queued', processing: 'Processing',
+                        completed: 'Completed', failed: 'Failed', allProviders: 'All Providers', refresh: 'Refresh',
+                        id: 'ID', provider: 'Provider', status: 'Status', message: 'Message', created: 'Created', actions: 'Actions',
+                        view: 'View', cancel: 'Cancel', noRequests: 'No requests found',
+                        // Test tab
+                        quickTest: 'Quick Test', autoDefault: 'Auto (Default)', parallel: 'Parallel', fastProviders: 'Fast providers',
+                        enterMessage: 'Enter your test message...', stream: 'Stream', bypassCache: 'Bypass Cache',
+                        sendTest: 'Send Test Request', sending: 'Sending...', result: 'Result', requestId: 'Request ID',
+                        cached: 'Cached', response: 'Response', sendToSee: 'Send a test request to see results',
+                        // Compare tab
+                        providerComparison: 'Provider Comparison', performanceMetrics: 'Performance Metrics',
+                        avgLatency: 'Avg Latency', successRate: 'Success Rate', score: 'Score',
+                        requestTimeline: 'Request Timeline', last1h: 'Last 1 Hour', last6h: 'Last 6 Hours', last24h: 'Last 24 Hours',
+                        quickBenchmark: 'Quick Benchmark', enterBenchmark: 'Enter test message for benchmark...',
+                        runBenchmark: 'Run Benchmark', running: 'Running...',
+                        // API Keys tab
+                        apiKeys: 'API Keys', createKey: '+ Create Key', keyId: 'Key ID', name: 'Name',
+                        createdAt: 'Created', lastUsed: 'Last Used', rateLimit: 'Rate Limit', never: 'Never', default: 'Default',
+                        activeStatus: 'Active', disabled: 'Disabled', disable: 'Disable', enable: 'Enable', delete: 'Delete',
+                        newKeyCreated: 'New API Key Created', saveKeyNow: "Save this key now - it won't be shown again!",
+                        dismiss: 'Dismiss', createApiKey: 'Create API Key', rateLimitRpm: 'Rate Limit (RPM, optional)',
+                        leaveEmpty: 'Leave empty for default', cancelBtn: 'Cancel', create: 'Create',
+                        // Config tab
+                        authentication: 'Authentication', rateLimiting: 'Rate Limiting', retryFallback: 'Retry & Fallback',
+                        cacheStats: 'Cache Statistics', prometheusMetrics: 'Prometheus Metrics', apiDocs: 'API Documentation',
+                        requestsPerMin: 'Requests/min', burstSize: 'Burst Size', retryEnabled: 'Retry Enabled',
+                        maxRetries: 'Max Retries', fallbackEnabled: 'Fallback Enabled', misses: 'Misses',
+                        totalEntries: 'Total Entries', tokensSaved: 'Tokens Saved', viewRawMetrics: 'View Raw Metrics',
+                        endpoint: 'Endpoint', openApiSwagger: 'OpenAPI / Swagger UI', interactiveApi: 'Interactive API documentation',
+                        headerName: 'Header', allowLocalhost: 'Allow Localhost',
+                        // Request detail modal
+                        requestDetails: 'Request Details',
+                        // Shortcuts modal
+                        keyboardShortcuts: 'Keyboard Shortcuts', closeModal: 'Close Modal',
+                        // Misc
+                        exportSuccess: 'Data exported successfully', refreshed: 'Refreshed', benchmarkComplete: 'Benchmark completed',
+                        // Phase 8A additions
+                        copy: 'Copy', copyToClipboard: 'Copy to clipboard', copiedToClipboard: 'Copied to clipboard!',
+                        searchRequests: 'Search requests...', showing: 'Showing', of: 'of', perPage: 'per page',
+                        confirm: 'Confirm', deleteKey: 'Delete API Key', confirmDeleteKey: 'Are you sure you want to delete this API key? This action cannot be undone.',
+                        cancelRequest: 'Cancel Request', confirmCancelRequest: 'Are you sure you want to cancel this request?',
+                        retry: 'Retry', requestRetried: 'Request retried successfully',
+                        // Phase 8B additions
+                        selectTemplate: 'Select template...', saveTemplate: 'Save Template', templateName: 'Template Name',
+                        enterTemplateName: 'Enter template name', templatePreview: 'Preview', save: 'Save',
+                        templateSaved: 'Template saved', templateLoaded: 'Template loaded', templateDeleted: 'Template deleted',
+                        manageTemplates: 'Manage Templates', noTemplates: 'No templates saved',
+                        // Error messages
+                        failedToCopy: 'Failed to copy to clipboard', failedToRetry: 'Failed to retry request',
+                        failedToFetch: 'Failed to fetch requests', failedToDelete: 'Failed to delete API key',
+                        keyDeleted: 'API key deleted',
+                        // Phase 8C additions
+                        cacheManagement: 'Cache Management', clearCache: 'Clear Cache', clearAll: 'Clear All',
+                        cleanup: 'Cleanup', cleanupExpired: 'Cleanup expired entries',
+                        confirmClearCache: 'Are you sure you want to clear all cache entries? This cannot be undone.',
+                        cacheCleared: 'Cache cleared successfully', failedToClearCache: 'Failed to clear cache',
+                        cleanupComplete: 'Cleanup complete', entriesRemoved: 'entries removed',
+                        failedToCleanupCache: 'Failed to cleanup cache', hitRate: 'Hit Rate',
+                        memorySaved: 'Memory Used', clickToDisable: 'Click to disable', clickToEnable: 'Click to enable',
+                        failedToToggleProvider: 'Failed to toggle provider',
+                        // Phase 8D additions
+                        estimatedCost: 'Est. Cost', toggleTheme: 'Toggle theme',
+                        alertSettings: 'Alert Settings', highLatencyAlert: 'High Latency Alert',
+                        lowSuccessRateAlert: 'Low Success Rate Alert', queueDepthAlert: 'Queue Depth Alert',
+                        threshold: 'Threshold', items: 'items', saveSettings: 'Save Settings',
+                        alertsSaved: 'Alert settings saved', highLatencyDetected: 'High latency detected',
+                        lowSuccessRateDetected: 'Low success rate detected', highQueueDepthDetected: 'High queue depth detected',
+                    },
+                    zh: {
+                        // Header
+                        connected: '已连接', disconnected: '已断开', uptime: '运行时间', switchLang: '切换语言',
+                        // Tabs
+                        dashboard: '仪表板', requests: '请求', test: '测试', compare: '对比', keys: 'API 密钥', config: '配置',
+                        // Dashboard cards
+                        totalRequests: '总请求数', allTime: '累计', active: '活跃', processingNow: '正在处理',
+                        queue: '队列', waiting: '等待中', cacheHit: '缓存命中', hits: '次', providers: '提供者', healthy: '健康',
+                        // Charts
+                        latencyDistribution: '请求延迟分布', last100: '最近 100 个请求',
+                        statusDistribution: '请求状态分布', currentSession: '当前会话',
+                        // Provider status
+                        providerStatus: '提供者状态', latency: '延迟', success: '成功率', enabled: '启用', yes: '是', no: '否',
+                        // Activity log
+                        activityLog: '活动日志', clear: '清除', noActivity: '暂无活动...',
+                        // Features
+                        features: '功能',
+                        // Requests tab
+                        recentRequests: '最近请求', allStatus: '全部状态', queued: '排队中', processing: '处理中',
+                        completed: '已完成', failed: '失败', allProviders: '全部提供者', refresh: '刷新',
+                        id: 'ID', provider: '提供者', status: '状态', message: '消息', created: '创建时间', actions: '操作',
+                        view: '查看', cancel: '取消', noRequests: '未找到请求',
+                        // Test tab
+                        quickTest: '快速测试', autoDefault: '自动（默认）', parallel: '并行', fastProviders: '快速提供者',
+                        enterMessage: '输入测试消息...', stream: '流式', bypassCache: '绕过缓存',
+                        sendTest: '发送测试请求', sending: '发送中...', result: '结果', requestId: '请求 ID',
+                        cached: '已缓存', response: '响应', sendToSee: '发送测试请求以查看结果',
+                        // Compare tab
+                        providerComparison: '提供者对比', performanceMetrics: '性能指标',
+                        avgLatency: '平均延迟', successRate: '成功率', score: '评分',
+                        requestTimeline: '请求时间线', last1h: '最近 1 小时', last6h: '最近 6 小时', last24h: '最近 24 小时',
+                        quickBenchmark: '快速基准测试', enterBenchmark: '输入基准测试消息...',
+                        runBenchmark: '运行基准测试', running: '运行中...',
+                        // API Keys tab
+                        apiKeys: 'API 密钥', createKey: '+ 创建密钥', keyId: '密钥 ID', name: '名称',
+                        createdAt: '创建时间', lastUsed: '最后使用', rateLimit: '速率限制', never: '从未', default: '默认',
+                        activeStatus: '活跃', disabled: '已禁用', disable: '禁用', enable: '启用', delete: '删除',
+                        newKeyCreated: '新 API 密钥已创建', saveKeyNow: '请立即保存此密钥 - 之后将不再显示！',
+                        dismiss: '关闭', createApiKey: '创建 API 密钥', rateLimitRpm: '速率限制（每分钟，可选）',
+                        leaveEmpty: '留空使用默认值', cancelBtn: '取消', create: '创建',
+                        // Config tab
+                        authentication: '认证', rateLimiting: '速率限制', retryFallback: '重试与降级',
+                        cacheStats: '缓存统计', prometheusMetrics: 'Prometheus 指标', apiDocs: 'API 文档',
+                        requestsPerMin: '每分钟请求数', burstSize: '突发大小', retryEnabled: '重试启用',
+                        maxRetries: '最大重试次数', fallbackEnabled: '降级启用', misses: '未命中',
+                        totalEntries: '总条目', tokensSaved: '节省 Token', viewRawMetrics: '查看原始指标',
+                        endpoint: '端点', openApiSwagger: 'OpenAPI / Swagger UI', interactiveApi: '交互式 API 文档',
+                        headerName: '请求头', allowLocalhost: '允许本地访问',
+                        // Request detail modal
+                        requestDetails: '请求详情',
+                        // Shortcuts modal
+                        keyboardShortcuts: '键盘快捷键', closeModal: '关闭弹窗',
+                        // Misc
+                        exportSuccess: '数据导出成功', refreshed: '已刷新', benchmarkComplete: '基准测试完成',
+                        // Phase 8A additions
+                        copy: '复制', copyToClipboard: '复制到剪贴板', copiedToClipboard: '已复制到剪贴板！',
+                        searchRequests: '搜索请求...', showing: '显示', of: '共', perPage: '每页',
+                        confirm: '确认', deleteKey: '删除 API 密钥', confirmDeleteKey: '确定要删除此 API 密钥吗？此操作无法撤销。',
+                        cancelRequest: '取消请求', confirmCancelRequest: '确定要取消此请求吗？',
+                        retry: '重试', requestRetried: '请求重试成功',
+                        // Phase 8B additions
+                        selectTemplate: '选择模板...', saveTemplate: '保存模板', templateName: '模板名称',
+                        enterTemplateName: '输入模板名称', templatePreview: '预览', save: '保存',
+                        templateSaved: '模板已保存', templateLoaded: '模板已加载', templateDeleted: '模板已删除',
+                        manageTemplates: '管理模板', noTemplates: '暂无保存的模板',
+                        // Error messages
+                        failedToCopy: '复制到剪贴板失败', failedToRetry: '重试请求失败',
+                        failedToFetch: '获取请求失败', failedToDelete: '删除 API 密钥失败',
+                        keyDeleted: 'API 密钥已删除',
+                        // Phase 8C additions
+                        cacheManagement: '缓存管理', clearCache: '清除缓存', clearAll: '清除全部',
+                        cleanup: '清理', cleanupExpired: '清理过期条目',
+                        confirmClearCache: '确定要清除所有缓存条目吗？此操作无法撤销。',
+                        cacheCleared: '缓存已清除', failedToClearCache: '清除缓存失败',
+                        cleanupComplete: '清理完成', entriesRemoved: '条目已移除',
+                        failedToCleanupCache: '清理缓存失败', hitRate: '命中率',
+                        memorySaved: '内存占用', clickToDisable: '点击禁用', clickToEnable: '点击启用',
+                        failedToToggleProvider: '切换提供者状态失败',
+                        // Phase 8D additions
+                        estimatedCost: '预估成本', toggleTheme: '切换主题',
+                        alertSettings: '告警设置', highLatencyAlert: '高延迟告警',
+                        lowSuccessRateAlert: '低成功率告警', queueDepthAlert: '队列深度告警',
+                        threshold: '阈值', items: '项', saveSettings: '保存设置',
+                        alertsSaved: '告警设置已保存', highLatencyDetected: '检测到高延迟',
+                        lowSuccessRateDetected: '检测到低成功率', highQueueDepthDetected: '检测到队列深度过高',
+                    }
+                };
+
+                const t = (key) => i18n[lang.value][key] || key;
+
+                const toggleLang = () => {
+                    lang.value = lang.value === 'en' ? 'zh' : 'en';
+                    localStorage.setItem('ccb-lang', lang.value);
+                };
+
+                // Chart refs
+                const latencyChart = ref(null);
+                const statusChart = ref(null);
+                let latencyChartInstance = null;
+                let statusChartInstance = null;
+                const latencyData = ref([]);
+                const statusCounts = ref({ completed: 0, failed: 0, queued: 0, processing: 0 });
 
                 const tabs = [
-                    { id: 'dashboard', name: 'Dashboard' },
-                    { id: 'requests', name: 'Requests' },
-                    { id: 'keys', name: 'API Keys' },
-                    { id: 'config', name: 'Configuration' },
+                    { id: 'dashboard', name: 'Dashboard', icon: '<i class="fas fa-chart-line"></i>', shortcut: '1' },
+                    { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '2' },
+                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '3' },
+                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '4' },
+                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '5' },
+                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '6' },
                 ];
 
+                // Computed
+                const healthyProviders = computed(() => {
+                    return (status.value.providers || []).filter(p => p.status === 'healthy' || p.status === 'available').length;
+                });
+
+                const filteredRequests = computed(() => {
+                    return requests.value.filter(r => {
+                        if (requestFilter.value && r.status !== requestFilter.value) return false;
+                        if (providerFilter.value && r.provider !== providerFilter.value) return false;
+                        if (searchQuery.value) {
+                            const query = searchQuery.value.toLowerCase();
+                            const matchesId = r.id && String(r.id).toLowerCase().includes(query);
+                            const matchesMessage = r.message && String(r.message).toLowerCase().includes(query);
+                            const matchesProvider = r.provider && String(r.provider).toLowerCase().includes(query);
+                            if (!matchesId && !matchesMessage && !matchesProvider) return false;
+                        }
+                        return true;
+                    });
+                });
+
+                // Watch for filter changes to reset pagination
+                watch([requestFilter, providerFilter, searchQuery], () => {
+                    pagination.value.page = 1;
+                });
+
+                // Pagination computed properties
+                const totalPages = computed(() => Math.max(1, Math.ceil(filteredRequests.value.length / pagination.value.pageSize)));
+                const paginationStart = computed(() => Math.min((pagination.value.page - 1) * pagination.value.pageSize + 1, filteredRequests.value.length));
+                const paginationEnd = computed(() => Math.min(pagination.value.page * pagination.value.pageSize, filteredRequests.value.length));
+                const paginatedRequests = computed(() => {
+                    const start = (pagination.value.page - 1) * pagination.value.pageSize;
+                    const end = start + pagination.value.pageSize;
+                    return filteredRequests.value.slice(start, end);
+                });
+
+                const sortedProviders = computed(() => {
+                    return (status.value.providers || []).map(p => ({
+                        ...p,
+                        score: calculateProviderScore(p)
+                    })).sort((a, b) => (b.score || 0) - (a.score || 0));
+                });
+
+                // Cost tracking computed properties
+                const totalTokens = computed(() => {
+                    return (status.value.providers || []).reduce((sum, p) => {
+                        return sum + (p.total_input_tokens || 0) + (p.total_output_tokens || 0);
+                    }, 0);
+                });
+
+                const estimatedCost = computed(() => {
+                    return (status.value.providers || []).reduce((sum, p) => {
+                        const pricing = tokenPricing[p.name.toLowerCase()] || tokenPricing.default;
+                        const inputCost = ((p.total_input_tokens || 0) / 1000) * pricing.input;
+                        const outputCost = ((p.total_output_tokens || 0) / 1000) * pricing.output;
+                        return sum + inputCost + outputCost;
+                    }, 0);
+                });
+
+                const calculateProviderScore = (provider) => {
+                    if (!provider.enabled) return 0;
+                    const successWeight = 50;
+                    const latencyWeight = 30;
+                    const availabilityWeight = 20;
+
+                    const successScore = (provider.success_rate || 0) * successWeight;
+                    const maxLatency = 60000;
+                    const latencyScore = Math.max(0, (1 - (provider.avg_latency_ms || maxLatency) / maxLatency)) * latencyWeight;
+                    const availScore = provider.status === 'healthy' ? availabilityWeight : 0;
+
+                    return successScore + latencyScore + availScore;
+                };
+
+                const getScoreColor = (score) => {
+                    if (score >= 70) return 'bg-green-500';
+                    if (score >= 40) return 'bg-yellow-500';
+                    return 'bg-red-500';
+                };
+
+                // WebSocket
                 let ws = null;
                 let refreshInterval = null;
 
@@ -401,11 +1452,17 @@
                     ws.onopen = () => {
                         connected.value = true;
                         ws.send(JSON.stringify({ type: 'subscribe', channels: ['all'] }));
+                        addLog('info', 'WebSocket connected');
                     };
 
                     ws.onclose = () => {
                         connected.value = false;
+                        addLog('warn', 'WebSocket disconnected, reconnecting...');
                         setTimeout(connectWebSocket, 3000);
+                    };
+
+                    ws.onerror = () => {
+                        addLog('error', 'WebSocket error');
                     };
 
                     ws.onmessage = (event) => {
@@ -415,14 +1472,214 @@
                 };
 
                 const handleWebSocketEvent = (event) => {
-                    if (event.type === 'request_submitted' ||
-                        event.type === 'request_completed' ||
-                        event.type === 'request_failed') {
+                    const type = event.type;
+                    const data = event.data || {};
+                    const reqId = data.request_id ? data.request_id.slice(0, 11) : 'unknown';
+
+                    if (type === 'request_queued' || type === 'request_submitted') {
+                        addLog('info', `Request ${reqId} queued → ${data.provider}`);
+                        statusCounts.value.queued++;
+                        fetchRequests();
+                        fetchStatus();
+                    } else if (type === 'request_processing') {
+                        addLog('info', `Request ${reqId} processing...`);
+                        statusCounts.value.processing++;
+                    } else if (type === 'request_completed') {
+                        const latency = data.latency_ms ? `${Math.round(data.latency_ms)}ms` : '';
+                        addLog('success', `Request ${reqId} completed ${latency}`);
+                        statusCounts.value.completed++;
+                        if (data.latency_ms) {
+                            latencyData.value.push(data.latency_ms);
+                            if (latencyData.value.length > 100) latencyData.value.shift();
+                            updateLatencyChart();
+                        }
+                        fetchRequests();
+                        fetchStatus();
+                    } else if (type === 'request_failed') {
+                        const errMsg = data.error ? data.error.slice(0, 50) : 'unknown error';
+                        addLog('error', `Request ${reqId} failed: ${errMsg}`);
+                        statusCounts.value.failed++;
                         fetchRequests();
                         fetchStatus();
                     }
+                    
+                    updateStatusChart();
                 };
 
+                const addLog = (type, message) => {
+                    const time = new Date().toLocaleTimeString();
+                    activityLogs.value.push({ type, message, time });
+                    if (activityLogs.value.length > 100) activityLogs.value.shift();
+                };
+
+                // Charts
+                const initCharts = () => {
+                    // Latency histogram
+                    if (latencyChart.value) {
+                        latencyChartInstance = new Chart(latencyChart.value, {
+                            type: 'bar',
+                            data: {
+                                labels: ['0-100ms', '100-500ms', '500ms-1s', '1-5s', '5-10s', '>10s'],
+                                datasets: [{
+                                    label: 'Requests',
+                                    data: [0, 0, 0, 0, 0, 0],
+                                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                                    borderColor: 'rgba(59, 130, 246, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    x: { grid: { display: false } }
+                                }
+                            }
+                        });
+                    }
+
+                    // Status pie chart
+                    if (statusChart.value) {
+                        statusChartInstance = new Chart(statusChart.value, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Completed', 'Failed', 'Queued', 'Processing'],
+                                datasets: [{
+                                    data: [0, 0, 0, 0],
+                                    backgroundColor: [
+                                        'rgba(34, 197, 94, 0.8)',
+                                        'rgba(239, 68, 68, 0.8)',
+                                        'rgba(59, 130, 246, 0.8)',
+                                        'rgba(234, 179, 8, 0.8)'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'bottom', labels: { color: '#9ca3af' } }
+                                }
+                            }
+                        });
+                    }
+                };
+
+                const initCompareCharts = () => {
+                    // Radar chart for provider comparison
+                    if (radarChart.value) {
+                        const providers = status.value.providers || [];
+                        radarChartInstance = new Chart(radarChart.value, {
+                            type: 'radar',
+                            data: {
+                                labels: ['Success Rate', 'Speed', 'Availability', 'Reliability', 'Queue'],
+                                datasets: providers.slice(0, 5).map((p, i) => ({
+                                    label: p.name,
+                                    data: [
+                                        (p.success_rate || 0) * 100,
+                                        Math.max(0, 100 - (p.avg_latency_ms || 0) / 600),
+                                        p.status === 'healthy' ? 100 : 50,
+                                        (p.success_rate || 0) * 100,
+                                        Math.max(0, 100 - (p.queue_depth || 0) * 10)
+                                    ],
+                                    borderColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i],
+                                    backgroundColor: ['rgba(59,130,246,0.2)', 'rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)', 'rgba(239,68,68,0.2)', 'rgba(139,92,246,0.2)'][i],
+                                }))
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    r: {
+                                        beginAtZero: true,
+                                        max: 100,
+                                        grid: { color: 'rgba(255,255,255,0.1)' },
+                                        pointLabels: { color: '#9ca3af' },
+                                        ticks: { display: false }
+                                    }
+                                },
+                                plugins: {
+                                    legend: { position: 'bottom', labels: { color: '#9ca3af' } }
+                                }
+                            }
+                        });
+                    }
+
+                    // Timeline chart
+                    if (timelineChart.value) {
+                        timelineChartInstance = new Chart(timelineChart.value, {
+                            type: 'line',
+                            data: {
+                                labels: [],
+                                datasets: [{
+                                    label: 'Requests',
+                                    data: [],
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    fill: true,
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    x: { grid: { display: false } }
+                                }
+                            }
+                        });
+                    }
+                };
+
+                const updateRadarChart = () => {
+                    if (!radarChartInstance) return;
+                    const providers = status.value.providers || [];
+                    radarChartInstance.data.datasets = providers.slice(0, 5).map((p, i) => ({
+                        label: p.name,
+                        data: [
+                            (p.success_rate || 0) * 100,
+                            Math.max(0, 100 - (p.avg_latency_ms || 0) / 600),
+                            p.status === 'healthy' ? 100 : 50,
+                            (p.success_rate || 0) * 100,
+                            Math.max(0, 100 - (p.queue_depth || 0) * 10)
+                        ],
+                        borderColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i],
+                        backgroundColor: ['rgba(59,130,246,0.2)', 'rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)', 'rgba(239,68,68,0.2)', 'rgba(139,92,246,0.2)'][i],
+                    }));
+                    radarChartInstance.update('none');
+                };
+
+                const updateLatencyChart = () => {
+                    if (!latencyChartInstance) return;
+                    const buckets = [0, 0, 0, 0, 0, 0];
+                    for (const ms of latencyData.value) {
+                        if (ms < 100) buckets[0]++;
+                        else if (ms < 500) buckets[1]++;
+                        else if (ms < 1000) buckets[2]++;
+                        else if (ms < 5000) buckets[3]++;
+                        else if (ms < 10000) buckets[4]++;
+                        else buckets[5]++;
+                    }
+                    latencyChartInstance.data.datasets[0].data = buckets;
+                    latencyChartInstance.update('none');
+                };
+
+                const updateStatusChart = () => {
+                    if (!statusChartInstance) return;
+                    statusChartInstance.data.datasets[0].data = [
+                        statusCounts.value.completed,
+                        statusCounts.value.failed,
+                        statusCounts.value.queued,
+                        statusCounts.value.processing
+                    ];
+                    statusChartInstance.update('none');
+                };
+
+                // API calls
                 const fetchStatus = async () => {
                     try {
                         const res = await fetch('/api/status');
@@ -433,11 +1690,19 @@
                 };
 
                 const fetchRequests = async () => {
+                    loading.value.requests = true;
                     try {
-                        const res = await fetch('/api/requests?limit=50');
+                        const res = await fetch('/api/requests?limit=100');
                         requests.value = await res.json();
+                        // Reset to page 1 if current page is out of bounds
+                        if (pagination.value.page > totalPages.value) {
+                            pagination.value.page = 1;
+                        }
                     } catch (e) {
                         console.error('Failed to fetch requests:', e);
+                        showToast('error', t('failedToFetch'));
+                    } finally {
+                        loading.value.requests = false;
                     }
                 };
 
@@ -484,9 +1749,11 @@
                             newKeyName.value = '';
                             newKeyRateLimit.value = null;
                             fetchApiKeys();
+                            addLog('success', 'API key created');
                         }
                     } catch (e) {
                         console.error('Failed to create key:', e);
+                        addLog('error', 'Failed to create API key');
                     }
                 };
 
@@ -501,12 +1768,13 @@
                 };
 
                 const deleteKey = async (keyId) => {
-                    if (!confirm('Are you sure you want to delete this API key?')) return;
                     try {
                         await fetch(`/api/admin/keys/${keyId}`, { method: 'DELETE' });
                         fetchApiKeys();
+                        showToast('success', t('keyDeleted'));
                     } catch (e) {
                         console.error('Failed to delete key:', e);
+                        showToast('error', t('failedToDelete'));
                     }
                 };
 
@@ -519,6 +1787,370 @@
                     }
                 };
 
+                const viewRequest = async (req) => {
+                    selectedRequest.value = req;
+                    selectedRequestResponse.value = null;
+                    try {
+                        const res = await fetch(`/api/reply/${req.id}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            selectedRequestResponse.value = data.response || data.error || 'No response yet';
+                        }
+                    } catch (e) {
+                        selectedRequestResponse.value = 'Failed to load response';
+                    }
+                };
+
+                const sendTestRequest = async () => {
+                    testSending.value = true;
+                    testResult.value = null;
+                    const startTime = performance.now();
+                    
+                    try {
+                        const endpoint = testForm.value.stream ? '/api/ask/stream' : '/api/ask';
+                        const res = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: testForm.value.provider || null,
+                                message: testForm.value.message,
+                                cache_bypass: testForm.value.cacheBypass,
+                            }),
+                        });
+                        
+                        const data = await res.json();
+                        const latency = Math.round(performance.now() - startTime);
+                        
+                        if (data.request_id) {
+                            addLog('info', `Test request sent: ${data.request_id.slice(0, 11)}`);
+                            
+                            let attempts = 0;
+                            const pollResult = async () => {
+                                attempts++;
+                                const replyRes = await fetch(`/api/reply/${data.request_id}`);
+                                if (replyRes.ok) {
+                                    const reply = await replyRes.json();
+                                    if (reply.status === 'completed' || reply.status === 'failed') {
+                                        testResult.value = {
+                                            success: reply.status === 'completed',
+                                            requestId: data.request_id,
+                                            response: reply.response,
+                                            error: reply.error,
+                                            latency: reply.latency_ms ? Math.round(reply.latency_ms) : latency,
+                                            cached: data.cached
+                                        };
+                                        testSending.value = false;
+                                        return;
+                                    }
+                                }
+                                if (attempts < 60) {
+                                    setTimeout(pollResult, 1000);
+                                } else {
+                                    testResult.value = {
+                                        success: false,
+                                        requestId: data.request_id,
+                                        error: 'Request timed out',
+                                        latency
+                                    };
+                                    testSending.value = false;
+                                }
+                            };
+                            setTimeout(pollResult, 1000);
+                        } else {
+                            testResult.value = {
+                                success: false,
+                                error: data.detail || 'Unknown error',
+                                latency
+                            };
+                            testSending.value = false;
+                        }
+                    } catch (e) {
+                        testResult.value = {
+                            success: false,
+                            error: e.message,
+                            latency: Math.round(performance.now() - startTime)
+                        };
+                        testSending.value = false;
+                    }
+                };
+
+                // New features: Export, Benchmark, Shortcuts
+                const exportData = () => {
+                    const data = {
+                        exportedAt: new Date().toISOString(),
+                        status: status.value,
+                        requests: requests.value,
+                        activityLogs: activityLogs.value
+                    };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ccb-gateway-export-${new Date().toISOString().slice(0,10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('success', 'Data exported successfully');
+                };
+
+                const toggleFullscreen = () => {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        document.exitFullscreen();
+                    }
+                };
+
+                const showToast = (type, message) => {
+                    const id = Date.now();
+                    toasts.value.push({ id, type, message });
+                    setTimeout(() => {
+                        const index = toasts.value.findIndex(t => t.id === id);
+                        if (index !== -1) toasts.value.splice(index, 1);
+                    }, 3000);
+                };
+
+                const removeToast = (index) => {
+                    toasts.value.splice(index, 1);
+                };
+
+                const copyToClipboard = async (text) => {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        showToast('success', t('copiedToClipboard'));
+                    } catch (e) {
+                        console.error('Failed to copy:', e);
+                        // Fallback for non-HTTPS environments
+                        try {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = text;
+                            textarea.style.position = 'fixed';
+                            textarea.style.opacity = '0';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            showToast('success', t('copiedToClipboard'));
+                        } catch (fallbackError) {
+                            showToast('error', t('failedToCopy'));
+                        }
+                    }
+                };
+
+                const showConfirmDialog = (title, message, onConfirm) => {
+                    confirmDialog.value = {
+                        show: true,
+                        title,
+                        message,
+                        onConfirm
+                    };
+                };
+
+                const executeConfirmAction = () => {
+                    if (confirmDialog.value.onConfirm) {
+                        confirmDialog.value.onConfirm();
+                    }
+                    confirmDialog.value.show = false;
+                };
+
+                const retryRequest = async (req) => {
+                    try {
+                        await fetch('/api/ask', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: req.provider,
+                                message: req.message
+                            })
+                        });
+                        showToast('success', t('requestRetried'));
+                        fetchRequests();
+                    } catch (e) {
+                        console.error('Failed to retry request:', e);
+                        showToast('error', t('failedToRetry'));
+                    }
+                };
+
+                // Test template functions
+                const saveTemplate = () => {
+                    if (!newTemplateName.value.trim()) {
+                        showToast('error', t('enterTemplateName'));
+                        return;
+                    }
+                    testTemplates.value.push({
+                        name: newTemplateName.value.trim(),
+                        provider: testForm.value.provider,
+                        message: testForm.value.message,
+                        stream: testForm.value.stream,
+                        cacheBypass: testForm.value.cacheBypass
+                    });
+                    localStorage.setItem('ccb-test-templates', JSON.stringify(testTemplates.value));
+                    showSaveTemplateModal.value = false;
+                    newTemplateName.value = '';
+                    showToast('success', t('templateSaved'));
+                };
+
+                const loadTemplate = () => {
+                    if (selectedTemplate.value === '') return;
+                    const tpl = testTemplates.value[selectedTemplate.value];
+                    if (tpl) {
+                        testForm.value.provider = tpl.provider || '';
+                        testForm.value.message = tpl.message || '';
+                        testForm.value.stream = tpl.stream || false;
+                        testForm.value.cacheBypass = tpl.cacheBypass || false;
+                        showToast('info', t('templateLoaded'));
+                    }
+                    selectedTemplate.value = '';
+                };
+
+                const deleteTemplate = (index) => {
+                    testTemplates.value.splice(index, 1);
+                    localStorage.setItem('ccb-test-templates', JSON.stringify(testTemplates.value));
+                    showToast('success', t('templateDeleted'));
+                };
+
+                // Theme toggle function
+                const toggleTheme = () => {
+                    theme.value = theme.value === 'dark' ? 'light' : 'dark';
+                    localStorage.setItem('ccb-theme', theme.value);
+                };
+
+                // Provider toggle function
+                const toggleProvider = async (provider) => {
+                    try {
+                        const action = provider.enabled ? 'disable' : 'enable';
+                        await fetch(`/api/admin/providers/${provider.name}/${action}`, { method: 'POST' });
+                        fetchStatus();
+                        showToast('success', `${provider.name} ${provider.enabled ? t('disabled') : t('enabled')}`);
+                    } catch (e) {
+                        console.error('Failed to toggle provider:', e);
+                        showToast('error', t('failedToToggleProvider'));
+                    }
+                };
+
+                // Cache management functions
+                const clearCache = async () => {
+                    try {
+                        await fetch('/api/cache', { method: 'DELETE' });
+                        fetchStatus();
+                        showToast('success', t('cacheCleared'));
+                    } catch (e) {
+                        console.error('Failed to clear cache:', e);
+                        showToast('error', t('failedToClearCache'));
+                    }
+                };
+
+                const cleanupCache = async () => {
+                    try {
+                        const res = await fetch('/api/cache/cleanup', { method: 'POST' });
+                        const data = await res.json();
+                        fetchStatus();
+                        showToast('success', `${t('cleanupComplete')}: ${data.removed || 0} ${t('entriesRemoved')}`);
+                    } catch (e) {
+                        console.error('Failed to cleanup cache:', e);
+                        showToast('error', t('failedToCleanupCache'));
+                    }
+                };
+
+                // Alert functions
+                const saveAlerts = () => {
+                    localStorage.setItem('ccb-alerts', JSON.stringify(alerts.value));
+                    showAlertSettings.value = false;
+                    showToast('success', t('alertsSaved'));
+                };
+
+                const checkAlerts = () => {
+                    if (!status.value.providers) return;
+
+                    status.value.providers.forEach(p => {
+                        if (alerts.value.highLatency.enabled && p.avg_latency_ms > alerts.value.highLatency.threshold) {
+                            showToast('warn', `${p.name}: ${t('highLatencyDetected')} (${formatLatency(p.avg_latency_ms)})`);
+                        }
+                        if (alerts.value.lowSuccessRate.enabled && p.success_rate < alerts.value.lowSuccessRate.threshold && p.total_requests > 0) {
+                            showToast('warn', `${p.name}: ${t('lowSuccessRateDetected')} (${formatPercent(p.success_rate)})`);
+                        }
+                        if (alerts.value.queueDepth.enabled && p.queue_depth > alerts.value.queueDepth.threshold) {
+                            showToast('warn', `${p.name}: ${t('highQueueDepthDetected')} (${p.queue_depth})`);
+                        }
+                    });
+                };
+
+                const runBenchmark = async () => {
+                    benchmarkRunning.value = true;
+                    benchmarkResults.value = [];
+                    const providers = (status.value.providers || []).filter(p => p.enabled);
+
+                    for (const provider of providers) {
+                        const startTime = performance.now();
+                        try {
+                            const res = await fetch('/api/ask', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    provider: provider.name,
+                                    message: benchmarkMessage.value,
+                                }),
+                            });
+                            const data = await res.json();
+
+                            if (data.request_id) {
+                                let attempts = 0;
+                                const pollResult = () => new Promise((resolve) => {
+                                    const check = async () => {
+                                        attempts++;
+                                        const replyRes = await fetch(`/api/reply/${data.request_id}`);
+                                        if (replyRes.ok) {
+                                            const reply = await replyRes.json();
+                                            if (reply.status === 'completed') {
+                                                resolve({ success: true, latency: reply.latency_ms || (performance.now() - startTime) });
+                                                return;
+                                            } else if (reply.status === 'failed') {
+                                                resolve({ success: false, error: reply.error || 'Failed' });
+                                                return;
+                                            }
+                                        }
+                                        if (attempts < 60) setTimeout(check, 1000);
+                                        else resolve({ success: false, error: 'Timeout' });
+                                    };
+                                    setTimeout(check, 1000);
+                                });
+
+                                const result = await pollResult();
+                                benchmarkResults.value.push({ provider: provider.name, ...result });
+                            }
+                        } catch (e) {
+                            benchmarkResults.value.push({ provider: provider.name, success: false, error: e.message });
+                        }
+                    }
+                    benchmarkRunning.value = false;
+                    showToast('success', 'Benchmark completed');
+                };
+
+                const handleKeydown = (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                    if (e.key === 'Escape') {
+                        showShortcuts.value = false;
+                        selectedRequest.value = null;
+                        showCreateKeyModal.value = false;
+                        confirmDialog.value.show = false;
+                        showSaveTemplateModal.value = false;
+                        showManageTemplatesModal.value = false;
+                        showAlertSettings.value = false;
+                    } else if (e.key >= '1' && e.key <= '6') {
+                        const tabIndex = parseInt(e.key) - 1;
+                        if (tabs[tabIndex]) activeTab.value = tabs[tabIndex].id;
+                    } else if (e.key.toLowerCase() === 'r') {
+                        fetchStatus();
+                        fetchRequests();
+                        showToast('info', t('refreshed'));
+                    } else if (e.key.toLowerCase() === 'e') {
+                        exportData();
+                    } else if (e.key === '?') {
+                        showShortcuts.value = true;
+                    }
+                };
+
+                // Formatters
                 const formatDuration = (seconds) => {
                     if (!seconds) return '0s';
                     const h = Math.floor(seconds / 3600);
@@ -529,90 +2161,123 @@
                     return `${s}s`;
                 };
 
-                const formatPercent = (value) => {
-                    return `${(value * 100).toFixed(1)}%`;
-                };
-
+                const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
                 const formatLatency = (ms) => {
                     if (!ms) return '0ms';
                     if (ms < 1000) return `${ms.toFixed(0)}ms`;
                     return `${(ms / 1000).toFixed(2)}s`;
                 };
-
                 const formatTime = (timestamp) => {
                     if (!timestamp) return '-';
                     return new Date(timestamp * 1000).toLocaleString();
                 };
-
-                const formatFeatureName = (name) => {
-                    return name.replace(/_/g, ' ').replace(/enabled/i, '').trim();
+                const formatFeatureName = (name) => name.replace(/_/g, ' ').replace(/enabled/i, '').trim();
+                const formatCost = (cost) => {
+                    if (!cost || cost < 0.01) return '0.00';
+                    return cost.toFixed(2);
+                };
+                const formatNumber = (num) => {
+                    if (!num) return '0';
+                    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                    return num.toString();
+                };
+                const formatBytes = (bytes) => {
+                    if (!bytes) return '0 B';
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let i = 0;
+                    while (bytes >= 1024 && i < units.length - 1) {
+                        bytes /= 1024;
+                        i++;
+                    }
+                    return `${bytes.toFixed(1)} ${units[i]}`;
                 };
 
-                const getStatusClass = (status) => {
-                    const classes = {
-                        healthy: 'text-green-400',
-                        degraded: 'text-yellow-400',
-                        unavailable: 'text-red-400',
-                        unknown: 'text-gray-400',
-                    };
-                    return classes[status] || 'text-gray-400';
-                };
+                // Style helpers
+                const getStatusClass = (status) => ({
+                    healthy: 'text-green-400', available: 'text-green-400',
+                    degraded: 'text-yellow-400', unavailable: 'text-red-400', unknown: 'text-gray-400'
+                }[status] || 'text-gray-400');
 
-                const getRequestStatusClass = (status) => {
-                    const classes = {
-                        queued: 'text-blue-400',
-                        processing: 'text-yellow-400',
-                        completed: 'text-green-400',
-                        failed: 'text-red-400',
-                        cancelled: 'text-gray-400',
-                        timeout: 'text-orange-400',
-                        retrying: 'text-purple-400',
-                    };
-                    return classes[status] || 'text-gray-400';
-                };
+                const getStatusBadgeClass = (status) => ({
+                    healthy: 'bg-green-600/30 text-green-400', available: 'bg-green-600/30 text-green-400',
+                    degraded: 'bg-yellow-600/30 text-yellow-400',
+                    unavailable: 'bg-red-600/30 text-red-400', unknown: 'bg-gray-600/30 text-gray-400'
+                }[status] || 'bg-gray-600/30 text-gray-400');
 
+                const getRequestStatusClass = (status) => ({
+                    queued: 'text-blue-400', processing: 'text-yellow-400',
+                    completed: 'text-green-400', failed: 'text-red-400',
+                    cancelled: 'text-gray-400', timeout: 'text-orange-400', retrying: 'text-purple-400'
+                }[status] || 'text-gray-400');
+
+                const getStatusDotClass = (status) => ({
+                    queued: 'bg-blue-400', processing: 'bg-yellow-400 pulse-dot',
+                    completed: 'bg-green-400', failed: 'bg-red-400',
+                    cancelled: 'bg-gray-400', timeout: 'bg-orange-400', retrying: 'bg-purple-400'
+                }[status] || 'bg-gray-400');
+
+                const getLogClass = (type) => ({
+                    info: 'text-blue-300', success: 'text-green-300',
+                    warn: 'text-yellow-300', error: 'text-red-300'
+                }[type] || 'text-gray-300');
+
+                // Lifecycle
                 onMounted(() => {
                     fetchStatus();
                     fetchRequests();
                     fetchApiKeys();
                     fetchConfigs();
                     connectWebSocket();
+                    nextTick(() => {
+                        initCharts();
+                        initCompareCharts();
+                    });
                     refreshInterval = setInterval(() => {
                         fetchStatus();
+                        updateRadarChart();
                     }, 5000);
+                    document.addEventListener('keydown', handleKeydown);
                 });
 
                 onUnmounted(() => {
                     if (ws) ws.close();
                     if (refreshInterval) clearInterval(refreshInterval);
+                    if (latencyChartInstance) latencyChartInstance.destroy();
+                    if (statusChartInstance) statusChartInstance.destroy();
+                    if (radarChartInstance) radarChartInstance.destroy();
+                    if (timelineChartInstance) timelineChartInstance.destroy();
+                    document.removeEventListener('keydown', handleKeydown);
                 });
 
                 return {
-                    connected,
-                    activeTab,
-                    tabs,
-                    status,
-                    requests,
-                    apiKeys,
-                    authConfig,
-                    rateLimitConfig,
-                    retryConfig,
-                    showCreateKeyModal,
-                    newKeyName,
-                    newKeyRateLimit,
-                    newApiKey,
-                    fetchRequests,
-                    createKey,
-                    toggleKey,
-                    deleteKey,
-                    cancelRequest,
-                    formatDuration,
-                    formatPercent,
-                    formatLatency,
-                    formatTime,
-                    formatFeatureName,
-                    getStatusClass,
-                    getRequestStatusClass,
+                    connected, activeTab, tabs, status, requests, apiKeys,
+                    authConfig, rateLimitConfig, retryConfig,
+                    showCreateKeyModal, newKeyName, newKeyRateLimit, newApiKey,
+                    activityLogs, requestFilter, providerFilter, searchQuery,
+                    selectedRequest, selectedRequestResponse,
+                    testForm, testSending, testResult,
+                    latencyChart, statusChart, radarChart, timelineChart,
+                    healthyProviders, filteredRequests, sortedProviders,
+                    // Phase 8A additions
+                    loading, pagination, totalPages, paginationStart, paginationEnd, paginatedRequests,
+                    confirmDialog, showConfirmDialog, executeConfirmAction,
+                    copyToClipboard, removeToast, retryRequest,
+                    // Phase 8B additions
+                    testTemplates, selectedTemplate, showSaveTemplateModal, showManageTemplatesModal, newTemplateName,
+                    saveTemplate, loadTemplate, deleteTemplate,
+                    // Phase 8C additions
+                    toggleProvider, clearCache, cleanupCache,
+                    // Phase 8D additions
+                    theme, toggleTheme, alerts, showAlertSettings, saveAlerts,
+                    totalTokens, estimatedCost, formatCost, formatNumber, formatBytes,
+                    // Original functions
+                    fetchRequests, createKey, toggleKey, deleteKey, cancelRequest, viewRequest,
+                    sendTestRequest, exportData, toggleFullscreen, showShortcuts, toasts, showToast,
+                    timelineRange, benchmarkMessage, benchmarkRunning, benchmarkResults, runBenchmark,
+                    formatDuration, formatPercent, formatLatency, formatTime, formatFeatureName,
+                    getStatusClass, getStatusBadgeClass, getRequestStatusClass, getStatusDotClass, getLogClass, getScoreColor,
+                    lang, t, toggleLang,
                 };
             },
         }).mount('#app');

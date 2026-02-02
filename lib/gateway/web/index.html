@@ -622,14 +622,39 @@
                             </div>
                         </div>
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm text-gray-400 mb-2">{{ t('provider') }}</label>
-                                <select v-model="testForm.provider" class="input-field">
-                                    <option value="">{{ t('autoDefault') }}</option>
-                                    <option v-for="p in status.providers" :key="p.name" :value="p.name">{{ p.name }}</option>
-                                    <option value="@all">@all ({{ t('parallel') }})</option>
-                                    <option value="@fast">@fast ({{ t('fastProviders') }})</option>
-                                </select>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-2">{{ t('provider') }}</label>
+                                    <select v-model="testForm.provider" class="input-field">
+                                        <option value="">{{ t('autoDefault') }}</option>
+                                        <option v-for="p in status.providers" :key="p.name" :value="p.name">{{ p.name }}</option>
+                                        <option value="@all">@all ({{ t('parallel') }})</option>
+                                        <option value="@fast">@fast ({{ t('fastProviders') }})</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm text-gray-400 mb-2">{{ t('agentRole') }}</label>
+                                    <select v-model="testForm.agent" @change="onAgentChange" class="input-field">
+                                        <option value="">{{ t('noAgent') }}</option>
+                                        <option v-for="agent in agentRoles" :key="agent.name" :value="agent.name">
+                                            {{ agent.icon }} {{ agent.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div v-if="testForm.agent && selectedAgent" class="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                <div class="flex items-start space-x-3">
+                                    <span class="text-2xl">{{ selectedAgent.icon }}</span>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-white">{{ selectedAgent.name }}</div>
+                                        <div class="text-sm text-gray-400">{{ selectedAgent.description }}</div>
+                                        <div class="flex flex-wrap gap-1 mt-2">
+                                            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                                {{ t('preferred') }}: {{ selectedAgent.preferred.join(', ') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm text-gray-400 mb-2">{{ t('message') }}</label>
@@ -1178,16 +1203,47 @@
                     message: '',
                     onConfirm: null
                 });
-                
+
                 // Test panel state
                 const testForm = ref({
                     provider: '',
                     message: 'Hello! Please respond with a short greeting.',
                     stream: false,
-                    cacheBypass: false
+                    cacheBypass: false,
+                    agent: ''
                 });
                 const testSending = ref(false);
                 const testResult = ref(null);
+
+                // Agent roles configuration
+                const agentRoles = ref([
+                    { name: 'sisyphus', icon: '🪨', description: 'Code implementation specialist', preferred: ['codex', 'gemini'], prompt: 'You are Sisyphus, a code implementation specialist. Write clean, efficient, and well-documented code.' },
+                    { name: 'oracle', icon: '🔮', description: 'Deep reasoning and analysis', preferred: ['deepseek', 'claude'], prompt: 'You are Oracle, a deep reasoning specialist. Analyze complex problems and provide thorough solutions.' },
+                    { name: 'librarian', icon: '📚', description: 'Documentation and knowledge', preferred: ['claude', 'gemini'], prompt: 'You are Librarian, a documentation specialist. Find and explain documentation and code clearly.' },
+                    { name: 'explorer', icon: '🧭', description: 'Codebase navigation', preferred: ['gemini', 'opencode'], prompt: 'You are Explorer, a codebase navigation specialist. Help navigate and understand codebases.' },
+                    { name: 'frontend', icon: '🎨', description: 'Frontend development', preferred: ['gemini', 'claude'], prompt: 'You are Frontend, a frontend development specialist. Build beautiful and functional user interfaces.' },
+                    { name: 'reviewer', icon: '🔍', description: 'Code review specialist', preferred: ['gemini', 'claude'], prompt: 'You are Reviewer, a code review specialist. Review code for quality, bugs, and improvements.' },
+                    { name: 'workflow', icon: '⚙️', description: 'Workflow automation', preferred: ['iflow', 'droid'], prompt: 'You are Workflow, a workflow automation specialist. Design and orchestrate multi-step workflows.' },
+                    { name: 'polyglot', icon: '🌐', description: 'Multilingual specialist', preferred: ['kimi', 'qwen'], prompt: 'You are Polyglot, a multilingual specialist. Handle translation and multilingual tasks with accuracy.' },
+                    { name: 'autonomous', icon: '🤖', description: 'Autonomous execution', preferred: ['droid', 'codex'], prompt: 'You are Autonomous, a self-directed task execution specialist. Handle long-running tasks with minimal supervision.' },
+                ]);
+
+                const selectedAgent = computed(() => {
+                    if (!testForm.value.agent) return null;
+                    return agentRoles.value.find(a => a.name === testForm.value.agent);
+                });
+
+                const onAgentChange = () => {
+                    const agent = selectedAgent.value;
+                    if (agent && agent.preferred.length > 0) {
+                        // Auto-select preferred provider if available
+                        const availableProviders = (status.value.providers || []).map(p => p.name);
+                        const preferredAvailable = agent.preferred.find(p => availableProviders.includes(p));
+                        if (preferredAvailable) {
+                            testForm.value.provider = preferredAvailable;
+                        }
+                    }
+                };
 
                 // Test templates state
                 const testTemplates = ref(JSON.parse(localStorage.getItem('ccb-test-templates') || '[]'));
@@ -1264,6 +1320,7 @@
                         view: 'View', cancel: 'Cancel', noRequests: 'No requests found',
                         // Test tab
                         quickTest: 'Quick Test', autoDefault: 'Auto (Default)', parallel: 'Parallel', fastProviders: 'Fast providers',
+                        agentRole: 'Agent Role', noAgent: 'No Agent', preferred: 'Preferred',
                         enterMessage: 'Enter your test message...', stream: 'Stream', bypassCache: 'Bypass Cache',
                         sendTest: 'Send Test Request', sending: 'Sending...', result: 'Result', requestId: 'Request ID',
                         cached: 'Cached', response: 'Response', sendToSee: 'Send a test request to see results',
@@ -1360,6 +1417,7 @@
                         view: '查看', cancel: '取消', noRequests: '未找到请求',
                         // Test tab
                         quickTest: '快速测试', autoDefault: '自动（默认）', parallel: '并行', fastProviders: '快速提供者',
+                        agentRole: 'Agent 角色', noAgent: '无 Agent', preferred: '首选',
                         enterMessage: '输入测试消息...', stream: '流式', bypassCache: '绕过缓存',
                         sendTest: '发送测试请求', sending: '发送中...', result: '结果', requestId: '请求 ID',
                         cached: '已缓存', response: '响应', sendToSee: '发送测试请求以查看结果',
@@ -1918,7 +1976,14 @@
                     testSending.value = true;
                     testResult.value = null;
                     const startTime = performance.now();
-                    
+
+                    // Build message with agent prompt if selected
+                    let message = testForm.value.message;
+                    const agent = selectedAgent.value;
+                    if (agent && agent.prompt) {
+                        message = `[System: ${agent.prompt}]\n\n${message}`;
+                    }
+
                     try {
                         const endpoint = testForm.value.stream ? '/api/ask/stream' : '/api/ask';
                         const res = await fetch(endpoint, {
@@ -1926,7 +1991,7 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 provider: testForm.value.provider || null,
-                                message: testForm.value.message,
+                                message: message,
                                 cache_bypass: testForm.value.cacheBypass,
                             }),
                         });
@@ -2484,7 +2549,7 @@
                     showCreateKeyModal, newKeyName, newKeyRateLimit, newApiKey,
                     activityLogs, requestFilter, providerFilter, searchQuery,
                     selectedRequest, selectedRequestResponse,
-                    testForm, testSending, testResult,
+                    testForm, testSending, testResult, agentRoles, selectedAgent, onAgentChange,
                     latencyChart, statusChart, radarChart, timelineChart,
                     healthyProviders, filteredRequests, sortedProviders,
                     // Phase 8A additions

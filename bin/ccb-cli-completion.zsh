@@ -18,6 +18,7 @@ _ccb_cli() {
         'codex:OpenAI models (o3, o4-mini, gpt-4o)'
         'gemini:Google frontend specialist'
         'claude:Anthropic Claude'
+        'qoder:Agentic code assistant'
         'auto:Auto-route based on task'
     )
 

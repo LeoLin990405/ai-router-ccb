@@ -16,7 +16,7 @@
 <h4 align="center">企业级多 AI 编排平台</h4>
 
 <p align="center">
-  <em>Claude 作为主脑，通过统一 Gateway API 调度 7 个 AI Provider，支持实时监控和模型切换</em>
+  <em>Claude 作为主脑，通过统一 Gateway API 调度 8 个 AI Provider，支持实时监控和模型切换</em>
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
 
 ## 概述
 
-**CCB Gateway** 是一个生产级多 AI 编排平台，**Claude 作为主脑（Orchestrator）**，通过统一的 Gateway API 智能调度 7 个 AI Provider。
+**CCB Gateway** 是一个生产级多 AI 编排平台，**Claude 作为主脑（Orchestrator）**，通过统一的 Gateway API 智能调度 8 个 AI Provider。
 
 ```
                     ┌─────────────────────────────┐
@@ -57,12 +57,12 @@
               │                  │                   │
               └──────────────────┼───────────────────┘
                                  │
-          ┌───────────┬──────────┼──────────┬───────────┐
-          ▼           ▼          ▼          ▼           ▼
-     ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-     │  Kimi   │ │  Qwen   │ │DeepSeek │ │  Codex  │ │ Gemini  │
-     │  🚀 7s  │ │  🚀 12s │ │  ⚡ 16s │ │ 🐢 48s  │ │ 🐢 71s  │
-     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
+          ┌───────────┬──────────┼──────────┬───────────┬───────────┐
+          ▼           ▼          ▼          ▼           ▼           ▼
+     ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+     │  Kimi   │ │  Qwen   │ │DeepSeek │ │  Qoder  │ │  Codex  │ │ Gemini  │
+     │  🚀 7s  │ │  🚀 12s │ │  ⚡ 16s │ │  ⚡ 30s │ │ 🐢 48s  │ │ 🐢 71s  │
+     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
                       ┌─────────┐ ┌─────────┐
                       │  iFlow  │ │OpenCode │
                       │  ⚡ 25s │ │  ⚡ 42s │
@@ -118,6 +118,7 @@ ccb-cli <provider> [model] <prompt>
 | **Kimi** | thinking, normal | `ccb-cli kimi thinking "详细分析"` |
 | **iFlow** | thinking, normal | `ccb-cli iflow "工作流任务"` |
 | **Qwen** | - | `ccb-cli qwen "代码生成"` |
+| **Qoder** | - | `ccb-cli qoder "审查这段代码"` |
 
 ### 🆕 多 AI 讨论 (v0.12)
 

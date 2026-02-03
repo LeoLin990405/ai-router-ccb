@@ -24,14 +24,15 @@ DEFAULT_FALLBACK_CHAINS: Dict[str, List[str]] = {
     "kimi": ["qwen", "deepseek"],
     "qwen": ["kimi", "deepseek"],
     "iflow": ["deepseek", "gemini"],
+    "qoder": ["codex", "gemini"],
 }
 
 # Default provider groups for parallel queries
 DEFAULT_PROVIDER_GROUPS: Dict[str, List[str]] = {
-    "all": ["gemini", "deepseek", "codex", "opencode", "kimi", "qwen", "iflow"],
+    "all": ["gemini", "deepseek", "codex", "opencode", "kimi", "qwen", "iflow", "qoder"],
     "fast": ["deepseek", "kimi"],
     "reasoning": ["deepseek", "gemini"],
-    "coding": ["codex", "opencode", "gemini"],
+    "coding": ["codex", "opencode", "gemini", "qoder"],
     "chinese": ["deepseek", "kimi", "qwen"],
 }
 

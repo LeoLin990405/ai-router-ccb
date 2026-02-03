@@ -16,7 +16,7 @@
 <h4 align="center">Enterprise-Grade Multi-AI Orchestration Platform</h4>
 
 <p align="center">
-  <em>Claude as orchestrator, unified Gateway API managing 7 AI providers with real-time monitoring and model switching</em>
+  <em>Claude as orchestrator, unified Gateway API managing 8 AI providers with real-time monitoring and model switching</em>
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
 
 ## Overview
 
-**CCB Gateway** is a production-ready multi-AI orchestration platform where **Claude serves as the orchestrator**, intelligently dispatching tasks to 7 AI providers through a unified Gateway API.
+**CCB Gateway** is a production-ready multi-AI orchestration platform where **Claude serves as the orchestrator**, intelligently dispatching tasks to 8 AI providers through a unified Gateway API.
 
 ```
                     ┌─────────────────────────────┐
@@ -57,12 +57,12 @@
               │                  │                   │
               └──────────────────┼───────────────────┘
                                  │
-          ┌───────────┬──────────┼──────────┬───────────┐
-          ▼           ▼          ▼          ▼           ▼
-     ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-     │  Kimi   │ │  Qwen   │ │DeepSeek │ │  Codex  │ │ Gemini  │
-     │  🚀 7s  │ │  🚀 12s │ │  ⚡ 16s │ │ 🐢 48s  │ │ 🐢 71s  │
-     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
+          ┌───────────┬──────────┼──────────┬───────────┬───────────┐
+          ▼           ▼          ▼          ▼           ▼           ▼
+     ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+     │  Kimi   │ │  Qwen   │ │DeepSeek │ │  Qoder  │ │  Codex  │ │ Gemini  │
+     │  🚀 7s  │ │  🚀 12s │ │  ⚡ 16s │ │  ⚡ 30s │ │ 🐢 48s  │ │ 🐢 71s  │
+     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
                       ┌─────────┐ ┌─────────┐
                       │  iFlow  │ │OpenCode │
                       │  ⚡ 25s │ │  ⚡ 42s │
@@ -118,6 +118,7 @@ ccb-cli <provider> [model] <prompt>
 | **Kimi** | thinking, normal | `ccb-cli kimi thinking "detailed analysis"` |
 | **iFlow** | thinking, normal | `ccb-cli iflow "workflow task"` |
 | **Qwen** | - | `ccb-cli qwen "code generation"` |
+| **Qoder** | - | `ccb-cli qoder "Review this code"` |
 
 ### 🆕 Multi-AI Discussion (v0.12)
 

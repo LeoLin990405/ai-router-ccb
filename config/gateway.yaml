@@ -107,6 +107,18 @@ providers:
     timeout_s: 300.0
     cli_command: "qwen"
 
+  # Qoder (CLI)
+  qoder:
+    backend_type: "cli_exec"
+    enabled: true
+    priority: 45
+    timeout_s: 300.0
+    cli_command: "qodercli"
+    cli_args: ["-p"]
+    model: "qoder-default"
+    max_tokens: 8192
+    supports_streaming: false
+
   # Droid (Terminal - legacy)
   droid:
     backend_type: "terminal"

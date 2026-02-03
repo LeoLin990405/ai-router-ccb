@@ -10,7 +10,7 @@ _ccb_cli_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Providers
-    local providers="kimi qwen deepseek iflow opencode codex gemini claude auto"
+    local providers="kimi qwen deepseek iflow opencode codex gemini claude qoder auto"
 
     # Agent roles
     local agents="sisyphus oracle librarian explorer frontend reviewer"

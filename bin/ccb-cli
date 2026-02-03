@@ -82,6 +82,7 @@ Providers 和模型选项:
   opencode [model] <prompt>           - OpenCode 多模型
   codex [model] <prompt>              - Codex OpenAI
   gemini [model] <prompt>             - Gemini
+  qoder <prompt>                      - Qoder 代码助手
 
 模型快捷方式:
   deepseek reasoner  = deepseek-reasoner
@@ -304,6 +305,10 @@ parse_and_call() {
                     message="${args[*]}" ;;
             esac
             message="[MODEL:$model] $message"
+            ;;
+        qoder)
+            # Qoder: simple pass-through, no special model modes
+            message="${args[*]}"
             ;;
         *)
             echo -e "${RED}未知 provider: $provider${NC}" >&2

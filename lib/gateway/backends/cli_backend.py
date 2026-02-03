@@ -583,6 +583,22 @@ class CLIBackend(BaseBackend):
         Returns:
             Tuple of (cleaned_response, thinking_content)
         """
+        # Qoder special handling: output is usually clean, just trim status lines
+        if self.config.name == "qoder":
+            cleaned_lines = []
+            for line in output.strip().split("\n"):
+                # Skip Qoder-specific status lines
+                if any(skip in line.lower() for skip in [
+                    "loading",
+                    "context engine",
+                    "analyzing",
+                    "mcp:",
+                    "job id:",
+                ]):
+                    continue
+                cleaned_lines.append(line)
+            return "\n".join(cleaned_lines).strip(), None
+
         # Check if output is JSONL (Codex --json mode or OpenCode --format json)
         lines = output.strip().split("\n")
 

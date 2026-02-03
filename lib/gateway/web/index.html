@@ -676,6 +676,121 @@
                 </div>
             </div>
 
+            <!-- Discussions Tab -->
+            <div v-show="activeTab === 'discussions'" class="space-y-6">
+                <div class="glass-card p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-comments text-purple-400 mr-3"></i>{{ t('multiAiDiscussion') }}
+                            <span v-if="activeDiscussions.length > 0" class="ml-3 px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full animate-pulse">
+                                {{ activeDiscussions.length }} {{ t('active') }}
+                            </span>
+                        </h2>
+                        <div class="flex items-center gap-3">
+                            <button @click="showNewDiscussionModal = true" class="btn-primary">
+                                <i class="fas fa-plus mr-2"></i>{{ t('newDiscussion') }}
+                            </button>
+                            <button @click="fetchDiscussions" class="btn-secondary">
+                                <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': loading.discussions}"></i>{{ t('refreshDiscussions') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Discussion List -->
+                    <div v-if="discussions.length > 0" class="space-y-4">
+                        <div v-for="disc in discussions" :key="disc.id"
+                             class="bg-gray-800/50 rounded-xl border transition-all cursor-pointer hover:border-purple-500/50"
+                             :class="disc.status === 'in_progress' ? 'border-purple-500/30 animate-pulse-slow' : 'border-gray-700/50'"
+                             @click="selectDiscussion(disc)">
+                            <div class="p-4">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex-1 mr-4">
+                                        <h3 class="font-medium text-white text-sm line-clamp-2">{{ disc.topic }}</h3>
+                                        <p class="text-xs text-gray-500 mt-1">ID: {{ disc.id }}</p>
+                                    </div>
+                                    <span class="badge shrink-0" :class="getDiscussionStatusClass(disc.status)">
+                                        <i :class="getDiscussionStatusIcon(disc.status)" class="mr-1"></i>
+                                        {{ t('discussionRound') }} {{ disc.current_round }}/{{ disc.config?.max_rounds || 3 }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span v-for="p in disc.providers" :key="p"
+                                              class="text-xs px-2 py-0.5 rounded-full bg-gray-700/50 text-gray-300">
+                                            {{ getProviderTierIcon(p) }} {{ p }}
+                                        </span>
+                                    </div>
+                                    <span class="text-xs text-gray-500">{{ formatTime(disc.created_at) }}</span>
+                                </div>
+                            </div>
+                            <!-- Progress Bar for Active Discussions -->
+                            <div v-if="disc.status === 'in_progress'" class="h-1 bg-gray-700">
+                                <div class="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+                                     :style="{ width: ((disc.current_round / (disc.config?.max_rounds || 3)) * 100) + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else class="text-center py-16 text-gray-500">
+                        <i class="fas fa-comments text-5xl mb-4"></i>
+                        <p class="text-lg">{{ t('noDiscussions') }}</p>
+                        <p class="text-sm mt-2">{{ t('newDiscussion') }}</p>
+                    </div>
+                </div>
+
+                <!-- Selected Discussion Detail -->
+                <div v-if="selectedDiscussion" class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-stream text-cyan-400 mr-3"></i>
+                            {{ t('discussionMessages') }}
+                        </h3>
+                        <button @click="selectedDiscussion = null" class="btn-secondary text-sm">
+                            <i class="fas fa-times mr-1"></i>{{ t('close') }}
+                        </button>
+                    </div>
+
+                    <!-- Discussion Timeline -->
+                    <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                        <!-- Summary (if completed) -->
+                        <div v-if="selectedDiscussion.summary" class="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-xl p-4 border border-purple-500/30">
+                            <div class="flex items-center mb-3">
+                                <i class="fas fa-brain text-purple-400 mr-2"></i>
+                                <span class="font-semibold text-purple-400">{{ t('discussionSummary') }}</span>
+                            </div>
+                            <div class="prose prose-invert prose-sm max-w-none text-gray-300 whitespace-pre-wrap">{{ selectedDiscussion.summary }}</div>
+                        </div>
+
+                        <!-- Messages by Round -->
+                        <template v-for="round in [1, 2, 3]" :key="round">
+                            <div v-if="getMessagesForRound(round).length > 0" class="space-y-3">
+                                <div class="flex items-center gap-2 text-sm text-gray-400">
+                                    <div class="h-px flex-1 bg-gray-700"></div>
+                                    <span class="px-3 py-1 rounded-full bg-gray-800 border border-gray-700">
+                                        <i :class="getRoundIcon(round)" class="mr-1"></i>
+                                        {{ getRoundLabel(round) }}
+                                    </span>
+                                    <div class="h-px flex-1 bg-gray-700"></div>
+                                </div>
+                                <div v-for="msg in getMessagesForRound(round)" :key="msg.id"
+                                     class="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-lg">{{ getProviderTierIcon(msg.provider) }}</span>
+                                            <span class="font-medium text-white">{{ msg.provider }}</span>
+                                            <span class="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-400">{{ msg.message_type }}</span>
+                                        </div>
+                                        <span v-if="msg.latency_ms" class="text-xs text-gray-500">{{ (msg.latency_ms / 1000).toFixed(1) }}s</span>
+                                    </div>
+                                    <div class="text-sm text-gray-300 whitespace-pre-wrap max-h-64 overflow-y-auto">{{ msg.content?.slice(0, 2000) }}{{ msg.content?.length > 2000 ? '...' : '' }}</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
             <!-- Requests Tab -->
             <div v-show="activeTab === 'requests'" class="space-y-6">
                 <div class="glass-card p-6">
@@ -1436,6 +1551,51 @@
             </div>
         </div>
 
+        <!-- New Discussion Modal -->
+        <div v-if="showNewDiscussionModal" class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" @click.self="showNewDiscussionModal = false">
+            <div class="modal-content p-6 w-[550px] max-h-[80vh] overflow-auto fade-up">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-semibold flex items-center"><i class="fas fa-comments text-purple-400 mr-3"></i>{{ t('newDiscussion') }}</h3>
+                    <button @click="showNewDiscussionModal = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">{{ t('discussionTopic') }}</label>
+                        <textarea v-model="newDiscussionTopic" class="input-field h-24 resize-none" :placeholder="t('enterTopic')"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-2">{{ t('selectDiscussionProviders') }}</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label v-for="p in availableDiscussionProviders" :key="p"
+                                   class="flex items-center space-x-2 p-2 rounded-lg border cursor-pointer transition-all"
+                                   :class="newDiscussionProviders.includes(p) ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 hover:border-gray-600'">
+                                <input type="checkbox" :value="p" v-model="newDiscussionProviders" class="w-4 h-4 rounded">
+                                <span class="text-sm">{{ getProviderTierIcon(p) }} {{ p }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" v-model="newDiscussionQuickMode" class="w-4 h-4 rounded">
+                            <span class="text-sm text-gray-400">{{ t('quickMode') }}</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button @click="showNewDiscussionModal = false" class="btn-secondary">{{ t('close') }}</button>
+                    <button @click="startNewDiscussion" :disabled="!newDiscussionTopic || newDiscussionProviders.length < 2 || startingDiscussion"
+                            :class="['btn-primary flex items-center space-x-2', (!newDiscussionTopic || newDiscussionProviders.length < 2 || startingDiscussion) ? 'opacity-50 cursor-not-allowed' : '']">
+                        <i :class="startingDiscussion ? 'fas fa-spinner fa-spin' : 'fas fa-play'"></i>
+                        <span>{{ startingDiscussion ? t('starting') : t('startDiscussion') }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Request Detail Modal -->
         <div v-if="selectedRequest" class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" @click.self="selectedRequest = null">
             <div class="modal-content p-6 w-[600px] max-h-[80vh] overflow-auto fade-up">
@@ -1518,7 +1678,8 @@
                     status: false,
                     requests: false,
                     keys: false,
-                    test: false
+                    test: false,
+                    discussions: false
                 });
 
                 // Pagination state
@@ -1593,6 +1754,17 @@
                 const warmupResults = ref([]);
                 const defaultProviderList = ['claude', 'codex', 'gemini', 'opencode', 'iflow', 'kimi', 'qwen', 'deepseek'];
                 const warmupProviders = ref(defaultProviderList.map(name => ({ name, selected: true, status: null })));
+
+                // Discussion state
+                const discussions = ref([]);
+                const selectedDiscussion = ref(null);
+                const discussionMessages = ref([]);
+                const showNewDiscussionModal = ref(false);
+                const newDiscussionTopic = ref('');
+                const newDiscussionProviders = ref(['kimi', 'qwen', 'deepseek']);
+                const newDiscussionQuickMode = ref(false);
+                const startingDiscussion = ref(false);
+                const availableDiscussionProviders = ['kimi', 'qwen', 'deepseek', 'iflow', 'codex', 'gemini'];
 
                 // Cost tracking state
                 const tokenPricing = {
@@ -1709,6 +1881,19 @@
                         liveMonitor: 'Live Monitor', autoScroll: 'Auto Scroll', gridView: 'Grid', focusView: 'Focus',
                         waitingForOutput: 'Waiting for output...', sendRequestToMonitor: 'Send a request to see live output',
                         noActiveStreams: 'No active streams', streamingOutput: 'Streaming Output',
+                        // Discussions tab
+                        discussions: 'Discussions', multiAiDiscussion: 'Multi-AI Discussion',
+                        discussionTopic: 'Topic', discussionStatus: 'Status', discussionRound: 'Round',
+                        discussionProviders: 'Providers', discussionCreated: 'Created',
+                        noDiscussions: 'No discussions found', viewDiscussion: 'View',
+                        discussionInProgress: 'In Progress', discussionCompleted: 'Completed',
+                        discussionFailed: 'Failed', roundProposal: 'Proposal', roundReview: 'Review',
+                        roundRevision: 'Revision', roundSummary: 'Summary',
+                        discussionMessages: 'Messages', discussionSummary: 'Summary',
+                        newDiscussion: 'New Discussion', startDiscussion: 'Start Discussion',
+                        enterTopic: 'Enter discussion topic...', selectDiscussionProviders: 'Select Providers',
+                        discussionRounds: 'Rounds', quickMode: 'Quick Mode (2 rounds)',
+                        starting: 'Starting...', refreshDiscussions: 'Refresh',
                     },
                     zh: {
                         // Header
@@ -1814,6 +1999,19 @@
                         liveMonitor: '实时监控', autoScroll: '自动滚动', gridView: '网格', focusView: '聚焦',
                         waitingForOutput: '等待输出...', sendRequestToMonitor: '发送请求以查看实时输出',
                         noActiveStreams: '无活跃流', streamingOutput: '流式输出',
+                        // Discussions tab
+                        discussions: '讨论', multiAiDiscussion: '多 AI 讨论',
+                        discussionTopic: '主题', discussionStatus: '状态', discussionRound: '轮次',
+                        discussionProviders: '参与者', discussionCreated: '创建时间',
+                        noDiscussions: '未找到讨论', viewDiscussion: '查看',
+                        discussionInProgress: '进行中', discussionCompleted: '已完成',
+                        discussionFailed: '失败', roundProposal: '提案', roundReview: '互评',
+                        roundRevision: '修订', roundSummary: '汇总',
+                        discussionMessages: '消息', discussionSummary: '总结',
+                        newDiscussion: '新建讨论', startDiscussion: '开始讨论',
+                        enterTopic: '输入讨论主题...', selectDiscussionProviders: '选择参与者',
+                        discussionRounds: '讨论轮数', quickMode: '快速模式（2轮）',
+                        starting: '启动中...', refreshDiscussions: '刷新',
                     }
                 };
 
@@ -1835,16 +2033,21 @@
                 const tabs = [
                     { id: 'dashboard', name: 'Dashboard', icon: '<i class="fas fa-chart-line"></i>', shortcut: '1' },
                     { id: 'monitor', name: 'Monitor', icon: '<i class="fas fa-desktop"></i>', shortcut: '2' },
-                    { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '3' },
-                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '4' },
-                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '5' },
-                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '6' },
-                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '7' },
+                    { id: 'discussions', name: 'Discussions', icon: '<i class="fas fa-comments"></i>', shortcut: '3' },
+                    { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '4' },
+                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '5' },
+                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '6' },
+                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '7' },
+                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '8' },
                 ];
 
                 // Computed
                 const healthyProviders = computed(() => {
                     return (status.value.providers || []).filter(p => p.status === 'healthy' || p.status === 'available').length;
+                });
+
+                const activeDiscussions = computed(() => {
+                    return discussions.value.filter(d => d.status === 'in_progress');
                 });
 
                 const filteredRequests = computed(() => {
@@ -2285,6 +2488,88 @@
                     } finally {
                         loading.value.requests = false;
                     }
+                };
+
+                // Discussion methods
+                const fetchDiscussions = async () => {
+                    loading.value.discussions = true;
+                    try {
+                        const res = await fetch('/api/discussions');
+                        discussions.value = await res.json();
+                    } catch (e) {
+                        console.error('Failed to fetch discussions:', e);
+                    } finally {
+                        loading.value.discussions = false;
+                    }
+                };
+
+                const selectDiscussion = async (disc) => {
+                    selectedDiscussion.value = disc;
+                    try {
+                        const res = await fetch(`/api/discussion/${disc.id}/messages`);
+                        discussionMessages.value = await res.json();
+                    } catch (e) {
+                        console.error('Failed to fetch discussion messages:', e);
+                    }
+                };
+
+                const startNewDiscussion = async () => {
+                    if (!newDiscussionTopic.value || newDiscussionProviders.value.length < 2) return;
+                    startingDiscussion.value = true;
+                    try {
+                        const res = await fetch('/api/discussion/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                topic: newDiscussionTopic.value,
+                                providers: newDiscussionProviders.value,
+                                max_rounds: newDiscussionQuickMode.value ? 2 : 3
+                            })
+                        });
+                        if (res.ok) {
+                            showToast('success', 'Discussion started');
+                            showNewDiscussionModal.value = false;
+                            newDiscussionTopic.value = '';
+                            await fetchDiscussions();
+                        }
+                    } catch (e) {
+                        console.error('Failed to start discussion:', e);
+                        showToast('error', 'Failed to start discussion');
+                    } finally {
+                        startingDiscussion.value = false;
+                    }
+                };
+
+                const getMessagesForRound = (round) => {
+                    return discussionMessages.value.filter(m => m.round_number === round && m.message_type !== 'summary');
+                };
+
+                const getRoundLabel = (round) => {
+                    const labels = { 1: t('roundProposal'), 2: t('roundReview'), 3: t('roundRevision') };
+                    return labels[round] || `Round ${round}`;
+                };
+
+                const getRoundIcon = (round) => {
+                    const icons = { 1: 'fas fa-lightbulb text-amber-400', 2: 'fas fa-comments text-cyan-400', 3: 'fas fa-edit text-purple-400' };
+                    return icons[round] || 'fas fa-circle';
+                };
+
+                const getDiscussionStatusClass = (status) => {
+                    const classes = {
+                        'in_progress': 'badge-warning',
+                        'completed': 'badge-success',
+                        'failed': 'badge-error'
+                    };
+                    return classes[status] || 'badge-info';
+                };
+
+                const getDiscussionStatusIcon = (status) => {
+                    const icons = {
+                        'in_progress': 'fas fa-spinner fa-spin',
+                        'completed': 'fas fa-check',
+                        'failed': 'fas fa-times'
+                    };
+                    return icons[status] || 'fas fa-circle';
                 };
 
                 const fetchApiKeys = async () => {
@@ -2919,12 +3204,15 @@
                         showSaveTemplateModal.value = false;
                         showManageTemplatesModal.value = false;
                         showAlertSettings.value = false;
-                    } else if (e.key >= '1' && e.key <= '6') {
+                        showNewDiscussionModal.value = false;
+                        selectedDiscussion.value = null;
+                    } else if (e.key >= '1' && e.key <= '8') {
                         const tabIndex = parseInt(e.key) - 1;
                         if (tabs[tabIndex]) activeTab.value = tabs[tabIndex].id;
                     } else if (e.key.toLowerCase() === 'r') {
                         fetchStatus();
                         fetchRequests();
+                        fetchDiscussions();
                         showToast('info', t('refreshed'));
                     } else if (e.key.toLowerCase() === 'e') {
                         exportData();
@@ -3044,6 +3332,7 @@
 
                     fetchStatus();
                     fetchRequests();
+                    fetchDiscussions();
                     fetchApiKeys();
                     fetchConfigs();
                     connectWebSocket();
@@ -3053,6 +3342,7 @@
                     });
                     refreshInterval = setInterval(() => {
                         fetchStatus();
+                        fetchDiscussions();
                         updateRadarChart();
                     }, 5000);
                     document.addEventListener('keydown', handleKeydown);
@@ -3095,6 +3385,13 @@
                     // Monitor tab
                     monitorStreams, monitorAutoScroll, monitorLayout, monitorFocusProvider, liveRequests,
                     monitorProviders, setMonitorRef, getMonitorOutput, getOutputLineClass, clearMonitorStreams,
+                    // Discussions tab
+                    discussions, selectedDiscussion, discussionMessages, showNewDiscussionModal,
+                    newDiscussionTopic, newDiscussionProviders, newDiscussionQuickMode, startingDiscussion,
+                    availableDiscussionProviders, activeDiscussions,
+                    fetchDiscussions, selectDiscussion, startNewDiscussion,
+                    getMessagesForRound, getRoundLabel, getRoundIcon,
+                    getDiscussionStatusClass, getDiscussionStatusIcon,
                     // Original functions
                     fetchRequests, createKey, toggleKey, deleteKey, cancelRequest, viewRequest,
                     sendTestRequest, exportData, toggleFullscreen, showShortcuts, toasts, showToast,

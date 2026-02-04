@@ -1,0 +1,270 @@
+"""
+CCB Gateway Memory Middleware
+在 Gateway 层自动处理记忆的记录和注入
+"""
+
+import asyncio
+import json
+from datetime import datetime
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+import sys
+
+# 添加项目根目录到 Python 路径
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from lib.memory.memory_lite import CCBLightMemory
+from lib.memory.registry import CCBRegistry
+from .system_context import SystemContextBuilder
+
+
+class MemoryMiddleware:
+    """Gateway 记忆中间件"""
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.memory = CCBLightMemory()
+        self.registry = CCBRegistry()
+
+        # 加载配置
+        self.config = config or self._load_config()
+        self.enabled = self.config.get("memory", {}).get("enabled", True)
+        self.auto_inject = self.config.get("memory", {}).get("auto_inject", True)
+        self.auto_record = self.config.get("memory", {}).get("auto_record", True)
+        self.max_injected = self.config.get("memory", {}).get("max_injected_memories", 5)
+        self.inject_system_context = self.config.get("memory", {}).get("inject_system_context", True)
+
+        # 预加载系统上下文（Skills、MCP、Providers）
+        self.system_context = SystemContextBuilder()
+
+        print(f"[MemoryMiddleware] Initialized (enabled={self.enabled})")
+        print(f"[MemoryMiddleware] System context preloaded: {self.system_context.get_stats()}")
+
+    def _load_config(self) -> Dict[str, Any]:
+        """加载配置文件"""
+        config_file = Path.home() / ".ccb" / "gateway_config.json"
+
+        if config_file.exists():
+            with open(config_file) as f:
+                return json.load(f)
+
+        # 默认配置
+        return {
+            "memory": {
+                "enabled": True,
+                "auto_inject": True,
+                "auto_record": True,
+                "max_injected_memories": 5,
+                "inject_system_context": True,  # 新增：注入系统上下文
+                "injection_strategy": "recent_plus_relevant"
+            },
+            "recommendation": {
+                "enabled": True,
+                "auto_switch_provider": False,
+                "confidence_threshold": 0.7
+            }
+        }
+
+    async def pre_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        请求前处理（Pre-Request Hook）
+
+        功能：
+        1. 提取任务关键词
+        2. 搜索相关记忆
+        3. 推荐最佳 Provider
+        4. 注入上下文到 prompt
+        """
+        if not self.enabled or not self.auto_inject:
+            return request
+
+        provider = request.get("provider")
+        message = request.get("message", "")
+        user_id = request.get("user_id", "default")
+
+        print(f"[MemoryMiddleware] Pre-request: provider={provider}, message_len={len(message)}")
+
+        # 1. 提取任务关键词
+        keywords = self._extract_keywords(message)
+        print(f"[MemoryMiddleware] Extracted keywords: {keywords}")
+
+        # 2. 搜索相关记忆
+        relevant_memories = []
+        if keywords:
+            try:
+                relevant_memories = self.memory.search_conversations(
+                    " ".join(keywords),
+                    limit=self.max_injected
+                )
+                print(f"[MemoryMiddleware] Found {len(relevant_memories)} relevant memories")
+            except Exception as e:
+                print(f"[MemoryMiddleware] Search error: {e}")
+
+        # 3. 推荐最佳 Provider（如果启用）
+        recommendation_config = self.config.get("recommendation", {})
+        if recommendation_config.get("enabled", True) and provider in ["auto", None]:
+            try:
+                recommendations = self.registry.recommend_provider(keywords)
+                if recommendations:
+                    recommended_provider = recommendations[0]["provider"]
+                    reason = recommendations[0]["reason"]
+
+                    print(f"[MemoryMiddleware] Recommended: {recommended_provider} ({reason})")
+
+                    if recommendation_config.get("auto_switch_provider", False):
+                        request["provider"] = recommended_provider
+                        request["_recommendation"] = {
+                            "provider": recommended_provider,
+                            "reason": reason,
+                            "auto_switched": True
+                        }
+            except Exception as e:
+                print(f"[MemoryMiddleware] Recommendation error: {e}")
+
+        # 4. 注入上下文（包括系统上下文和相关记忆）
+        try:
+            context_parts = []
+
+            # 4a. 注入预埋的系统上下文（Skills、MCP、Providers）
+            if self.inject_system_context:
+                system_ctx = self.system_context.get_relevant_context(
+                    keywords,
+                    provider or request.get("provider", "unknown")
+                )
+                if system_ctx:
+                    context_parts.append(system_ctx)
+                    print(f"[MemoryMiddleware] System context injected")
+
+            # 4b. 注入相关记忆
+            if relevant_memories:
+                memory_ctx = self._format_memory_context(relevant_memories)
+                if memory_ctx:
+                    context_parts.append(memory_ctx)
+                    print(f"[MemoryMiddleware] {len(relevant_memories)} memories injected")
+
+            # 合并上下文
+            if context_parts:
+                full_context = "\n\n".join(context_parts)
+
+                # 增强原始消息
+                request["message"] = f"""# 系统上下文
+
+{full_context}
+
+---
+
+# 用户请求
+{message}
+"""
+                request["_memory_injected"] = True
+                request["_memory_count"] = len(relevant_memories)
+                request["_system_context_injected"] = self.inject_system_context
+
+        except Exception as e:
+            print(f"[MemoryMiddleware] Context injection error: {e}")
+
+        return request
+
+    async def post_response(self, request: Dict[str, Any], response: Dict[str, Any]):
+        """
+        响应后处理（Post-Response Hook）
+
+        功能：
+        1. 记录对话
+        2. 更新统计
+        3. （可选）提取关键事实
+        """
+        if not self.enabled or not self.auto_record:
+            return
+
+        try:
+            provider = request.get("provider", "unknown")
+            message = request.get("message", "")
+
+            # 移除注入的上下文，只保存原始问题
+            if request.get("_memory_injected"):
+                # 提取原始问题（在 "# 用户请求" 之后）
+                parts = message.split("# 用户请求")
+                if len(parts) > 1:
+                    message = parts[1].strip()
+
+            response_text = response.get("response", "")
+
+            metadata = {
+                "model": request.get("model"),
+                "latency_ms": response.get("latency_ms"),
+                "tokens": response.get("tokens"),
+                "memory_injected": request.get("_memory_injected", False),
+                "memory_count": request.get("_memory_count", 0)
+            }
+
+            # 记录对话
+            self.memory.record_conversation(
+                provider=provider,
+                question=message,
+                answer=response_text,
+                metadata=metadata
+            )
+
+            print(f"[MemoryMiddleware] Conversation recorded: provider={provider}")
+
+            # 更新统计（用于推荐优化）
+            # self.registry.update_usage_stats(provider, metadata)
+
+        except Exception as e:
+            print(f"[MemoryMiddleware] Post-response error: {e}")
+
+    def _extract_keywords(self, text: str) -> List[str]:
+        """提取任务关键词（简单实现）"""
+        # 中文停用词
+        stop_words = {
+            "的", "是", "在", "有", "和", "了", "我", "你", "他", "她",
+            "这", "那", "一个", "怎么", "如何", "什么", "为什么",
+            "help", "me", "with", "can", "you", "please", "the", "a", "an"
+        }
+
+        # 分词（简单空格分割）
+        words = text.lower().split()
+
+        # 过滤停用词和短词
+        keywords = [
+            w for w in words
+            if len(w) > 1 and w not in stop_words
+        ]
+
+        return keywords[:10]  # 最多保留 10 个关键词
+
+    def _format_memory_context(self, memories: List[Dict[str, Any]]) -> str:
+        """格式化记忆上下文（只包含对话记忆）"""
+        if not memories:
+            return ""
+
+        context_parts = ["## 💭 相关记忆"]
+
+        for i, mem in enumerate(memories, 1):
+            provider_name = mem.get("provider", "unknown")
+            question = mem.get("question", "")[:100]
+            answer = mem.get("answer", "")[:200]
+            context_parts.append(f"{i}. [{provider_name}] {question}")
+            context_parts.append(f"   A: {answer}...")
+            context_parts.append("")
+
+        return "\n".join(context_parts)
+
+    def _format_context(
+        self,
+        memories: List[Dict[str, Any]],
+        keywords: List[str],
+        provider: str
+    ) -> str:
+        """格式化记忆上下文（已弃用，保留兼容性）"""
+        return self._format_memory_context(memories)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取中间件统计信息"""
+        return {
+            "enabled": self.enabled,
+            "auto_inject": self.auto_inject,
+            "auto_record": self.auto_record,
+            "memory_stats": self.memory.get_stats()
+        }

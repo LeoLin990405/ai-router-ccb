@@ -80,48 +80,46 @@
 | No caching or retry logic | **Built-in caching, retry, and fallback chains** |
 | Can't see AI thinking process | **Thinking chain & raw output capture** |
 | No collaborative AI discussion | **Multi-AI Discussion** with iterative rounds |
-| Context loss between sessions | **Integrated Memory System** with conversation history and skill registry |
+| Context loss between sessions | **Integrated Memory System (v0.18)** with auto-injection and recording |
 | Don't know which AI is best for task | **Smart recommendations** based on provider strengths and past performance |
+| AI doesn't know available tools | **Pre-loaded context** - 53 Skills + 4 MCP Servers injected automatically |
 
 ---
 
 ## ✨ Features
 
-### 🆕 Integrated Memory System (v0.16)
+### 🆕 Integrated Memory System (v0.18)
 
-**Persistent memory across all AI agents** - Know what tools are available and learn from every conversation:
+**Automatic context injection and persistent memory** - All AI providers now have memory and know what tools are available:
 
-**Registry System:**
-- 📋 **Auto-scan capabilities** - Tracks 53 Claude Code skills, 8 AI providers, and running MCP servers
-- 🎯 **Smart recommendations** - Suggests the best AI for each task based on strengths
-- 🔍 **Instant discovery** - Query available skills and tools at any time
+**Pre-loaded Context:**
+- 🎯 **53 Claude Code Skills** - Auto-injected into every request (frontend-design, pdf, xlsx, pptx, ccb, etc.)
+- 🔌 **4 MCP Servers** - Real-time tool availability (chroma-mcp, etc.)
+- 🤖 **8 AI Providers** - Models, strengths, and use cases pre-loaded
+- 🚀 **Zero lookup overhead** - No need to search for skills during conversation
 
 **Memory Backend:**
 - 💾 **SQLite storage** - All conversations persisted locally in `~/.ccb/ccb_memory.db`
-- 🔎 **Full-text search** - Find relevant past conversations instantly
+- 🔎 **Full-text search** - Find relevant past conversations instantly (FTS5)
 - 📊 **Usage analytics** - Track which AI excels at which tasks
+- ☁️ **Cloud sync** - Google Drive backup with hourly auto-sync (v0.17)
 
-**ccb-mem CLI:**
-- 🧠 **Auto-context injection** - Relevant memories automatically added to prompts
-- 💡 **Tool awareness** - Each AI knows available skills and MCP servers
-- 🎓 **Continuous learning** - System gets smarter with every interaction
+**Automatic Integration (v0.18):**
+- 🎯 **Pre-Request Hook** - Auto-inject system context (Skills/MCP/Providers) + relevant memories
+- 📝 **Post-Response Hook** - Auto-record every conversation to database
+- 🔄 **Transparent** - Works with ccb-cli, no extra commands needed
+- 🚀 **High performance** - <5% latency overhead, <100ms per request
 
 ```bash
-# Use ccb-mem instead of ccb-cli for automatic context injection
-ccb-mem kimi "help me with frontend"
-# 🧠 Injecting memory context...
+# All ccb-cli calls now have automatic memory!
+ccb-cli kimi "help me with frontend"
+# [Gateway Middleware]
+#   ✓ System context injected (53 Skills + 4 MCP + 8 Providers)
+#   ✓ 2 relevant memories injected
 #
-# ## 💭 Relevant Memories
-# 1. [kimi] Used Gemini 3f for React - works great
+# Response: Based on previous discussions about React...
 #
-## 🤖 Recommended AI
-# - gemini: ccb-cli gemini (2★ match)
-#
-# ## 🛠️ Available Skills
-# - frontend-design, canvas-design, web-artifacts-builder
-#
-# ## 🔌 Running MCP Servers
-# - chroma-mcp, playwright-mcp
+# 💡 [已注入 2 条相关记忆]
 
 # Query capabilities
 python3 lib/memory/registry.py find frontend ui

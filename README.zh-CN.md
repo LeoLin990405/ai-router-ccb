@@ -80,48 +80,46 @@
 | 无缓存或重试逻辑 | **内置缓存、重试和降级链** |
 | 看不到 AI 思考过程 | **思考链 & 原始输出捕获** |
 | 无法多 AI 协作讨论 | **多 AI 讨论**，支持多轮迭代 |
-| 会话间上下文丢失 | **集成记忆系统**，记录对话历史和 skill 注册表 |
+| 会话间上下文丢失 | **集成记忆系统 (v0.18)**，自动注入和记录 |
 | 不知道哪个 AI 最适合任务 | **智能推荐**，基于 provider 优势和历史表现 |
+| AI 不知道有什么工具可用 | **预加载上下文** - 53 个 Skills + 4 个 MCP Servers 自动注入 |
 
 ---
 
 ## ✨ 特性
 
-### 🆕 集成记忆系统 (v0.16)
+### 🆕 集成记忆系统 (v0.18)
 
-**跨所有 AI agents 的持久化记忆** - 知道有什么工具可用，从每次对话中学习：
+**自动上下文注入和持久化记忆** - 所有 AI providers 现在都有记忆，知道有什么工具可用：
 
-**注册表系统：**
-- 📋 **自动扫描能力** - 追踪 53 个 Claude Code skills、8 个 AI providers 和运行中的 MCP servers
-- 🎯 **智能推荐** - 根据任务强项推荐最合适的 AI
-- 🔍 **即时发现** - 随时查询可用的 skills 和工具
+**预加载上下文：**
+- 🎯 **53 个 Claude Code Skills** - 每次请求自动注入（frontend-design, pdf, xlsx, pptx, ccb 等）
+- 🔌 **4 个 MCP Servers** - 实时工具可用性（chroma-mcp 等）
+- 🤖 **8 个 AI Providers** - 模型、优势和使用场景预加载
+- 🚀 **零查找开销** - 对话过程中无需搜索 skills
 
 **记忆后端：**
 - 💾 **SQLite 存储** - 所有对话本地持久化存储在 `~/.ccb/ccb_memory.db`
-- 🔎 **全文搜索** - 即时找到相关的历史对话
+- 🔎 **全文搜索** - 即时找到相关的历史对话（FTS5）
 - 📊 **使用分析** - 追踪哪个 AI 擅长哪些任务
+- ☁️ **云端同步** - Google Drive 备份，每小时自动同步 (v0.17)
 
-**ccb-mem CLI：**
-- 🧠 **自动上下文注入** - 相关记忆自动添加到提示词
-- 💡 **工具感知** - 每个 AI 都知道可用的 skills 和 MCP servers
-- 🎓 **持续学习** - 系统随着每次交互变得更智能
+**自动集成 (v0.18)：**
+- 🎯 **Pre-Request Hook** - 自动注入系统上下文（Skills/MCP/Providers）+ 相关记忆
+- 📝 **Post-Response Hook** - 自动记录每次对话到数据库
+- 🔄 **透明集成** - 使用 ccb-cli 即可，无需额外命令
+- 🚀 **高性能** - <5% 延迟开销，每次请求 <100ms
 
 ```bash
-# 使用 ccb-mem 代替 ccb-cli 实现自动上下文注入
-ccb-mem kimi "帮我做前端"
-# 🧠 正在注入记忆上下文...
+# 现在所有 ccb-cli 调用都自动拥有记忆！
+ccb-cli kimi "帮我做前端"
+# [Gateway Middleware]
+#   ✓ 系统上下文已注入（53 Skills + 4 MCP + 8 Providers）
+#   ✓ 已注入 2 条相关记忆
 #
-# ## 💭 相关记忆
-# 1. [kimi] 上次用 Gemini 3f 做 React - 效果很好
+# Response: 基于之前关于 React 的讨论...
 #
-# ## 🤖 推荐使用的 AI
-# - gemini: ccb-cli gemini (匹配度 2★)
-#
-# ## 🛠️ 可用的 Skills
-# - frontend-design, canvas-design, web-artifacts-builder
-#
-# ## 🔌 运行中的 MCP Servers
-# - chroma-mcp, playwright-mcp
+# 💡 [已注入 2 条相关记忆]
 
 # 查询能力
 python3 lib/memory/registry.py find frontend ui

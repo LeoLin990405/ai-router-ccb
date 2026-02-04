@@ -37,6 +37,14 @@ from .rate_limiter import RateLimiter, RateLimitMiddleware
 from .metrics import GatewayMetrics
 from .discussion import DiscussionExecutor
 
+# Import Memory Middleware
+try:
+    from .middleware.memory_middleware import MemoryMiddleware
+    MEMORY_MIDDLEWARE_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Memory Middleware not available: {e}")
+    MEMORY_MIDDLEWARE_AVAILABLE = False
+
 
 class GatewayServer:
     """
@@ -86,8 +94,12 @@ class GatewayServer:
         self.rate_limiter: Optional[RateLimiter] = None
         self.metrics: Optional[GatewayMetrics] = None
 
+        # Memory Middleware
+        self.memory_middleware: Optional[MemoryMiddleware] = None
+
         self._init_advanced_features()
         self._init_security_features()
+        self._init_memory_features()  # 新增
 
         # Router (lazy import to avoid circular deps)
         self._router = None
@@ -163,6 +175,18 @@ class GatewayServer:
         # Metrics (always enabled for observability)
         self.metrics = GatewayMetrics()
 
+    def _init_memory_features(self) -> None:
+        """Initialize memory middleware for context injection and recording."""
+        if MEMORY_MIDDLEWARE_AVAILABLE:
+            try:
+                self.memory_middleware = MemoryMiddleware()
+                print("[GatewayServer] Memory Middleware initialized successfully")
+            except Exception as e:
+                print(f"[GatewayServer] Failed to initialize Memory Middleware: {e}")
+                self.memory_middleware = None
+        else:
+            print("[GatewayServer] Memory Middleware not available")
+
         # API Key store (always created, auth can be toggled)
         self.api_key_store = APIKeyStore(self.store)
 
@@ -222,6 +246,30 @@ class GatewayServer:
         """Process a single (non-parallel) request with retry and fallback."""
         provider = request.provider
         start_time = time.time()
+
+        # === Memory Middleware: Pre-Request Hook ===
+        if self.memory_middleware:
+            try:
+                # Convert GatewayRequest to dict for middleware
+                request_dict = {
+                    "provider": request.provider,
+                    "message": request.message,
+                    "model": request.metadata.get("model"),
+                    "user_id": request.metadata.get("user_id", "default")
+                }
+
+                # Apply pre-request hook (context injection)
+                enhanced_dict = await self.memory_middleware.pre_request(request_dict)
+
+                # Update request message if context was injected
+                if enhanced_dict.get("_memory_injected"):
+                    request.message = enhanced_dict["message"]
+                    request.metadata["_memory_injected"] = True
+                    request.metadata["_memory_count"] = enhanced_dict.get("_memory_count", 0)
+                    request.metadata["_system_context_injected"] = enhanced_dict.get("_system_context_injected", False)
+
+            except Exception as e:
+                print(f"[GatewayServer] Memory pre-request hook error: {e}")
 
         # Broadcast processing started event (wrapped in try-except)
         try:
@@ -400,6 +448,30 @@ class GatewayServer:
             raw_output=result.raw_output,
         ))
         self.queue.mark_completed(request.id, response=result.response)
+
+        # === Memory Middleware: Post-Response Hook ===
+        if self.memory_middleware:
+            try:
+                # Reconstruct request dict for post-response hook
+                request_dict = {
+                    "provider": request.provider,
+                    "message": request.message,
+                    "model": request.metadata.get("model"),
+                    "_memory_injected": request.metadata.get("_memory_injected", False),
+                    "_memory_count": request.metadata.get("_memory_count", 0)
+                }
+
+                response_dict = {
+                    "response": result.response,
+                    "latency_ms": latency_ms,
+                    "tokens": result.tokens_used
+                }
+
+                # Apply post-response hook (conversation recording)
+                await self.memory_middleware.post_response(request_dict, response_dict)
+
+            except Exception as e:
+                print(f"[GatewayServer] Memory post-response hook error: {e}")
 
         # Cache the response
         if self.cache_manager and result.response:

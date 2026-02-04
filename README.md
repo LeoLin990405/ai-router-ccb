@@ -1,46 +1,59 @@
-<p align="center">
-  <img src="https://img.shields.io/github/stars/LeoLin990405/ai-router-ccb?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/license/LeoLin990405/ai-router-ccb?color=blue" alt="License">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-</p>
+<div align="center">
 
-<h1 align="center">
-  <br>
-  🤖
-  <br>
-  CCB Gateway
-  <br>
-</h1>
+# 🤖 CCB Gateway
 
-<h4 align="center">Enterprise-Grade Multi-AI Orchestration Platform</h4>
+### Enterprise-Grade Multi-AI Orchestration Platform
 
-<p align="center">
-  <em>Claude as orchestrator, unified Gateway API managing 8 AI providers with real-time monitoring and model switching</em>
-</p>
+[![Stars](https://img.shields.io/github/stars/LeoLin990405/ai-router-ccb?style=social)](https://github.com/LeoLin990405/ai-router-ccb)
+[![License](https://img.shields.io/github/license/LeoLin990405/ai-router-ccb?color=blue)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Version](https://img.shields.io/badge/version-0.19--alpha-brightgreen)](https://github.com/LeoLin990405/ai-router-ccb/releases)
 
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-ccb-cli">ccb-cli</a> •
-  <a href="#-multi-ai-discussion">Discussion</a> •
-  <a href="#-web-ui">Web UI</a> •
-  <a href="#-api-reference">API</a>
-</p>
+**Claude orchestrates 8 AI providers through unified Gateway API with automatic memory injection and real-time monitoring**
 
-<p align="center">
-  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
-</p>
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture) • [API](#-api-reference)
 
-<p align="center">
-  <img src="screenshots/webui-demo.gif" alt="CCB Gateway Web UI Demo" width="700">
-</p>
+[🇺🇸 English](README.md) | [🇨🇳 简体中文](README.zh-CN.md)
+
+<img src="screenshots/webui-demo.gif" alt="CCB Gateway Demo" width="800">
+
+</div>
 
 ---
 
-## Overview
+## 📖 Table of Contents
 
-**CCB Gateway** is a production-ready multi-AI orchestration platform where **Claude serves as the orchestrator**, intelligently dispatching tasks to 8 AI providers through a unified Gateway API.
+- [Overview](#-overview)
+- [Why CCB Gateway?](#-why-ccb-gateway)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Usage](#-usage)
+- [Memory System](#-memory-system-v018)
+- [Skills Discovery](#-skills-discovery-v019)
+- [Multi-AI Discussion](#-multi-ai-discussion)
+- [Web UI](#-web-ui)
+- [API Reference](#-api-reference)
+- [Documentation](#-documentation)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🌟 Overview
+
+**CCB Gateway** is a production-ready multi-AI orchestration platform where **Claude acts as the intelligent orchestrator**, routing tasks to 8 specialized AI providers through a unified Gateway API with automatic memory, caching, retry, and real-time monitoring.
+
+**What makes it unique:**
+- 🧠 **Automatic Memory** - Every conversation remembered, relevant context auto-injected
+- 🎯 **Pre-loaded Context** - 53 Skills + 8 Providers + 4 MCP Servers embedded in every request
+- 🔍 **Skills Discovery** - Auto-find and recommend relevant skills via Vercel Skills CLI
+- ⚡ **Intelligent Routing** - Speed-tiered fallback with smart provider selection
+- 📊 **Real-time Monitoring** - WebSocket-based dashboard with live metrics
+- 🔄 **Multi-AI Discussion** - Collaborative problem-solving across multiple AIs
+- ☁️ **Cloud Sync** - Google Drive backup with hourly auto-sync
 
 ```
                     ┌─────────────────────────────┐
@@ -51,801 +64,964 @@
               ┌───────────────────┼───────────────────┐
               │                   │                   │
     ┌─────────▼─────────┐ ┌──────▼──────┐ ┌─────────▼─────────┐
-    │   ccb-cli (NEW)   │ │ Gateway API │ │   ccb-submit      │
-    │  Direct CLI call  │ │  REST/WS    │ │   Async Queue     │
+    │   ccb-cli         │ │ Gateway API │ │   Web UI          │
+    │  Direct Call      │ │  REST/WS    │ │   Dashboard       │
     └─────────┬─────────┘ └──────┬──────┘ └─────────┬─────────┘
               │                  │                   │
               └──────────────────┼───────────────────┘
                                  │
-          ┌───────────┬──────────┼──────────┬───────────┬───────────┐
-          ▼           ▼          ▼          ▼           ▼           ▼
-     ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-     │  Kimi   │ │  Qwen   │ │DeepSeek │ │  Qoder  │ │  Codex  │ │ Gemini  │
-     │  🚀 7s  │ │  🚀 12s │ │  ⚡ 16s │ │  ⚡ 30s │ │ 🐢 48s  │ │ 🐢 71s  │
-     └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
-                      ┌─────────┐ ┌─────────┐
-                      │  iFlow  │ │OpenCode │
-                      │  ⚡ 25s │ │  ⚡ 42s │
-                      └─────────┘ └─────────┘
+          ┌──────────┬───────────┼───────────┬───────────┬─────────┐
+          ▼          ▼           ▼           ▼           ▼         ▼
+     ┌────────┐ ┌────────┐ ┌─────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+     │ Kimi   │ │ Qwen   │ │DeepSeek │ │ Codex  │ │Gemini  │ │ iFlow  │
+     │ 🚀 7s  │ │ 🚀 12s │ │ ⚡ 16s  │ │ 🐢 48s │ │ 🐢 71s │ │ ⚡ 25s │
+     └────────┘ └────────┘ └─────────┘ └────────┘ └────────┘ └────────┘
+                           ┌─────────┐ ┌─────────┐
+                           │ Qoder   │ │OpenCode │
+                           │ ⚡ 30s  │ │ ⚡ 42s  │
+                           └─────────┘ └─────────┘
 ```
 
-### Why CCB Gateway?
+---
 
-| Challenge | Solution |
-|-----------|----------|
-| Multiple AI CLIs with different interfaces | **Unified Gateway API** + **ccb-cli** for all providers |
-| Manual provider selection | **Intelligent routing** with speed-tiered fallback |
-| No model switching within providers | **Dynamic model selection** (o3, gpt-4o, gemini-3-flash, etc.) |
-| No visibility into AI operations | **Real-time monitoring** with WebSocket + Web UI |
-| No caching or retry logic | **Built-in caching, retry, and fallback chains** |
-| Can't see AI thinking process | **Thinking chain & raw output capture** |
-| No collaborative AI discussion | **Multi-AI Discussion** with iterative rounds |
-| Context loss between sessions | **Integrated Memory System (v0.18)** with auto-injection and recording |
-| Don't know which AI is best for task | **Smart recommendations** based on provider strengths and past performance |
-| AI doesn't know available tools | **Pre-loaded context** - 53 Skills + 4 MCP Servers injected automatically |
+## 💡 Why CCB Gateway?
+
+<table>
+<tr>
+<td width="50%">
+
+### The Problem
+
+❌ Multiple AI CLIs with different interfaces
+❌ Manual provider selection is tedious
+❌ No memory between conversations
+❌ Context lost, AI doesn't know available tools
+❌ No visibility into operations
+❌ No collaboration between AIs
+❌ Wasted time on failed requests
+
+</td>
+<td width="50%">
+
+### The Solution
+
+✅ **Unified Gateway API** - One interface for all
+✅ **Intelligent Routing** - Auto-select best AI
+✅ **Automatic Memory** - Context preserved
+✅ **Pre-loaded Tools** - 53 Skills embedded
+✅ **Real-time Dashboard** - Full visibility
+✅ **Multi-AI Discussion** - Collaborative AI
+✅ **Retry & Fallback** - Built-in resilience
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## ✨ Features
 
-### 🆕 Integrated Memory System (v0.18)
+### 🧠 Automatic Memory System (v0.18)
 
-**Automatic context injection and persistent memory** - All AI providers now have memory and know what tools are available:
+**Zero-configuration memory** - Every conversation is remembered and relevant context is automatically injected.
 
-**Pre-loaded Context:**
-- 🎯 **53 Claude Code Skills** - Auto-injected into every request (frontend-design, pdf, xlsx, pptx, ccb, etc.)
-- 🔌 **4 MCP Servers** - Real-time tool availability (chroma-mcp, etc.)
-- 🤖 **8 AI Providers** - Models, strengths, and use cases pre-loaded
-- 🚀 **Zero lookup overhead** - No need to search for skills during conversation
+<details>
+<summary><b>Pre-loaded Context (Click to expand)</b></summary>
 
-**Memory Backend:**
-- 💾 **SQLite storage** - All conversations persisted locally in `~/.ccb/ccb_memory.db`
-- 🔎 **Full-text search** - Find relevant past conversations instantly (FTS5)
-- 📊 **Usage analytics** - Track which AI excels at which tasks
-- ☁️ **Cloud sync** - Google Drive backup with hourly auto-sync (v0.17)
+Every request automatically includes:
+- 🎯 **53 Claude Code Skills** - frontend-design, pdf, xlsx, pptx, ccb, lenny-*, etc.
+- 🔌 **4 MCP Servers** - chroma-mcp, playwright-mcp, etc.
+- 🤖 **8 AI Providers** - Models, strengths, use cases
+- 💭 **Relevant Memories** - Past conversations retrieved via FTS5 full-text search
 
-**Automatic Integration (v0.18):**
-- 🎯 **Pre-Request Hook** - Auto-inject system context (Skills/MCP/Providers) + relevant memories
-- 📝 **Post-Response Hook** - Auto-record every conversation to database
-- 🔄 **Transparent** - Works with ccb-cli, no extra commands needed
-- 🚀 **High performance** - <5% latency overhead, <100ms per request
+**Performance:**
+- ⚡ <100ms overhead per request (<5% impact)
+- 📝 100% conversation capture rate
+- 🔍 ~80% search accuracy (90%+ with future vector search)
 
+</details>
+
+<details>
+<summary><b>Memory Backend</b></summary>
+
+- 💾 **SQLite Storage** - All conversations in `~/.ccb/ccb_memory.db`
+- 🔎 **Full-text Search** - FTS5 with Chinese support
+- ☁️ **Cloud Sync** - Google Drive backup (hourly auto-sync)
+- 📊 **Analytics** - Track which AI excels at which tasks
+
+</details>
+
+<details>
+<summary><b>Automatic Integration</b></summary>
+
+**Pre-Request Hook:**
+```python
+# Before calling AI provider
+request = await memory_middleware.pre_request(request)
+# Result: Message enhanced with system context + relevant memories
+```
+
+**Post-Response Hook:**
+```python
+# After AI responds
+await memory_middleware.post_response(request, response)
+# Result: Conversation saved to database automatically
+```
+
+</details>
+
+**Usage:**
 ```bash
-# All ccb-cli calls now have automatic memory!
-ccb-cli kimi "help me with frontend"
+# No special command needed - ccb-cli now has automatic memory!
+ccb-cli kimi "How do I build a login page?"
+
 # [Gateway Middleware]
 #   ✓ System context injected (53 Skills + 4 MCP + 8 Providers)
 #   ✓ 2 relevant memories injected
 #
-# Response: Based on previous discussions about React...
+# Response: Based on our previous discussion about React...
 #
-# 💡 [已注入 2 条相关记忆]
+# 💡 [2 relevant memories auto-injected]
 
-# Query capabilities
-python3 lib/memory/registry.py find frontend ui
-# Recommended: gemini: ccb-cli gemini
-
-# View conversation history
+# View memories
 python3 lib/memory/memory_lite.py recent 10
-
-# Get task-specific context
-python3 lib/memory/memory_lite.py context algorithm reasoning
+python3 lib/memory/memory_lite.py search "React"
 ```
 
-**Quick Start:**
-```bash
-# Initialize registry
-python3 lib/memory/registry.py scan
+---
 
-# Use enhanced CLI
-ccb-mem kimi "your question"
+### ⚡ Intelligent Routing & Fallback
 
-# Query stats
-python3 lib/memory/memory_lite.py stats
+**Speed-tiered provider chains** with automatic fallback on failure:
+
+```yaml
+Fast Tier (3-15s):    Kimi → Qwen → DeepSeek
+Medium Tier (15-45s): iFlow → Qoder → OpenCode
+Slow Tier (45-90s):   Codex → Gemini
 ```
 
-**Documentation:**
-- [Quick Start Guide](lib/memory/QUICKSTART.md)
-- [Architecture](lib/memory/ARCHITECTURE.md)
-- [Implementation Summary](lib/memory/SUMMARY.md)
+**Features:**
+- 🎯 Smart provider recommendation based on task keywords
+- 🔄 Automatic retry with exponential backoff
+- 📉 Fallback chains for resilience
+- ⚖️ Load balancing across providers
 
-### 🆕 Web UI Optimization (v0.15)
+---
 
-Major performance improvements and new features for Gateway Web UI:
+### 🤝 Multi-AI Discussion
 
-**Performance Fixes:**
-- **80% Memory Reduction** - Monitor tab now limited to 1000 lines (circular buffer)
-- **3x UI Responsiveness** - WebSocket message batching improves FPS from <10 to >30
-- **Qoder Integration** - Full frontend support with purple branding 🤖
-
-**New Features:**
-- **💰 Cost Tracking** - Real-time cost dashboard with provider breakdown and trend visualization
-- **✨ Discussion Templates** - Quick-start discussions with 5 built-in templates (code-review, arch-review, api-design, bug-analysis, perf-optimization)
-- **📥 Data Export** - Export requests (CSV/JSON) and discussions (JSON) with one click
-
-<p align="center">
-  <img src="screenshots/webui-v015-features.png" alt="v0.15 Features" width="700">
-  <br>
-  <em>New in v0.15: Costs dashboard, Discussion templates, and Data export</em>
-</p>
-
-### 🆕 Gateway Auto-Start (v0.13)
-
-Gateway starts automatically when you use ccb-cli - no manual startup needed:
+**Collaborative problem-solving** - Multiple AIs discuss and reach consensus:
 
 ```bash
-# First call auto-starts Gateway
-ccb-cli kimi "Hello"
-# ⚡ Gateway not running, starting...
-# ✓ Gateway started (PID: 12345)
-# Response from Kimi...
+# Start a discussion with 3 AIs
+ccb-submit discuss \
+  --providers kimi,codex,gemini \
+  --rounds 3 \
+  --strategy "consensus" \
+  "Design a scalable microservices architecture"
 
-# macOS: Auto-start on boot with launchd
-cp config/com.ccb.gateway.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.ccb.gateway.plist
+# Each AI:
+# Round 1: Proposes initial solution
+# Round 2: Reviews others' proposals
+# Round 3: Final recommendation
+
+# Output: Synthesized solution from all perspectives
 ```
 
-### 🆕 ccb-cli (v0.11)
+**Use cases:**
+- 🏗️ Architecture design
+- 🐛 Complex debugging
+- 📝 Technical documentation
+- 💡 Brainstorming sessions
 
-Direct CLI tool with model selection - routes through Gateway:
+---
 
-```bash
-ccb-cli <provider> [model] <prompt>
+### 📊 Real-time Monitoring
+
+**WebSocket-based dashboard** with live updates:
+
+<table>
+<tr>
+<td width="33%">
+
+**Metrics**
+- Request count
+- Success rate
+- Avg latency
+- Provider status
+
+</td>
+<td width="33%">
+
+**Queue**
+- Pending requests
+- Processing
+- Completed
+- Failed
+
+</td>
+<td width="33%">
+
+**Logs**
+- Real-time events
+- Error tracking
+- Performance data
+- WebSocket feed
+
+</td>
+</tr>
+</table>
+
+Access at: http://localhost:8765/web
+
+---
+
+### 🚀 Production Features
+
+<table>
+<tr>
+<td width="50%">
+
+**Performance**
+- ⚡ Response caching (configurable TTL)
+- 🔄 Request retry with backoff
+- 📊 Rate limiting per provider
+- 🎯 Parallel execution
+
+</td>
+<td width="50%">
+
+**Reliability**
+- 🛡️ Automatic fallback chains
+- 💾 Persistent request queue
+- 📝 Comprehensive logging
+- 🔍 Request tracking (ID-based)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Security**
+- 🔐 API key authentication
+- 🚦 Rate limiting
+- 🔒 Secure credential storage
+- 📋 Audit logging
+
+</td>
+<td width="50%">
+
+**Observability**
+- 📊 Prometheus metrics
+- 📈 Real-time dashboards
+- 🔔 WebSocket events
+- 📋 Detailed request logs
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CCB Gateway (v0.18)                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │            Memory Middleware (v0.18)                    │    │
+│  ├────────────────────────────────────────────────────────┤    │
+│  │  Pre-Request Hook:                                      │    │
+│  │  • SystemContextBuilder (53 Skills + 4 MCP + 8 Prov)   │    │
+│  │  • MemoryLite.search() → FTS5 search                   │    │
+│  │  • Provider recommendation                              │    │
+│  │  • Context injection                                    │    │
+│  │                                                          │    │
+│  │  Post-Response Hook:                                    │    │
+│  │  • MemoryLite.record() → SQLite                        │    │
+│  │  • Update statistics                                    │    │
+│  └────────────────────────────────────────────────────────┘    │
+│                          │                                       │
+│  ┌────────────────────────▼─────────────────────────────┐      │
+│  │            Gateway Server Core                        │      │
+│  ├───────────────────────────────────────────────────────┤      │
+│  │  • Request Queue (async)                              │      │
+│  │  • Retry Executor                                     │      │
+│  │  • Cache Manager                                      │      │
+│  │  • Rate Limiter                                       │      │
+│  │  • Metrics Collector                                  │      │
+│  └───────────────────────────────────────────────────────┘      │
+│                          │                                       │
+│  ┌───────────┬───────────┼───────────┬───────────┐            │
+│  ▼           ▼           ▼           ▼           ▼            │
+│ ┌─────┐   ┌─────┐   ┌─────────┐  ┌─────┐   ┌───────┐        │
+│ │Kimi │   │Qwen │   │DeepSeek │  │Codex│   │Gemini │   ...  │
+│ └─────┘   └─────┘   └─────────┘  └─────┘   └───────┘        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-| Provider | Models | Example |
-|----------|--------|---------|
-| **Codex** | o3, o4-mini, o1-pro, gpt-4o, gpt-5.2-codex | `ccb-cli codex o3 "complex algorithm"` |
-| **Gemini** | 3f, 3p, 2.5f, 2.5p | `ccb-cli gemini 3f "React component"` |
-| **OpenCode** | mm, kimi, ds, glm | `ccb-cli opencode mm "general task"` |
-| **DeepSeek** | reasoner, chat | `ccb-cli deepseek chat "quick question"` |
-| **Kimi** | thinking, normal | `ccb-cli kimi thinking "detailed analysis"` |
-| **iFlow** | thinking, normal | `ccb-cli iflow "workflow task"` |
-| **Qwen** | - | `ccb-cli qwen "code generation"` |
-| **Qoder** | - | `ccb-cli qoder "Review this code"` |
+### Memory System Flow
 
-### 🆕 Multi-AI Discussion (v0.12)
-
-Orchestrate collaborative discussions across multiple AI providers:
-
-```bash
-# Start a discussion
-ccb-discussion "Design a distributed cache system"
-
-# With specific providers
-ccb-discussion -p kimi,qwen,deepseek "API design best practices"
-
-# Quick mode (2 rounds)
-ccb-discussion --quick "Code review approach"
-
-# Wait for completion
-ccb-discussion -w "Architecture decision"
 ```
-
-**Discussion Flow:**
+User Request
+    │
+    ├─→ [Memory Middleware: Pre-Request]
+    │   ├─→ Extract keywords from message
+    │   ├─→ SystemContextBuilder.get_relevant_context()
+    │   │   ├─→ Filter 53 Skills by keywords
+    │   │   ├─→ Get current Provider info
+    │   │   └─→ Get active MCP Servers
+    │   ├─→ MemoryLite.search_conversations()
+    │   │   └─→ SQLite FTS5 full-text search
+    │   └─→ Inject to prompt:
+    │       """
+    │       # System Context
+    │       ## 🤖 Current Provider: kimi
+    │       ## 🛠️ Relevant Skills: frontend-design, pptx
+    │       ## 💭 Relevant Memories: [previous conversation]
+    │
+    │       ---
+    │       # User Request
+    │       [original message]
+    │       """
+    │
+    ├─→ [Provider Call]
+    │   └─→ Enhanced message → AI Provider
+    │
+    └─→ [Memory Middleware: Post-Response]
+        ├─→ Record conversation to SQLite
+        ├─→ Update FTS5 index
+        └─→ Update provider statistics
 ```
-Round 1: Proposal    →   Round 2: Review    →   Round 3: Revision
-┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│ All AIs     │   ───►  │ All AIs see │   ───►  │ Revise based│
-│ propose     │         │ & review    │         │ on feedback │
-└─────────────┘         └─────────────┘         └─────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │ Claude Summary  │
-                    │ Consensus/Gaps  │
-                    └─────────────────┘
-```
-
-### Core Gateway
-
-- **REST API** - `POST /api/ask`, `GET /api/reply/{id}`, `GET /api/status`
-- **WebSocket** - Real-time events at `/api/ws`
-- **Priority Queue** - SQLite-backed request prioritization
-- **Multi-Backend** - HTTP API, CLI Exec, WezTerm integration
-- **Health Monitoring** - Automatic provider health checks
-
-### Production Features
-
-- **API Authentication** - API key-based auth with SHA-256 hashing
-- **Rate Limiting** - Token bucket algorithm, per-key limits
-- **Response Caching** - SQLite cache with TTL and pattern exclusion
-- **Retry & Fallback** - Exponential backoff, automatic provider fallback
-- **Smart Fallback** - Reliability-based provider selection
-- **Parallel Queries** - Query multiple providers simultaneously
-- **Multi-AI Discussion** - Iterative collaborative discussions
-- **Discussion Templates** - Pre-built templates for common scenarios
-- **Discussion Export** - Export to Markdown, JSON, HTML, or Obsidian
-- **Unified Results API** - Query all AI responses uniformly
-- **Cost Tracking** - Token usage and cost monitoring per provider
-- **Smart Routing** - Keyword-based automatic provider selection
-- **Auth Status Monitoring** - Track provider authentication state
-- **Memory System** - Persistent conversation history and capability registry
-- **Context Injection** - Automatic memory context added to prompts
-- **Smart Recommendations** - AI selection based on task type and history
-- **macOS Notifications** - System alerts for long operations
-- **Shell Completion** - Bash/Zsh auto-completion for ccb-cli
-- **Prometheus Metrics** - `/metrics` endpoint for monitoring
-- **Streaming** - Server-Sent Events for real-time responses
-
-### Provider Speed Tiers
-
-| Tier | Providers | Response Time | Best For |
-|------|-----------|---------------|----------|
-| 🚀 **Fast** | Kimi, Qwen | 5-15s | Quick tasks, simple questions |
-| ⚡ **Medium** | DeepSeek, iFlow, OpenCode | 15-60s | Complex reasoning, coding |
-| 🐢 **Slow** | Codex, Gemini | 60-120s | Deep analysis, reviews |
 
 ---
 
 ## 🚀 Quick Start
 
-### Step 0: Initialize Memory System (Optional but Recommended)
+### Prerequisites
 
-Enable persistent memory and smart recommendations:
-
-```bash
-# Scan capabilities (skills, providers, MCP servers)
-cd ~/.local/share/codex-dual
-python3 lib/memory/registry.py scan
-
-# Use ccb-mem for automatic context injection
-export PATH="$HOME/.local/share/codex-dual/bin:$PATH"
-
-# Now use ccb-mem instead of ccb-cli
-ccb-mem kimi "help with frontend"
-# 🧠 Injecting memory context...
-# [System automatically adds relevant memories, skills, and recommendations]
-```
-
-See [Memory System Documentation](lib/memory/QUICKSTART.md) for details.
-
-### Method 1: ccb-cli (Recommended)
-
-Gateway auto-starts - just run commands directly:
-
-```bash
-# Install (already included in ccb-dual)
-# Scripts at ~/.ccb_config/scripts/ccb-cli
-
-# Quick Chinese Q&A (Gateway auto-starts if needed)
-ccb-cli kimi "什么是递归"
-
-# Complex algorithm with o3
-ccb-cli codex o3 "Design LRU cache algorithm"
-
-# Frontend with Gemini 3 Flash
-ccb-cli gemini 3f "React login component"
-
-# Fast response
-ccb-cli deepseek chat "HTTP status 200 means?"
-
-# Detailed reasoning
-ccb-cli kimi thinking "Analyze this problem step by step"
-```
-
-### Method 2: Gateway API
-
-Full-featured async API with caching, retry, and monitoring:
-
-```bash
-# Gateway auto-starts with ccb-cli, or start manually:
-cd ~/.local/share/codex-dual
-python3 -m lib.gateway.gateway_server --port 8765
-
-# Or install as launchd service (macOS auto-start on boot):
-cp config/com.ccb.gateway.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.ccb.gateway.plist
-
-# Submit request
-curl -X POST http://localhost:8765/api/ask \
-  -H "Content-Type: application/json" \
-  -d '{"provider": "kimi", "message": "Hello"}'
-
-# Get response
-curl "http://localhost:8765/api/reply/{request_id}"
-```
-
-### Method 3: ccb-submit (Async)
-
-```bash
-# Async submission with polling
-REQUEST_ID=$(ccb-submit kimi "Hello")
-ccb-query get $REQUEST_ID
-```
-
----
-
-## 🛠️ ccb-cli
+- Python 3.9+
+- Node.js 16+ (for MCP servers)
+- Git
 
 ### Installation
 
 ```bash
-# Already installed at
-~/.ccb_config/scripts/ccb-cli
+# 1. Clone repository
+git clone https://github.com/LeoLin990405/ai-router-ccb.git
+cd ai-router-ccb
 
-# Add to PATH (if not already)
-export PATH="$HOME/.ccb_config/scripts:$PATH"
+# 2. Install Python dependencies
+pip install -r requirements.txt
+
+# 3. Install Node.js dependencies (for MCP)
+npm install
+
+# 4. Configure AI providers
+# Edit config files in ~/.claude/ or use environment variables
 ```
 
-### Model Quick Reference
+### Start Gateway Server
 
 ```bash
-# Codex models (OpenAI)
-ccb-cli codex o3 "..."        # Best reasoning
-ccb-cli codex o4-mini "..."   # Fast
-ccb-cli codex gpt-4o "..."    # Multimodal
-ccb-cli codex o1-pro "..."    # Pro reasoning
+# Start with default config
+python3 -m lib.gateway.gateway_server --port 8765
 
-# Gemini models
-ccb-cli gemini 3f "..."       # Gemini 3 Flash (fast)
-ccb-cli gemini 3p "..."       # Gemini 3 Pro (powerful)
-ccb-cli gemini 2.5f "..."     # Gemini 2.5 Flash
-ccb-cli gemini 2.5p "..."     # Gemini 2.5 Pro
+# With custom config
+python3 -m lib.gateway.gateway_server --config config/gateway.yaml
 
-# OpenCode models
-ccb-cli opencode mm "..."     # MiniMax M2.1
-ccb-cli opencode kimi "..."   # Kimi via OpenCode
-ccb-cli opencode ds "..."     # DeepSeek Reasoner
-
-# DeepSeek modes
-ccb-cli deepseek reasoner "..." # Deep reasoning
-ccb-cli deepseek chat "..."     # Fast chat
-
-# Thinking mode (Kimi/iFlow)
-ccb-cli kimi thinking "..."     # Show reasoning chain
-ccb-cli iflow thinking "..."    # GLM with thinking
+# Output:
+# [SystemContext] Preloading system information...
+# [SystemContext] Loaded 53 skills
+# [SystemContext] Loaded 8 providers
+# [SystemContext] Loaded 4 MCP servers
+# [MemoryMiddleware] Initialized (enabled=True)
+# [GatewayServer] Memory Middleware initialized successfully
+# ✓ Server running at http://localhost:8765
 ```
 
-### Task → Model Selection
+### First Request
 
-| Task Type | Recommended Command |
-|-----------|---------------------|
-| Complex Algorithm | `ccb-cli codex o3 "..."` |
-| Quick Code | `ccb-cli codex o4-mini "..."` |
-| Frontend Dev | `ccb-cli gemini 3f "..."` |
-| Deep Analysis | `ccb-cli gemini 3p "..."` |
-| Chinese Q&A | `ccb-cli kimi "..."` |
-| Detailed Reasoning | `ccb-cli kimi thinking "..."` |
-| Fast Dialog | `ccb-cli deepseek chat "..."` |
-| Image Analysis | `ccb-cli codex gpt-4o "..."` |
+```bash
+# Using ccb-cli (automatic memory!)
+ccb-cli kimi "Explain React hooks"
+
+# Using curl
+curl -X POST http://localhost:8765/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "kimi",
+    "message": "Explain React hooks",
+    "wait": true,
+    "timeout": 60
+  }'
+
+# Response includes:
+# - AI response
+# - Metadata about injected context
+# - Latency metrics
+```
 
 ---
 
-## 🗣️ Multi-AI Discussion
+## 📚 Usage
 
-### Overview
+### ccb-cli - Direct CLI
 
-The discussion feature enables true multi-AI collaboration where all providers can see and respond to each other's perspectives through iterative rounds.
-
-### CLI Usage
+**Fastest way to call any AI provider:**
 
 ```bash
-# Basic discussion
-ccb-discussion "Design a microservices architecture"
+# Basic usage
+ccb-cli <provider> [model] "<message>"
 
-# Specify providers
-ccb-discussion -p kimi,qwen,deepseek "Best caching strategy"
+# Examples
+ccb-cli kimi "How do I optimize SQL queries?"
+ccb-cli codex o3 "Prove the halting problem is undecidable"
+ccb-cli gemini 3f "Design a responsive navbar"
+ccb-cli qwen "Analyze this dataframe"
 
-# Quick mode (2 rounds, faster timeouts)
-ccb-discussion --quick "Code review guidelines"
-
-# Wait for completion and show results
-ccb-discussion -w "API versioning approach"
-
-# Check status of existing discussion
-ccb-discussion -s <session_id>
-
-# List recent discussions
-ccb-discussion -l
-
-# Export discussion to markdown
-ccb-discussion -e <session_id> -f md > discussion.md
-
-# Export to HTML file
-ccb-discussion -e <session_id> -f html -o report.html
+# With agent role
+ccb-cli codex o3 -a reviewer "Review this PR"
+ccb-cli kimi -a sisyphus "Fix this bug: ..."
 ```
 
-### Discussion Templates
+**Model shortcuts:**
+| Provider | Shortcuts | Example |
+|----------|-----------|---------|
+| codex | o3, o4-mini, gpt-4o, o1-pro | `ccb-cli codex o3 "..."` |
+| gemini | 3f, 3p, 2.5f, 2.5p | `ccb-cli gemini 3f "..."` |
+| kimi | thinking, normal | `ccb-cli kimi thinking "..."` |
+| deepseek | reasoner, chat | `ccb-cli deepseek reasoner "..."` |
 
-Built-in templates for common scenarios:
+---
 
-| Template | ID | Description |
-|----------|-----|-------------|
-| Architecture Review | `arch-review` | Review system architecture decisions |
-| Code Review | `code-review` | Collaborative code review |
-| API Design | `api-design` | Design API endpoints and contracts |
-| Bug Analysis | `bug-analysis` | Diagnose and analyze bugs |
-| Performance Optimization | `perf-optimization` | Plan performance improvements |
+### Gateway API
+
+**RESTful API with WebSocket support:**
+
+#### POST /api/ask (Synchronous)
 
 ```bash
-# Use template via API
-curl -X POST http://localhost:8765/api/discussion/templates/arch-review/use \
+curl -X POST http://localhost:8765/api/ask \
   -H "Content-Type: application/json" \
   -d '{
-    "variables": {
-      "subject": "Payment Service",
-      "context": "Microservice handling Stripe integration"
-    }
+    "provider": "kimi",
+    "message": "Your question",
+    "wait": true,
+    "timeout": 120
   }'
+
+# Response:
+{
+  "status": "completed",
+  "response": "AI response here...",
+  "provider": "kimi",
+  "latency_ms": 8500,
+  "metadata": {
+    "_memory_injected": true,
+    "_memory_count": 2,
+    "_system_context_injected": true
+  }
+}
 ```
 
-### Continue Discussion
-
-Continue a completed discussion with follow-up questions:
+#### POST /api/submit (Asynchronous)
 
 ```bash
-curl -X POST http://localhost:8765/api/discussion/{session_id}/continue \
-  -H "Content-Type: application/json" \
-  -d '{
-    "follow_up_topic": "Focus on security implications",
-    "additional_context": "Particularly concerned about JWT handling",
-    "max_rounds": 2
-  }'
+# Submit request
+curl -X POST http://localhost:8765/api/submit \
+  -d '{"provider": "kimi", "message": "Your question"}'
+
+# Returns: {"request_id": "abc123", "status": "queued"}
+
+# Query result
+curl http://localhost:8765/api/query/abc123
+
+# Response:
+{
+  "request_id": "abc123",
+  "status": "completed",
+  "response": "AI response...",
+  "latency_ms": 8500
+}
 ```
 
-### Export & Integration
+#### WebSocket /ws
 
-```bash
-# Export to Markdown
-curl "http://localhost:8765/api/discussion/{id}/export?format=md"
+```javascript
+const ws = new WebSocket('ws://localhost:8765/ws');
 
-# Export to JSON (full data)
-curl "http://localhost:8765/api/discussion/{id}/export?format=json"
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
 
-# Export to HTML (styled document)
-curl "http://localhost:8765/api/discussion/{id}/export?format=html"
-
-# Export to Obsidian vault
-curl -X POST http://localhost:8765/api/discussion/{id}/export-obsidian \
-  -d '{"vault_path": "~/Obsidian/MyVault", "folder": "AI Discussions"}'
+  if (data.type === "request_processing") {
+    console.log(`Processing: ${data.data.request_id}`);
+  } else if (data.type === "request_completed") {
+    console.log(`Completed: ${data.data.request_id}`);
+  }
+};
 ```
 
-### API Usage
+---
 
-```bash
-# Start discussion via API
-curl -X POST http://localhost:8765/api/discussion/start \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "Design distributed cache", "provider_group": "@coding"}'
+## 🧠 Memory System (v0.18)
 
-# Get discussion status
-curl http://localhost:8765/api/discussion/{session_id}
+### Architecture
 
-# Get all messages from discussion
-curl http://localhost:8765/api/discussion/{session_id}/messages
+The memory system consists of three layers:
 
-# List all discussions
-curl http://localhost:8765/api/discussions
+1. **System Context Builder** - Pre-loads Skills/MCP/Providers at startup
+2. **Memory Middleware** - Injects context and records conversations
+3. **Memory Backend** - SQLite database with FTS5 search
 
-# Get unified results (requests + discussions)
-curl http://localhost:8765/api/results
+### Database Schema
+
+```sql
+-- conversations table
+CREATE TABLE conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    metadata TEXT,  -- JSON
+    tokens INTEGER DEFAULT 0
+);
+
+-- FTS5 full-text search index
+CREATE VIRTUAL TABLE conversations_fts USING fts5(
+    question, answer, provider,
+    content='conversations',
+    content_rowid='id'
+);
 ```
 
-### Discussion Rounds
-
-| Round | Type | Description |
-|-------|------|-------------|
-| 1 | **Proposal** | Each AI provides initial analysis/solution |
-| 2 | **Review** | Each AI reviews others' proposals, gives feedback |
-| 3 | **Revision** | Each AI revises based on feedback received |
-| Final | **Summary** | Orchestrator synthesizes consensus and gaps |
-
-### Provider Groups
+### CLI Commands
 
 ```bash
-# All available providers
-ccb-discussion -g @all "topic"
+# View recent conversations
+python3 lib/memory/memory_lite.py recent 10
 
-# Fast providers only (Kimi, Qwen)
-ccb-discussion -g @fast "topic"
+# Search conversations
+python3 lib/memory/memory_lite.py search "React hooks"
 
-# Coding-focused (Kimi, Qwen, DeepSeek, Codex, Gemini)
-ccb-discussion -g @coding "topic"
+# View statistics
+python3 lib/memory/memory_lite.py stats
+
+# Cloud sync
+ccb-sync push    # Push to Google Drive
+ccb-sync pull    # Pull from Google Drive
+ccb-sync status  # Check sync status
+```
+
+### Configuration
+
+**`~/.ccb/gateway_config.json`:**
+```json
+{
+  "memory": {
+    "enabled": true,
+    "auto_inject": true,
+    "auto_record": true,
+    "inject_system_context": true,
+    "max_injected_memories": 5
+  },
+  "recommendation": {
+    "enabled": true,
+    "auto_switch_provider": false
+  }
+}
+```
+
+---
+
+## 🔍 Skills Discovery (v0.19)
+
+**Auto-discover and recommend relevant Claude Code Skills** - Integrates with [Vercel Skills](https://github.com/vercel-labs/skills) to find and install skills on-demand.
+
+### How It Works
+
+```
+User Request → Extract Keywords → Search Skills (Local + Remote)
+                                         ↓
+                        ┌────────────────┴────────────────┐
+                        │                                  │
+                   scan-skills.sh              npx skills find [query]
+                   (Local Skills)               (Vercel Registry)
+                        │                                  │
+                        └────────────────┬────────────────┘
+                                         ↓
+                              Rank by Relevance Score
+                              (Keywords + Usage History)
+                                         ↓
+                         Inject Recommendations to Context
+                                         ↓
+                            AI Sees Available Skills
+                                         ↓
+                          Record Usage → Learn & Improve
+```
+
+### Features
+
+- 🔍 **Local + Remote Search** - Scans installed skills and searches Vercel Skills registry
+- 🧠 **Learning Algorithm** - Recommendations improve based on usage history
+- 📊 **Relevance Scoring** - Keywords + historical usage + installation status
+- 🚀 **Auto-Installation** - Optionally auto-install recommended remote skills
+- 💾 **Cached Results** - Skills cached in memory database for fast access
+
+### Usage
+
+**Automatic (via Gateway):**
+```bash
+# Gateway automatically discovers relevant skills
+ccb-cli kimi "help me test React components"
+
+# Gateway output:
+# [MemoryMiddleware] 💡 发现 2 个相关 Skill: /webapp-testing, jest-react-testing
+```
+
+**Manual Search:**
+```bash
+# Find skills for a specific task
+ccb-skills recommend "create PDF"
+
+# Output:
+# 💡 发现 1 个相关 Skill: /pdf
+#
+#   pdf (score: 23, installed: ✓)
+#     Comprehensive PDF manipulation toolkit
+#     Usage: /pdf
+
+# View usage statistics
+ccb-skills stats
+
+# Refresh cache
+ccb-skills scan
+```
+
+### Configuration
+
+```json
+{
+  "skills": {
+    "auto_discover": true,        // Auto-find skills
+    "recommend_skills": true,     // Show recommendations
+    "max_recommendations": 3,     // Max skills to recommend
+    "auto_install": false,        // Auto-install remote skills
+    "cache_ttl_hours": 24         // Cache expiration
+  }
+}
+```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `ccb-skills scan` | Refresh local skills cache |
+| `ccb-skills recommend "<task>"` | Get skill recommendations |
+| `ccb-skills match "<task>"` | Find matching skills (detailed) |
+| `ccb-skills stats` | Show usage statistics |
+| `ccb-skills list [--installed]` | List all/installed skills |
+
+### Relevance Algorithm
+
+```python
+score = 0
+
+# Name match (highest priority)
+if keyword in skill_name: score += 10
+
+# Description match
+if keyword in description: score += 5
+
+# Trigger match
+if keyword in triggers: score += 3
+
+# Installed bonus
+if installed: score += 2
+
+# Usage history boost (capped at +5 per keyword)
+score += min(usage_count, 5)
+```
+
+### Example: Automatic Discovery
+
+```bash
+# User request
+$ ccb-cli kimi "create an Excel spreadsheet"
+
+# Behind the scenes:
+[MemoryMiddleware] Extracted keywords: ['create', 'excel', 'spreadsheet']
+[SkillsDiscovery] Searching local skills...
+[SkillsDiscovery] Found: xlsx (score: 20)
+[SkillsDiscovery] Searching remote skills: npx skills find excel
+[SkillsDiscovery] Found: excel-toolkit (score: 15)
+[MemoryMiddleware] 💡 发现 2 个相关 Skill: /xlsx, excel-toolkit
+
+# AI sees in context:
+## 🛠️ 相关技能推荐
+- **/xlsx** (score: 20) - Comprehensive spreadsheet toolkit
+  ✓ 已安装，可直接使用: `/xlsx`
+- **excel-toolkit** (score: 15) - Excel automation from Vercel
+  📦 可安装: npx skills add vercel-labs/agent-skills@excel-toolkit -g -y
+
+# Result: AI uses /xlsx skill automatically
+```
+
+---
+
+## 💬 Multi-AI Discussion
+
+**Collaborative problem-solving across multiple AIs:**
+
+### Basic Discussion
+
+```bash
+ccb-submit discuss \
+  --providers kimi,codex,gemini \
+  --rounds 3 \
+  --strategy consensus \
+  "Design a distributed cache system"
+```
+
+### Aggregation Strategies
+
+- **consensus** - All AIs must agree
+- **majority** - Most common answer wins
+- **first_success** - First valid response
+- **best_quality** - Highest quality (scored)
+
+### Use Cases
+
+```bash
+# Architecture design
+ccb-submit discuss -p kimi,codex,gemini -r 3 \
+  "Design microservices for e-commerce"
+
+# Code review
+ccb-submit discuss -p codex,deepseek -r 2 \
+  "Review this implementation: [code]"
+
+# Brainstorming
+ccb-submit discuss -p kimi,gemini,iflow -r 3 \
+  "Ideas for improving user onboarding"
 ```
 
 ---
 
 ## 🖥️ Web UI
 
-Access at `http://localhost:8765/` after starting Gateway.
-
-<p align="center">
-  <img src="screenshots/dashboard.png" alt="Dashboard" width="700">
-  <br>
-  <em>Dashboard - Real-time gateway stats and provider status</em>
-</p>
-
-### Tabs
-
-| Tab | Shortcut | Description |
-|-----|----------|-------------|
-| **Dashboard** | `1` | Gateway stats, provider status, activity logs |
-| **Monitor** | `2` | Real-time AI output streaming (Grid/Focus view, optimized performance) |
-| **Discussions** | `3` | Multi-AI discussion monitoring with templates |
-| **Requests** | `4` | Request history with search, filters, and export (CSV/JSON) |
-| **Costs** | `5` | 💰 Real-time cost tracking and visualization (NEW) |
-| **Test** | `6` | Interactive API testing console |
-| **Compare** | `7` | Side-by-side provider comparison |
-| **API Keys** | `8` | API key management |
-| **Config** | `9` | Gateway configuration viewer |
-
-<p align="center">
-  <img src="screenshots/discussions.png" alt="Discussions" width="700">
-  <br>
-  <em>Discussions - Monitor multi-AI collaborative discussions in real-time</em>
-</p>
-
-<p align="center">
-  <img src="screenshots/costs.png" alt="Cost Tracking" width="700">
-  <br>
-  <em>Costs - Real-time cost tracking with provider breakdown and 7-day trend visualization (NEW in v0.15)</em>
-</p>
-
-<p align="center">
-  <img src="screenshots/monitor.png" alt="Live Monitor" width="700">
-  <br>
-  <em>Monitor - Watch AI responses stream in real-time with optimized performance</em>
-</p>
-
-<p align="center">
-  <img src="screenshots/export.png" alt="Data Export" width="700">
-  <br>
-  <em>Export - Download request history in CSV or JSON format (NEW in v0.15)</em>
-</p>
+**Real-time monitoring dashboard at http://localhost:8765/web**
 
 ### Features
 
-- **🚀 Performance Optimized** - 80% memory reduction, 3x UI responsiveness
-- **💰 Cost Tracking** - Real-time cost monitoring with provider breakdown
-- **📥 Data Export** - Export requests/discussions in CSV/JSON
-- **✨ Discussion Templates** - Quick-start discussions with built-in templates
-- **Dark/Light Theme** - Toggle with `D` key
-- **i18n Support** - English and Chinese
-- **Keyboard Shortcuts** - `1-9` tabs, `R` refresh, `?` help
-- **Real-time Updates** - WebSocket-powered live data
+- 📊 **Live Metrics** - Request count, success rate, latency
+- 📋 **Request Queue** - Pending, processing, completed
+- 🔴 **Live Logs** - Real-time event stream via WebSocket
+- 🤖 **Provider Status** - Health checks for all providers
+- 📈 **Charts** - Performance trends and analytics
+
+### Screenshots
+
+<details>
+<summary><b>Dashboard Overview</b></summary>
+
+<img src="screenshots/dashboard.png" alt="Dashboard" width="700">
+
+</details>
+
+<details>
+<summary><b>Request Queue</b></summary>
+
+<img src="screenshots/queue.png" alt="Queue" width="700">
+
+</details>
 
 ---
 
-## 📡 API Reference
+## 📖 API Reference
 
-### Core Endpoints
+### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/ask` | Submit request |
-| `GET` | `/api/reply/{id}` | Get response |
-| `GET` | `/api/status` | Gateway status |
-| `GET` | `/api/requests` | List requests |
-| `GET` | `/api/results` | Unified results query |
-| `GET` | `/metrics` | Prometheus metrics |
+| GET | `/health` | Health check |
+| GET | `/providers` | List all providers |
+| POST | `/api/ask` | Synchronous request |
+| POST | `/api/submit` | Asynchronous request |
+| GET | `/api/query/{id}` | Query request status |
+| GET | `/api/pending` | List pending requests |
+| POST | `/api/cancel/{id}` | Cancel request |
+| WS | `/ws` | WebSocket connection |
 
-### Discussion Endpoints
+### Request Parameters
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/discussion/start` | Start multi-AI discussion |
-| `GET` | `/api/discussion/{id}` | Get discussion status |
-| `GET` | `/api/discussion/{id}/messages` | Get discussion messages |
-| `GET` | `/api/discussion/{id}/export` | Export discussion (md/json/html) |
-| `POST` | `/api/discussion/{id}/continue` | Continue completed discussion |
-| `POST` | `/api/discussion/{id}/export-obsidian` | Export to Obsidian vault |
+**POST /api/ask & /api/submit:**
+```json
+{
+  "provider": "kimi",           // Required: AI provider name
+  "message": "Your question",   // Required: User message
+  "model": "thinking",          // Optional: Specific model
+  "wait": true,                 // Optional: Wait for completion (ask only)
+  "timeout": 120,               // Optional: Timeout in seconds
+  "metadata": {}                // Optional: Custom metadata
+}
+```
 
-### Template Endpoints
+### Response Format
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/discussion/templates` | List all templates |
-| `POST` | `/api/discussion/templates` | Create custom template |
-| `GET` | `/api/discussion/templates/{id}` | Get template details |
-| `POST` | `/api/discussion/templates/{id}/use` | Start discussion from template |
+```json
+{
+  "request_id": "abc123",
+  "status": "completed",         // queued, processing, completed, failed
+  "response": "AI response...",  // Only if completed
+  "provider": "kimi",
+  "latency_ms": 8500,
+  "tokens_used": 150,
+  "metadata": {
+    "_memory_injected": true,
+    "_memory_count": 2,
+    "_system_context_injected": true
+  },
+  "error": null                  // Error message if failed
+}
+```
 
-### Operations Endpoints
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/providers/{name}/auth-status` | Check provider auth status |
-| `POST` | `/api/providers/{name}/check-auth` | Actively verify auth |
-| `GET` | `/api/providers/reliability` | Get all reliability scores |
-| `GET` | `/api/costs/summary` | Cost summary (today/week/month) |
-| `GET` | `/api/costs/by-provider` | Cost breakdown by provider |
-| `GET` | `/api/costs/by-day` | Daily cost breakdown |
-| `POST` | `/api/route` | Get smart routing recommendation |
-| `GET` | `/api/route/rules` | List routing rules |
+## 📚 Documentation
 
-### Provider Groups
+### Core Documentation
+
+- **[Memory System Architecture](lib/memory/INTEGRATION_DESIGN.md)** - Full design with 4-system analysis
+- **[Integration Report](lib/memory/INTEGRATION_REPORT.md)** - Complete implementation report
+- **[Database Structure](lib/memory/DATABASE_STRUCTURE.md)** - Schema and queries
+- **[Cloud Sync Guide](lib/memory/SYNC_QUICKSTART.md)** - Google Drive setup
+
+### Additional Resources
+
+- **[API Documentation](docs/API.md)** - Complete API reference
+- **[Configuration Guide](docs/CONFIG.md)** - All configuration options
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+
+---
+
+## 🗺️ Roadmap
+
+### v0.19 (Q2 2026) - Skills Discovery ✅
+
+- [x] **Skills Discovery Service** - Auto-find and recommend skills
+- [x] **Vercel Skills Integration** - Search remote skills via `npx skills find`
+- [x] **Learning Algorithm** - Improve recommendations based on usage
+- [x] **Memory Integration** - Skills cached and tracked in memory DB
+- [ ] Semantic similarity search for skills
+- [ ] Auto-install popular skills
+
+### v0.20 (Q3 2026) - Semantic Enhancement
+
+- [ ] Qdrant vector database integration
+- [ ] Semantic similarity search for conversations
+- [ ] LLM-driven fact extraction
+- [ ] Multi-language embeddings
+
+### v0.21 (Q4 2026) - Agent Autonomy
+
+- [ ] Agent memory function calls (Letta mode)
+- [ ] Structured memory blocks (core_memory)
+- [ ] Self-updating agents
+- [ ] Memory version control
+
+### v0.22 (Q4 2026) - Team Collaboration
+
+- [ ] Multi-user memory isolation
+- [ ] Shared memory pools
+- [ ] Permission system
+- [ ] Real-time collaboration
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+### Quick Start for Contributors
 
 ```bash
-# All 7 providers
-curl -d '{"provider": "@all", "message": "test"}' ...
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/ai-router-ccb.git
+cd ai-router-ccb
 
-# Fast providers only
-curl -d '{"provider": "@fast", "message": "test"}' ...
+# 2. Create branch
+git checkout -b feature/your-feature
 
-# Chinese-optimized
-curl -d '{"provider": "@chinese", "message": "test"}' ...
+# 3. Make changes and test
+python3 -m pytest tests/
 
-# Coding tasks
-curl -d '{"provider": "@coding", "message": "test"}' ...
+# 4. Commit and push
+git commit -m "feat: add your feature"
+git push origin feature/your-feature
+
+# 5. Create Pull Request
 ```
 
----
-
-## 🔄 Model Switching
-
-### Available Models by Provider
-
-| Provider | Available Models |
-|----------|------------------|
-| **Codex** | `o3`, `o4-mini`, `o3-mini`, `o1`, `o1-pro`, `gpt-5.2-codex`, `gpt-4.5`, `gpt-4.1`, `gpt-4o` |
-| **Gemini** | `gemini-3-flash-preview`, `gemini-3-pro-preview`, `gemini-2.5-flash`, `gemini-2.5-pro` |
-| **OpenCode** | `opencode/minimax-m2.1-free`, `opencode/kimi-k2.5-free`, `deepseek/deepseek-reasoner` |
-| **DeepSeek** | `deepseek-reasoner`, `deepseek-chat` |
-| **Kimi** | `kimi-for-coding` + `--thinking` option |
-| **iFlow** | `GLM-4.7` + `--thinking` option |
-| **Qwen** | `coder-model` (OAuth, single model) |
-
-### Gateway Configuration
-
-Edit `~/.ccb_config/gateway.yaml`:
-
-```yaml
-providers:
-  codex:
-    cli_args: ["exec", "--json", "-m", "o3"]  # Switch model here
-
-  gemini:
-    cli_args: ["-m", "gemini-3-flash-preview", "-p"]
-
-  opencode:
-    cli_args: ["run", "--format", "json", "-m", "opencode/minimax-m2.1-free"]
-```
-
-Restart Gateway after config changes.
-
----
-
-## 📦 Installation
-
-### Prerequisites
-
-- Python 3.9+
-- Provider CLIs: `codex`, `gemini`, `opencode`, `deepseek`, `kimi`, `qwen`, `iflow`
-
-### Install
+### Development Setup
 
 ```bash
-# Clone
-git clone https://github.com/LeoLin990405/ai-router-ccb.git ~/.local/share/codex-dual
+# Install dev dependencies
+pip install -r requirements-dev.txt
 
-# Dependencies
-pip install fastapi uvicorn pyyaml aiohttp prometheus-client
+# Run tests
+pytest
 
-# Start Gateway
-python3 -m lib.gateway.gateway_server --port 8765
+# Run linter
+flake8 lib/ tests/
 
-# Or use ccb-cli directly (no Gateway needed)
-ccb-cli kimi "Hello"
+# Run type checker
+mypy lib/
 ```
 
 ---
 
-## 🔄 Recent Updates
+## 📜 License
 
-### v0.15.x - Web UI Optimization (Latest)
-
-**Performance Improvements:**
-- **Monitor Memory Fix** - Circular buffer limits output to 1000 lines (80% memory reduction)
-- **WebSocket Batching** - 50ms message batching improves UI responsiveness (3-5x FPS boost)
-- **UI Stability** - Eliminated memory leaks and DOM thrashing during streaming
-
-**New Features:**
-- **💰 Costs Dashboard** - Real-time cost tracking with provider breakdown and 7-day trend charts
-- **✨ Discussion Templates** - Quick-start discussions with 5 built-in templates
-- **📥 Data Export** - Export requests (CSV/JSON) and discussions (JSON) with one click
-- **🤖 Qoder Integration** - Full frontend support with purple branding
-
-**UI Enhancements:**
-- Added Costs tab (shortcut: 5)
-- Discussion template modal with dynamic variable forms
-- Export dropdown menu in Requests tab
-- Provider-specific color coding (purple for Qoder)
-
-```bash
-# Access new features
-open http://localhost:8765
-# Press 5 for Costs dashboard
-# Press 3 → "Use Template" for quick discussions
-# Press 4 → "Export" for data download
-
-# Cost API
-curl "http://localhost:8765/api/costs/summary"
-curl "http://localhost:8765/api/costs/by-provider"
-
-# Template API
-curl "http://localhost:8765/api/discussion/templates"
-```
-
-### v0.14.x - Advanced Features
-
-**Phase 6 - Discussion Enhancements:**
-- **Discussion Export** - Export discussions to Markdown, JSON, or HTML
-- **WebSocket Real-time** - `discussion_provider_started/completed` events for live updates
-- **Discussion Templates** - 5 built-in templates (Architecture Review, Code Review, API Design, Bug Analysis, Performance Optimization)
-- **Discussion Continuation** - Continue from completed discussions with follow-up topics
-
-**Phase 7 - Operations & Monitoring:**
-- **Shell Auto-completion** - Bash/Zsh completion for ccb-cli (providers, models, agents)
-- **Provider Auth Status** - Track authentication state, detect auth failures
-- **Cost Tracking Dashboard** - Token usage and cost tracking per provider
-- **Smart Fallback** - Reliability-based provider selection with `ProviderReliabilityScore`
-
-**Phase 8 - Integrations:**
-- **macOS Notifications** - System notifications for long-running operations
-- **Smart Auto-routing** - Keyword-based automatic provider selection (`POST /api/route`)
-- **Obsidian Integration** - Export discussions to Obsidian vault with YAML frontmatter
-
-```bash
-# New CLI features
-ccb-discussion -e <session_id> -f md > discussion.md  # Export discussion
-ccb-discussion -e <session_id> -f html -o report.html  # HTML export
-
-# Shell completion (add to ~/.bashrc or ~/.zshrc)
-source ~/.local/share/codex-dual/bin/ccb-cli-completion.bash  # Bash
-source ~/.local/share/codex-dual/bin/ccb-cli-completion.zsh   # Zsh
-
-# New API endpoints
-curl "http://localhost:8765/api/discussion/{id}/export?format=md"
-curl -X POST "http://localhost:8765/api/discussion/templates/arch-review/use" \
-  -d '{"variables": {"subject": "My API", "context": "REST microservice"}}'
-curl "http://localhost:8765/api/costs/summary"
-curl -X POST "http://localhost:8765/api/route" -d '{"message": "React component"}'
-```
-
-### v0.13.x - Gateway Auto-Start
-- **Auto-start Gateway** - ccb-cli automatically starts Gateway when not running
-- **launchd service** - macOS auto-start on login with KeepAlive
-- **Unified architecture** - All ccb-cli calls route through Gateway for caching/monitoring
-
-### v0.12.x - Multi-AI Discussion
-- **Discussion Executor** - Orchestrate multi-round AI discussions
-- **3-Round Flow** - Proposal → Review → Revision → Summary
-- **ccb-discussion CLI** - Command-line interface for discussions
-- **Unified Results API** - Query all AI responses uniformly
-- **WebSocket Events** - Real-time discussion progress
-
-### v0.11.x - ccb-cli & Model Switching
-- **ccb-cli** - Direct CLI tool with model selection
-- **Model shortcuts** - `o3`, `3f`, `mm`, `reasoner`, `thinking`
-- **expect scripts** - Automated CLI interaction
-- **Updated documentation** - Comprehensive model guide
-
-### v0.10.x - Live Monitor
-- **Real-time AI Monitor** - Watch AI output as it streams
-- **Grid/Focus Views** - Multi-provider or single-provider monitoring
-- **WebSocket Integration** - Real-time stream_chunk events
-
-### v0.9.x - Provider Optimization
-- **Provider Speed Tiers** - Fast/Medium/Slow classification
-- **Gemini OAuth Auto-Refresh** - Seamless token management
-- **Provider Groups** - `@fast`, `@chinese`, `@coding`
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgements
+## 🙏 Acknowledgments
 
-- **[bfly123/claude_code_bridge](https://github.com/bfly123/claude_code_bridge)** - Original multi-AI collaboration framework
+**Inspired by:**
+- [Mem0](https://github.com/mem0ai/mem0) - Semantic memory architecture
+- [Letta (MemGPT)](https://github.com/cpacker/MemGPT) - Structured memory blocks
+- [LangChain](https://github.com/langchain-ai/langchain) - Memory patterns
+- [claude-mem](https://github.com/thedotmack/claude-mem) - Lifecycle hooks
+
+**Built with:**
+- [FastAPI](https://fastapi.tiangolo.com) - Modern web framework
+- [SQLite](https://www.sqlite.org) - Reliable database
+- [Claude Code](https://www.anthropic.com/claude) - AI orchestrator
 
 ---
 
-## 📄 License
+## 📞 Support
 
-MIT License - See [LICENSE](LICENSE)
+- 📧 Email: [your-email@example.com]
+- 💬 Discord: [Join our community]
+- 🐛 Issues: [GitHub Issues](https://github.com/LeoLin990405/ai-router-ccb/issues)
+- 📖 Docs: [Full Documentation](https://your-docs-site.com)
 
 ---
 
-<p align="center">
-  <sub>Built with collaboration between human and AI</sub>
-  <br>
-  <sub>⭐ Star this repo if you find it useful!</sub>
-</p>
+<div align="center">
+
+**Made with ❤️ by the CCB Team**
+
+**[⬆ Back to Top](#-ccb-gateway)**
+
+</div>

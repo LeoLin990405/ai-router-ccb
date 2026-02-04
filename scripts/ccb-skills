@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""
+CCB Skills Manager CLI
+
+Usage:
+    ccb-skills scan                    # Refresh skills cache
+    ccb-skills match "<task>"          # Find matching skills
+    ccb-skills stats                   # Show usage statistics
+    ccb-skills list [--installed]      # List all skills
+    ccb-skills recommend "<task>"      # Get skill recommendations
+"""
+
+import sys
+import argparse
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from lib.skills.skills_discovery import SkillsDiscoveryService
+
+
+def cmd_scan(service):
+    """Refresh skills cache"""
+    print("🔄 Scanning local skills...")
+    service._refresh_cache()
+    print("✓ Skills cache refreshed")
+
+
+def cmd_match(service, task):
+    """Find matching skills for a task"""
+    print(f"🔍 Finding skills for: {task}\n")
+
+    recommendations = service.get_recommendations(task)
+
+    if recommendations['found']:
+        print(f"✓ {recommendations['message']}\n")
+
+        for skill in recommendations['skills']:
+            status = "✓ Installed" if skill['installed'] else "⚠️ Not installed"
+            print(f"  {skill['name']} ({status})")
+            print(f"    Score: {skill['relevance_score']}")
+            print(f"    {skill['description']}")
+
+            if skill['installed']:
+                print(f"    Usage: /{skill['name']}")
+            print()
+    else:
+        print("✗ No matching skills found")
+
+
+def cmd_stats(service):
+    """Show usage statistics"""
+    import sqlite3
+
+    conn = sqlite3.connect(service.db_path)
+    cursor = conn.cursor()
+
+    # Total skills in cache
+    cursor.execute("SELECT COUNT(*) FROM skills_cache")
+    total_skills = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM skills_cache WHERE installed = 1")
+    installed_skills = cursor.fetchone()[0]
+
+    # Total usage records
+    cursor.execute("SELECT COUNT(*) FROM skills_usage")
+    total_usage = cursor.fetchone()[0]
+
+    # Top used skills
+    cursor.execute("""
+        SELECT skill_name, COUNT(*) as usage_count
+        FROM skills_usage
+        GROUP BY skill_name
+        ORDER BY usage_count DESC
+        LIMIT 10
+    """)
+    top_skills = cursor.fetchall()
+
+    conn.close()
+
+    print("📊 Skills Statistics\n")
+    print(f"  Total skills in cache: {total_skills}")
+    print(f"  Installed skills: {installed_skills}")
+    print(f"  Total usage records: {total_usage}\n")
+
+    if top_skills:
+        print("  Top 10 most used skills:")
+        for skill_name, count in top_skills:
+            print(f"    - {skill_name}: {count} uses")
+    else:
+        print("  No usage data yet")
+
+
+def cmd_list(service, installed_only=False):
+    """List all skills"""
+    import sqlite3
+
+    conn = sqlite3.connect(service.db_path)
+    cursor = conn.cursor()
+
+    if installed_only:
+        cursor.execute("""
+            SELECT skill_name, description, installed
+            FROM skills_cache
+            WHERE installed = 1
+            ORDER BY skill_name
+        """)
+        print("📦 Installed Skills:\n")
+    else:
+        cursor.execute("""
+            SELECT skill_name, description, installed
+            FROM skills_cache
+            ORDER BY installed DESC, skill_name
+        """)
+        print("📦 All Skills:\n")
+
+    rows = cursor.fetchall()
+
+    if not rows:
+        print("  No skills found. Run 'ccb-skills scan' first.")
+        return
+
+    for name, description, installed in rows:
+        status = "✓" if installed else "○"
+        print(f"  {status} {name}")
+        print(f"      {description}")
+        print()
+
+    conn.close()
+
+
+def cmd_recommend(service, task):
+    """Get detailed skill recommendations"""
+    print(f"💡 Analyzing task: {task}\n")
+
+    recommendations = service.get_recommendations(task)
+
+    if recommendations['found']:
+        print(recommendations['message'])
+        print()
+
+        for i, skill in enumerate(recommendations['skills'], 1):
+            print(f"{i}. {skill['name']} (Relevance: {skill['relevance_score']})")
+            print(f"   {skill['description']}")
+
+            if skill['installed']:
+                print(f"   ✓ Installed - Use: /{skill['name']}")
+            else:
+                print(f"   ⚠️ Not installed")
+                if skill.get('install_command'):
+                    print(f"   Install: {skill['install_command']}")
+
+            print()
+    else:
+        print("✗ No relevant skills found")
+        print("\nSuggestions:")
+        print("  - Try rephrasing your task")
+        print("  - Check available skills: ccb-skills list")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="CCB Skills Manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+
+    # scan command
+    subparsers.add_parser('scan', help='Refresh skills cache')
+
+    # match command
+    match_parser = subparsers.add_parser('match', help='Find matching skills')
+    match_parser.add_argument('task', help='Task description')
+
+    # stats command
+    subparsers.add_parser('stats', help='Show usage statistics')
+
+    # list command
+    list_parser = subparsers.add_parser('list', help='List all skills')
+    list_parser.add_argument('--installed', action='store_true',
+                            help='Only show installed skills')
+
+    # recommend command
+    recommend_parser = subparsers.add_parser('recommend', help='Get skill recommendations')
+    recommend_parser.add_argument('task', help='Task description')
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return 1
+
+    # Initialize service
+    service = SkillsDiscoveryService()
+
+    # Execute command
+    try:
+        if args.command == 'scan':
+            cmd_scan(service)
+        elif args.command == 'match':
+            cmd_match(service, args.task)
+        elif args.command == 'stats':
+            cmd_stats(service)
+        elif args.command == 'list':
+            cmd_list(service, args.installed)
+        elif args.command == 'recommend':
+            cmd_recommend(service, args.task)
+        else:
+            print(f"Unknown command: {args.command}")
+            return 1
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

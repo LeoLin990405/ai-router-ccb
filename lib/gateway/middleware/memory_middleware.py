@@ -16,6 +16,7 @@ sys.path.insert(0, str(project_root))
 
 from lib.memory.memory_lite import CCBLightMemory
 from lib.memory.registry import CCBRegistry
+from lib.skills.skills_discovery import SkillsDiscoveryService
 from .system_context import SystemContextBuilder
 
 
@@ -37,8 +38,13 @@ class MemoryMiddleware:
         # 预加载系统上下文（Skills、MCP、Providers）
         self.system_context = SystemContextBuilder()
 
+        # 🆕 初始化 Skills Discovery Service
+        self.skills_discovery = SkillsDiscoveryService()
+        self.enable_skill_discovery = self.config.get("skills", {}).get("auto_discover", True)
+
         print(f"[MemoryMiddleware] Initialized (enabled={self.enabled})")
         print(f"[MemoryMiddleware] System context preloaded: {self.system_context.get_stats()}")
+        print(f"[MemoryMiddleware] Skills discovery: {self.enable_skill_discovery}")
 
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
@@ -57,6 +63,11 @@ class MemoryMiddleware:
                 "max_injected_memories": 5,
                 "inject_system_context": True,  # 新增：注入系统上下文
                 "injection_strategy": "recent_plus_relevant"
+            },
+            "skills": {
+                "auto_discover": True,  # 🆕 自动发现相关技能
+                "recommend_skills": True,  # 🆕 推荐技能给用户
+                "max_recommendations": 3  # 🆕 最多推荐技能数
             },
             "recommendation": {
                 "enabled": True,
@@ -87,6 +98,16 @@ class MemoryMiddleware:
         # 1. 提取任务关键词
         keywords = self._extract_keywords(message)
         print(f"[MemoryMiddleware] Extracted keywords: {keywords}")
+
+        # 🆕 1.5. Skills Discovery - 发现相关技能
+        skill_recommendations = None
+        if self.enable_skill_discovery:
+            try:
+                skill_recommendations = self.skills_discovery.get_recommendations(message)
+                if skill_recommendations['found']:
+                    print(f"[MemoryMiddleware] {skill_recommendations['message']}")
+            except Exception as e:
+                print(f"[MemoryMiddleware] Skills discovery error: {e}")
 
         # 2. 搜索相关记忆
         relevant_memories = []
@@ -142,6 +163,13 @@ class MemoryMiddleware:
                     context_parts.append(memory_ctx)
                     print(f"[MemoryMiddleware] {len(relevant_memories)} memories injected")
 
+            # 🆕 4c. 注入技能推荐（如果找到）
+            if skill_recommendations and skill_recommendations['found']:
+                skills_ctx = self._format_skills_context(skill_recommendations)
+                if skills_ctx:
+                    context_parts.append(skills_ctx)
+                    print(f"[MemoryMiddleware] Skills recommendations injected")
+
             # 合并上下文
             if context_parts:
                 full_context = "\n\n".join(context_parts)
@@ -159,6 +187,7 @@ class MemoryMiddleware:
                 request["_memory_injected"] = True
                 request["_memory_count"] = len(relevant_memories)
                 request["_system_context_injected"] = self.inject_system_context
+                request["_skills_recommended"] = bool(skill_recommendations and skill_recommendations['found'])
 
         except Exception as e:
             print(f"[MemoryMiddleware] Context injection error: {e}")
@@ -208,6 +237,10 @@ class MemoryMiddleware:
 
             print(f"[MemoryMiddleware] Conversation recorded: provider={provider}")
 
+            # 🆕 记录技能使用（如果响应中提到了技能）
+            if self.enable_skill_discovery:
+                self._record_skill_usage(request, response)
+
             # 更新统计（用于推荐优化）
             # self.registry.update_usage_stats(provider, metadata)
 
@@ -251,6 +284,34 @@ class MemoryMiddleware:
 
         return "\n".join(context_parts)
 
+    def _format_skills_context(self, recommendations: Dict[str, Any]) -> str:
+        """格式化技能推荐上下文（🆕 新增）"""
+        if not recommendations or not recommendations.get('found'):
+            return ""
+
+        context_parts = ["## 🛠️ 相关技能推荐"]
+
+        for skill in recommendations.get('skills', []):
+            name = skill['name']
+            description = skill['description']
+            installed = skill['installed']
+            relevance = skill['relevance_score']
+
+            if installed:
+                # 已安装的技能
+                context_parts.append(
+                    f"- **/{name}** (score: {relevance}) - {description}"
+                )
+                context_parts.append(f"  ✓ 已安装，可直接使用: `/{name}`")
+            else:
+                # 未安装的技能
+                context_parts.append(
+                    f"- **{name}** (score: {relevance}) - {description}"
+                )
+                context_parts.append(f"  ⚠️ 未安装，建议安装后使用")
+
+        return "\n".join(context_parts)
+
     def _format_context(
         self,
         memories: List[Dict[str, Any]],
@@ -268,3 +329,31 @@ class MemoryMiddleware:
             "auto_record": self.auto_record,
             "memory_stats": self.memory.get_stats()
         }
+
+    def _record_skill_usage(self, request: Dict[str, Any], response: Dict[str, Any]):
+        """记录技能使用情况（🆕 新增）"""
+        try:
+            response_text = response.get("response", "")
+            message = request.get("message", "")
+            provider = request.get("provider", "unknown")
+
+            # 检测响应中是否提到了技能（通过 /skill-name 模式）
+            import re
+            skill_mentions = re.findall(r'/([a-z0-9\-]+)', response_text)
+
+            if skill_mentions:
+                keywords = " ".join(self._extract_keywords(message))
+
+                for skill_name in skill_mentions:
+                    # 记录使用
+                    self.skills_discovery.record_usage(
+                        skill_name=skill_name,
+                        task_keywords=keywords,
+                        provider=provider,
+                        success=True
+                    )
+
+                print(f"[MemoryMiddleware] Recorded skill usage: {skill_mentions}")
+
+        except Exception as e:
+            print(f"[MemoryMiddleware] Skill usage recording error: {e}")

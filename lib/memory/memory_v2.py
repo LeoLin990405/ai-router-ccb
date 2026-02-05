@@ -1075,6 +1075,707 @@ class CCBMemoryV2:
         conn.commit()
         conn.close()
 
+    # ========================================================================
+    # Stream Entries (Phase 8: Stream Sync)
+    # ========================================================================
+
+    def get_stream_entries(
+        self,
+        request_id: str,
+        entry_type: Optional[str] = None,
+        limit: int = 1000
+    ) -> List[Dict[str, Any]]:
+        """Get stream entries for a request
+
+        Args:
+            request_id: Gateway request ID
+            entry_type: Optional filter by entry type
+            limit: Maximum entries to return
+
+        Returns:
+            List of stream entry dictionaries
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            if entry_type:
+                cursor.execute("""
+                    SELECT id, request_id, entry_type, timestamp, content, metadata, created_at
+                    FROM stream_entries
+                    WHERE request_id = ? AND entry_type = ?
+                    ORDER BY timestamp ASC
+                    LIMIT ?
+                """, (request_id, entry_type, limit))
+            else:
+                cursor.execute("""
+                    SELECT id, request_id, entry_type, timestamp, content, metadata, created_at
+                    FROM stream_entries
+                    WHERE request_id = ?
+                    ORDER BY timestamp ASC
+                    LIMIT ?
+                """, (request_id, limit))
+
+            columns = [desc[0] for desc in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                result = dict(zip(columns, row))
+                # Parse JSON metadata
+                if result.get('metadata'):
+                    try:
+                        result['metadata'] = json.loads(result['metadata'])
+                    except json.JSONDecodeError:
+                        pass
+                results.append(result)
+
+            return results
+        finally:
+            conn.close()
+
+    def get_thinking_chain(self, request_id: str) -> Optional[str]:
+        """Get concatenated thinking chain content for a request
+
+        Args:
+            request_id: Gateway request ID
+
+        Returns:
+            Combined thinking content or None
+        """
+        entries = self.get_stream_entries(request_id, entry_type="thinking")
+        if not entries:
+            return None
+
+        thinking_parts = [e.get('content', '') for e in entries if e.get('content')]
+        return "\n\n".join(thinking_parts) if thinking_parts else None
+
+    def search_thinking(
+        self,
+        query: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Search thinking chain content across all requests
+
+        Args:
+            query: Search query (substring match)
+            limit: Maximum results
+
+        Returns:
+            List of matching entries with request context
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Use LIKE for simple substring search
+            cursor.execute("""
+                SELECT request_id, content, timestamp, metadata
+                FROM stream_entries
+                WHERE entry_type = 'thinking'
+                  AND content LIKE ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (f"%{query}%", limit))
+
+            columns = [desc[0] for desc in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                result = dict(zip(columns, row))
+                if result.get('metadata'):
+                    try:
+                        result['metadata'] = json.loads(result['metadata'])
+                    except json.JSONDecodeError:
+                        pass
+                results.append(result)
+
+            return results
+        finally:
+            conn.close()
+
+    def get_request_timeline(self, request_id: str) -> List[Dict[str, Any]]:
+        """Get complete execution timeline for a request
+
+        Args:
+            request_id: Gateway request ID
+
+        Returns:
+            List of timeline entries with human-readable timestamps
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT
+                    entry_type,
+                    content,
+                    timestamp,
+                    datetime(timestamp, 'unixepoch', 'localtime') as time_str,
+                    metadata
+                FROM stream_entries
+                WHERE request_id = ?
+                ORDER BY timestamp ASC
+            """, (request_id,))
+
+            columns = [desc[0] for desc in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                result = dict(zip(columns, row))
+                if result.get('metadata'):
+                    try:
+                        result['metadata'] = json.loads(result['metadata'])
+                    except json.JSONDecodeError:
+                        pass
+                results.append(result)
+
+            return results
+        finally:
+            conn.close()
+
+    def get_stream_stats(self) -> Dict[str, Any]:
+        """Get statistics about stream entries
+
+        Returns:
+            Statistics dictionary
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Total entries
+            cursor.execute("SELECT COUNT(*) FROM stream_entries")
+            total_entries = cursor.fetchone()[0]
+
+            # Unique requests
+            cursor.execute("SELECT COUNT(DISTINCT request_id) FROM stream_entries")
+            unique_requests = cursor.fetchone()[0]
+
+            # Entries by type
+            cursor.execute("""
+                SELECT entry_type, COUNT(*) as count
+                FROM stream_entries
+                GROUP BY entry_type
+                ORDER BY count DESC
+            """)
+            entries_by_type = {row[0]: row[1] for row in cursor.fetchall()}
+
+            # Recent activity (last 24 hours)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT request_id)
+                FROM stream_entries
+                WHERE timestamp > ?
+            """, (datetime.now().timestamp() - 86400,))
+            recent_requests = cursor.fetchone()[0]
+
+            return {
+                "total_entries": total_entries,
+                "unique_requests": unique_requests,
+                "entries_by_type": entries_by_type,
+                "recent_requests_24h": recent_requests
+            }
+        except sqlite3.OperationalError:
+            # Table might not exist
+            return {
+                "total_entries": 0,
+                "unique_requests": 0,
+                "entries_by_type": {},
+                "recent_requests_24h": 0,
+                "error": "stream_entries table not found"
+            }
+        finally:
+            conn.close()
+
+    def sync_stream_file(self, request_id: str) -> int:
+        """Sync a stream file to database
+
+        Args:
+            request_id: Request ID to sync
+
+        Returns:
+            Number of entries synced
+        """
+        stream_file = Path.home() / ".ccb" / "streams" / f"{request_id}.jsonl"
+        if not stream_file.exists():
+            return 0
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Check if already synced
+            cursor.execute(
+                "SELECT COUNT(*) FROM stream_entries WHERE request_id = ?",
+                (request_id,)
+            )
+            existing = cursor.fetchone()[0]
+            if existing > 0:
+                return 0  # Already synced
+
+            # Read and parse JSONL file
+            entries = []
+            with open(stream_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        entries.append((
+                            request_id,
+                            entry.get("type", "unknown"),
+                            entry.get("ts", 0),
+                            entry.get("content", ""),
+                            json.dumps(entry.get("meta", {}), ensure_ascii=False)
+                        ))
+                    except json.JSONDecodeError:
+                        continue
+
+            if not entries:
+                return 0
+
+            # Batch insert
+            cursor.executemany(
+                """INSERT INTO stream_entries
+                   (request_id, entry_type, timestamp, content, metadata)
+                   VALUES (?, ?, ?, ?, ?)""",
+                entries
+            )
+            conn.commit()
+            return len(entries)
+        except sqlite3.OperationalError as e:
+            print(f"[CCBMemoryV2] sync_stream_file error: {e}")
+            return 0
+        finally:
+            conn.close()
+
+    def sync_all_streams(self, force: bool = False) -> Dict[str, int]:
+        """Sync all stream files to database
+
+        Args:
+            force: If True, re-sync even if already in database
+
+        Returns:
+            Dict with sync statistics
+        """
+        stream_dir = Path.home() / ".ccb" / "streams"
+        if not stream_dir.exists():
+            return {"synced": 0, "skipped": 0, "errors": 0}
+
+        stats = {"synced": 0, "skipped": 0, "errors": 0, "total_entries": 0}
+
+        for stream_file in stream_dir.glob("*.jsonl"):
+            request_id = stream_file.stem
+            try:
+                if force:
+                    # Delete existing entries for force sync
+                    conn = sqlite3.connect(self.db_path)
+                    conn.execute(
+                        "DELETE FROM stream_entries WHERE request_id = ?",
+                        (request_id,)
+                    )
+                    conn.commit()
+                    conn.close()
+
+                count = self.sync_stream_file(request_id)
+                if count > 0:
+                    stats["synced"] += 1
+                    stats["total_entries"] += count
+                else:
+                    stats["skipped"] += 1
+            except Exception as e:
+                print(f"[CCBMemoryV2] Error syncing {request_id}: {e}")
+                stats["errors"] += 1
+
+        return stats
+
+
+    # ========================================================================
+    # Heuristic Retrieval Support (v2.0)
+    # ========================================================================
+
+    def log_access(
+        self,
+        memory_id: str,
+        memory_type: str,
+        access_context: str = 'retrieval',
+        request_id: Optional[str] = None,
+        query_text: Optional[str] = None,
+        relevance_score: Optional[float] = None
+    ) -> bool:
+        """Log an access event for a memory (updates recency).
+
+        Args:
+            memory_id: UUID of the memory
+            memory_type: 'message' or 'observation'
+            access_context: 'retrieval', 'injection', 'user_view', 'search'
+            request_id: Gateway request ID (optional)
+            query_text: Query that triggered access (optional)
+            relevance_score: Relevance score at access time (optional)
+
+        Returns:
+            True if logged successfully
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            now = datetime.now().isoformat()
+
+            cursor.execute("""
+                INSERT INTO memory_access_log
+                (memory_id, memory_type, accessed_at, access_context, request_id, query_text, relevance_score)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                memory_id,
+                memory_type,
+                now,
+                access_context,
+                request_id,
+                query_text[:500] if query_text else None,
+                relevance_score
+            ))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[CCBMemoryV2] log_access error: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def set_importance(
+        self,
+        memory_id: str,
+        memory_type: str,
+        importance: float,
+        source: str = 'user'
+    ) -> bool:
+        """Set importance score for a memory.
+
+        Args:
+            memory_id: UUID of the memory
+            memory_type: 'message' or 'observation'
+            importance: Score between 0.0 and 1.0
+            source: 'user', 'llm', 'heuristic', or 'default'
+
+        Returns:
+            True if set successfully
+        """
+        importance = max(0.0, min(1.0, importance))
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            now = datetime.now().isoformat()
+
+            cursor.execute("""
+                INSERT INTO memory_importance
+                (memory_id, memory_type, importance_score, score_source, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(memory_id) DO UPDATE SET
+                    importance_score = excluded.importance_score,
+                    score_source = excluded.score_source,
+                    updated_at = excluded.updated_at
+            """, (memory_id, memory_type, importance, source, now, now))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[CCBMemoryV2] set_importance error: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_importance(self, memory_id: str, memory_type: str) -> Dict[str, Any]:
+        """Get importance and access data for a memory.
+
+        Args:
+            memory_id: UUID of the memory
+            memory_type: 'message' or 'observation'
+
+        Returns:
+            Dict with importance_score, access_count, last_accessed_at, decay_rate
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT importance_score, access_count, last_accessed_at, decay_rate
+                FROM memory_importance
+                WHERE memory_id = ? AND memory_type = ?
+            """, (memory_id, memory_type))
+
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'importance_score': row[0] or 0.5,
+                    'access_count': row[1] or 0,
+                    'last_accessed_at': row[2],
+                    'decay_rate': row[3] or 0.1
+                }
+
+            return {
+                'importance_score': 0.5,
+                'access_count': 0,
+                'last_accessed_at': None,
+                'decay_rate': 0.1
+            }
+        except Exception as e:
+            print(f"[CCBMemoryV2] get_importance error: {e}")
+            return {
+                'importance_score': 0.5,
+                'access_count': 0,
+                'last_accessed_at': None,
+                'decay_rate': 0.1
+            }
+        finally:
+            conn.close()
+
+    def mark_for_forgetting(
+        self,
+        memory_id: str,
+        memory_type: str,
+        reason: str = 'manual'
+    ) -> bool:
+        """Mark a memory for forgetting (System 2 will clean up).
+
+        Args:
+            memory_id: UUID of the memory
+            memory_type: 'message' or 'observation'
+            reason: Reason for forgetting
+
+        Returns:
+            True if marked successfully
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            now = datetime.now().isoformat()
+
+            # Set importance to 0 to trigger forgetting
+            cursor.execute("""
+                INSERT INTO memory_importance
+                (memory_id, memory_type, importance_score, score_source, created_at, updated_at)
+                VALUES (?, ?, 0.0, 'forget', ?, ?)
+                ON CONFLICT(memory_id) DO UPDATE SET
+                    importance_score = 0.0,
+                    score_source = 'forget',
+                    updated_at = ?
+            """, (memory_id, memory_type, now, now, now))
+
+            # Log the action
+            cursor.execute("""
+                INSERT INTO consolidation_log
+                (consolidation_type, source_ids, status, metadata, created_at)
+                VALUES ('forget', ?, 'pending', ?, ?)
+            """, (
+                json.dumps([memory_id]),
+                json.dumps({'reason': reason, 'memory_type': memory_type}),
+                now
+            ))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[CCBMemoryV2] mark_for_forgetting error: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def apply_decay(
+        self,
+        batch_size: int = 1000,
+        min_importance: float = 0.01
+    ) -> Dict[str, int]:
+        """Apply time decay to all tracked memories.
+
+        Note: This is primarily informational - recency is calculated
+        dynamically during retrieval. This method updates stored values
+        for reporting purposes.
+
+        Args:
+            batch_size: Number of memories to process per batch
+            min_importance: Memories below this are flagged for forgetting
+
+        Returns:
+            Dict with counts: updated, flagged_for_forget
+        """
+        import math
+        from datetime import datetime
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        stats = {'updated': 0, 'flagged_for_forget': 0}
+
+        try:
+            # Get all memories with access data
+            cursor.execute("""
+                SELECT memory_id, memory_type, last_accessed_at, decay_rate, importance_score
+                FROM memory_importance
+                WHERE last_accessed_at IS NOT NULL
+                LIMIT ?
+            """, (batch_size,))
+
+            rows = cursor.fetchall()
+            now = datetime.now()
+
+            for row in rows:
+                memory_id, memory_type, last_accessed, decay_rate, importance = row
+
+                if not last_accessed:
+                    continue
+
+                # Calculate hours since access
+                try:
+                    if 'T' in last_accessed:
+                        dt = datetime.fromisoformat(last_accessed.replace('Z', '+00:00'))
+                    else:
+                        dt = datetime.strptime(last_accessed, "%Y-%m-%d %H:%M:%S")
+                    hours = (now - dt.replace(tzinfo=None)).total_seconds() / 3600
+                except (ValueError, TypeError):
+                    hours = 168  # Default 1 week
+
+                # Calculate decayed recency
+                decay_rate = decay_rate or 0.1
+                recency = math.exp(-decay_rate * hours)
+
+                # Check if should flag for forgetting
+                if recency < min_importance and importance < min_importance:
+                    stats['flagged_for_forget'] += 1
+
+                stats['updated'] += 1
+
+            conn.commit()
+            return stats
+
+        except Exception as e:
+            print(f"[CCBMemoryV2] apply_decay error: {e}")
+            return stats
+        finally:
+            conn.close()
+
+    def search_with_scores(
+        self,
+        query: str,
+        limit: int = 10,
+        provider: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Search messages with heuristic scores (R/I/T).
+
+        Uses the HeuristicRetriever for αR + βI + γT scoring.
+
+        Args:
+            query: Search query
+            limit: Maximum results
+            provider: Filter by provider
+
+        Returns:
+            List of messages with scores
+        """
+        try:
+            from .heuristic_retriever import HeuristicRetriever
+
+            retriever = HeuristicRetriever(db_path=self.db_path)
+            results = retriever.retrieve(
+                query,
+                limit=limit,
+                memory_types=['message'],
+                provider=provider
+            )
+
+            return [
+                {
+                    'message_id': m.memory_id,
+                    'content': m.content,
+                    'provider': m.provider,
+                    'timestamp': m.timestamp,
+                    'role': m.role,
+                    'session_id': m.session_id,
+                    # Scores
+                    'relevance_score': m.relevance_score,
+                    'importance_score': m.importance_score,
+                    'recency_score': m.recency_score,
+                    'final_score': m.final_score,
+                    # Access data
+                    'access_count': m.access_count,
+                    'last_accessed_at': m.last_accessed_at
+                }
+                for m in results
+            ]
+        except ImportError:
+            # Fall back to basic search
+            return self.search_messages(query, limit=limit, provider=provider)
+        except Exception as e:
+            print(f"[CCBMemoryV2] search_with_scores error: {e}")
+            return self.search_messages(query, limit=limit, provider=provider)
+
+    def get_memory_stats_v2(self) -> Dict[str, Any]:
+        """Get extended statistics including heuristic system metrics.
+
+        Returns:
+            Extended statistics dictionary
+        """
+        base_stats = self.get_stats()
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Heuristic system stats
+            heuristic_stats = {}
+
+            # Tracked memories
+            try:
+                cursor.execute("SELECT COUNT(*) FROM memory_importance")
+                heuristic_stats['tracked_memories'] = cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                heuristic_stats['tracked_memories'] = 0
+
+            # By importance level
+            try:
+                cursor.execute("""
+                    SELECT
+                        SUM(CASE WHEN importance_score >= 0.8 THEN 1 ELSE 0 END) as high,
+                        SUM(CASE WHEN importance_score >= 0.5 AND importance_score < 0.8 THEN 1 ELSE 0 END) as medium,
+                        SUM(CASE WHEN importance_score < 0.5 THEN 1 ELSE 0 END) as low
+                    FROM memory_importance
+                """)
+                row = cursor.fetchone()
+                heuristic_stats['importance_distribution'] = {
+                    'high': row[0] or 0,
+                    'medium': row[1] or 0,
+                    'low': row[2] or 0
+                }
+            except sqlite3.OperationalError:
+                heuristic_stats['importance_distribution'] = {'high': 0, 'medium': 0, 'low': 0}
+
+            # Access logs
+            try:
+                cursor.execute("SELECT COUNT(*) FROM memory_access_log")
+                heuristic_stats['total_accesses'] = cursor.fetchone()[0]
+
+                cursor.execute("""
+                    SELECT COUNT(*) FROM memory_access_log
+                    WHERE accessed_at > datetime('now', '-24 hours')
+                """)
+                heuristic_stats['accesses_24h'] = cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                heuristic_stats['total_accesses'] = 0
+                heuristic_stats['accesses_24h'] = 0
+
+            # Consolidation logs
+            try:
+                cursor.execute("SELECT COUNT(*) FROM consolidation_log")
+                heuristic_stats['total_consolidations'] = cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                heuristic_stats['total_consolidations'] = 0
+
+            base_stats['heuristic'] = heuristic_stats
+            return base_stats
+
+        finally:
+            conn.close()
+
 
 # Backward compatibility wrapper
 class CCBLightMemory:

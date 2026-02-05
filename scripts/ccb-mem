@@ -15,6 +15,18 @@ Phase 7 New Commands:
   injections [--limit N]  Show recent memory injections
   stats [--detailed]      Show memory system statistics
   export [--format json]  Export memory to file
+
+Phase 8 New Commands:
+  sync-streams [--force]  Sync stream files to database
+  stream <request_id>     View stream entries from database
+  thinking <request_id>   View thinking chain for a request
+  timeline <request_id>   View execution timeline for a request
+
+v2.0 Heuristic Commands:
+  importance <id> <score> Set importance score (0.0-1.0)
+  decay [--all]           Apply time-based decay
+  forget <id>             Mark memory for forgetting
+  search-scored <query>   Search with R/I/T scores
 """
 
 import argparse
@@ -26,8 +38,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
-# Add lib directory to path
-LIB_DIR = Path(__file__).parent.parent / "lib"
+# Add lib directory to path - resolve symlinks first
+SCRIPT_PATH = Path(__file__).resolve()
+LIB_DIR = SCRIPT_PATH.parent.parent / "lib"
 sys.path.insert(0, str(LIB_DIR))
 
 from memory.context_saver import ContextSaver, find_current_session
@@ -549,6 +562,310 @@ class CCBMemoryCLI:
             print(f"✖ Error: {e}", file=sys.stderr)
             return 1
 
+    # ========================================================================
+    # Phase 8: Stream Sync CLI Commands
+    # ========================================================================
+
+    def cmd_sync_streams(self, force: bool = False) -> int:
+        """Sync stream files to database."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            print("Syncing stream files to database...")
+            if force:
+                print("  (force mode: re-syncing all files)")
+
+            stats = memory.sync_all_streams(force=force)
+
+            print(f"\n✓ Sync completed!")
+            print(f"  Synced:    {stats.get('synced', 0)} files")
+            print(f"  Skipped:   {stats.get('skipped', 0)} files (already in DB)")
+            print(f"  Errors:    {stats.get('errors', 0)}")
+            print(f"  Entries:   {stats.get('total_entries', 0)} total")
+
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_stream(self, request_id: str, entry_type: str = None) -> int:
+        """View stream entries from database."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            entries = memory.get_stream_entries(request_id, entry_type=entry_type)
+
+            if not entries:
+                print(f"No stream entries found for request: {request_id[:12]}...")
+                return 0
+
+            print(f"=== Stream Entries: {request_id[:12]}... ({len(entries)} entries) ===\n")
+
+            for entry in entries:
+                ts = entry.get('timestamp', 0)
+                time_str = datetime.fromtimestamp(ts).strftime("%H:%M:%S.%f")[:-3] if ts else "?"
+                etype = entry.get('entry_type', '?')
+                content = entry.get('content', '')[:100]
+
+                # Color coding by type
+                type_colors = {
+                    'start': '\033[34m',    # Blue
+                    'status': '\033[36m',   # Cyan
+                    'thinking': '\033[33m', # Yellow
+                    'chunk': '\033[37m',    # White
+                    'output': '\033[32m',   # Green
+                    'error': '\033[31m',    # Red
+                    'complete': '\033[35m', # Magenta
+                }
+                color = type_colors.get(etype, '\033[0m')
+                reset = '\033[0m'
+
+                print(f"  {time_str}  {color}[{etype:8}]{reset}  {content}{'...' if len(entry.get('content', '')) > 100 else ''}")
+
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_thinking(self, request_id: str) -> int:
+        """View thinking chain for a request."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            thinking = memory.get_thinking_chain(request_id)
+
+            if not thinking:
+                print(f"No thinking chain found for request: {request_id[:12]}...")
+                return 0
+
+            print(f"=== Thinking Chain: {request_id[:12]}... ===\n")
+            print(thinking)
+            print(f"\n({len(thinking)} characters)")
+
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_timeline(self, request_id: str) -> int:
+        """View execution timeline for a request."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            timeline = memory.get_request_timeline(request_id)
+
+            if not timeline:
+                print(f"No timeline found for request: {request_id[:12]}...")
+                return 0
+
+            print(f"=== Execution Timeline: {request_id[:12]}... ===\n")
+
+            first_ts = timeline[0].get('timestamp', 0) if timeline else 0
+            for entry in timeline:
+                ts = entry.get('timestamp', 0)
+                time_str = entry.get('time_str', '?')
+                etype = entry.get('entry_type', '?')
+                content = entry.get('content', '')[:80]
+                delta = f"+{(ts - first_ts)*1000:.0f}ms" if first_ts else ""
+
+                # Icons by type
+                icons = {
+                    'start': '🚀',
+                    'status': '📋',
+                    'thinking': '🧠',
+                    'chunk': '📝',
+                    'output': '✅',
+                    'error': '❌',
+                    'complete': '🏁',
+                }
+                icon = icons.get(etype, '•')
+
+                print(f"  {time_str}  {delta:>10}  {icon} {etype:8}  {content}")
+
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    # ========================================================================
+    # v2.0: Heuristic Memory Commands
+    # ========================================================================
+
+    def cmd_importance(self, memory_id: str, score: float, memory_type: str = 'message') -> int:
+        """Set importance score for a memory."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            # Validate score
+            if score < 0.0 or score > 1.0:
+                print(f"✖ Score must be between 0.0 and 1.0", file=sys.stderr)
+                return 1
+
+            success = memory.set_importance(memory_id, memory_type, score, source='user')
+
+            if success:
+                print(f"✓ Set importance for {memory_id[:12]}... to {score:.2f}")
+                return 0
+            else:
+                print(f"✖ Failed to set importance", file=sys.stderr)
+                return 1
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_decay(self, batch_size: int = 1000) -> int:
+        """Apply time-based decay to memories."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            print(f"Applying decay (batch size: {batch_size})...")
+            result = memory.apply_decay(batch_size=batch_size)
+
+            print(f"\n✓ Decay applied")
+            print(f"  Updated: {result.get('updated', 0)}")
+            print(f"  Flagged for forget: {result.get('flagged_for_forget', 0)}")
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_forget(self, memory_id: str, memory_type: str = 'message', reason: str = 'manual') -> int:
+        """Mark a memory for forgetting."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            success = memory.mark_for_forgetting(memory_id, memory_type, reason=reason)
+
+            if success:
+                print(f"✓ Marked {memory_id[:12]}... for forgetting")
+                print(f"  Run 'ccb-consolidate forget' to clean up")
+                return 0
+            else:
+                print(f"✖ Failed to mark for forgetting", file=sys.stderr)
+                return 1
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_search_scored(self, query: str, limit: int = 10, verbose: bool = False) -> int:
+        """Search memories with heuristic scores (R/I/T)."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            print(f"Searching for: {query}\n")
+            results = memory.search_with_scores(query, limit=limit)
+
+            if not results:
+                print("No results found")
+                return 0
+
+            print(f"=== Results ({len(results)} matches) ===\n")
+            print(f"  {'#':<3} {'Final':>6} {'R':>5} {'I':>5} {'T':>5}  {'Provider':<10} Content")
+            print(f"  {'-'*3} {'-'*6} {'-'*5} {'-'*5} {'-'*5}  {'-'*10} {'-'*40}")
+
+            for i, result in enumerate(results, 1):
+                final = result.get('final_score', 0)
+                rel = result.get('relevance_score', 0)
+                imp = result.get('importance_score', 0)
+                rec = result.get('recency_score', 0)
+                provider = result.get('provider', '?')[:10]
+                content = result.get('content', '')[:40]
+
+                print(f"  {i:<3} {final:>6.3f} {rel:>5.2f} {imp:>5.2f} {rec:>5.2f}  {provider:<10} {content}...")
+
+                if verbose:
+                    print(f"      ID: {result.get('message_id', '?')[:36]}")
+                    print(f"      Access: {result.get('access_count', 0)} times, Last: {result.get('last_accessed_at', 'never')}")
+                    print()
+
+            print(f"\n  R=Relevance, I=Importance, T=Recency (Time)")
+            print(f"  Formula: Final = 0.4R + 0.3I + 0.3T")
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_stats_v2(self) -> int:
+        """Show extended statistics including heuristic system metrics."""
+        try:
+            from memory.memory_v2 import CCBMemoryV2
+            memory = CCBMemoryV2()
+
+            stats = memory.get_memory_stats_v2()
+
+            print("=== CCB Memory Statistics (v2.0) ===\n")
+
+            # Basic stats
+            print(f"User:           {stats.get('user_id', 'unknown')}")
+            print(f"Total Sessions: {stats.get('total_sessions', 0)}")
+            print(f"Total Messages: {stats.get('total_messages', 0)}")
+            print(f"Total Tokens:   {stats.get('total_tokens', 0):,}")
+
+            # Heuristic stats
+            heuristic = stats.get('heuristic', {})
+            if heuristic:
+                print(f"\n=== Heuristic System ===\n")
+                print(f"Tracked Memories:   {heuristic.get('tracked_memories', 0)}")
+                print(f"Total Accesses:     {heuristic.get('total_accesses', 0)}")
+                print(f"Accesses (24h):     {heuristic.get('accesses_24h', 0)}")
+                print(f"Consolidations:     {heuristic.get('total_consolidations', 0)}")
+
+                dist = heuristic.get('importance_distribution', {})
+                if dist:
+                    print(f"\nImportance Distribution:")
+                    print(f"  High (≥0.8):   {dist.get('high', 0)}")
+                    print(f"  Medium:        {dist.get('medium', 0)}")
+                    print(f"  Low (<0.5):    {dist.get('low', 0)}")
+
+            return 0
+
+        except ImportError as e:
+            print(f"✖ Memory module not available: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -576,6 +893,20 @@ Phase 7 Commands:
   ccb-mem export                   # Export memory as JSON
   ccb-mem export --format md       # Export as Markdown
   ccb-mem export -o memory.json    # Export to file
+
+Phase 8 Commands:
+  ccb-mem sync-streams             # Sync stream files to database
+  ccb-mem sync-streams --force     # Force re-sync all files
+  ccb-mem stream <request_id>      # View stream entries from DB
+  ccb-mem thinking <request_id>    # View thinking chain
+  ccb-mem timeline <request_id>    # View execution timeline
+
+v2.0 Heuristic Commands:
+  ccb-mem importance <id> <score>  # Set importance (0.0-1.0)
+  ccb-mem decay                    # Apply time-based decay
+  ccb-mem forget <id>              # Mark memory for forgetting
+  ccb-mem search-scored <query>    # Search with R/I/T scores
+  ccb-mem stats-v2                 # Show heuristic stats
 """
     )
 
@@ -628,6 +959,50 @@ Phase 7 Commands:
     export_parser.add_argument('--format', '-f', choices=['json', 'md'], default='json', help='Export format')
     export_parser.add_argument('--output', '-o', type=str, help='Output file path')
 
+    # Phase 8: Stream sync commands
+    # sync-streams command
+    sync_streams_parser = subparsers.add_parser('sync-streams', help='Sync stream files to database')
+    sync_streams_parser.add_argument('--force', '-f', action='store_true', help='Force re-sync all files')
+
+    # stream command
+    stream_parser = subparsers.add_parser('stream', help='View stream entries from database')
+    stream_parser.add_argument('request_id', help='Request ID')
+    stream_parser.add_argument('--type', '-t', type=str, help='Filter by entry type')
+
+    # thinking command
+    thinking_parser = subparsers.add_parser('thinking', help='View thinking chain for a request')
+    thinking_parser.add_argument('request_id', help='Request ID')
+
+    # timeline command
+    timeline_parser = subparsers.add_parser('timeline', help='View execution timeline for a request')
+    timeline_parser.add_argument('request_id', help='Request ID')
+
+    # v2.0: Heuristic commands
+    # importance command
+    importance_parser = subparsers.add_parser('importance', help='Set importance score for a memory')
+    importance_parser.add_argument('memory_id', help='Memory ID (message_id or observation_id)')
+    importance_parser.add_argument('score', type=float, help='Importance score (0.0-1.0)')
+    importance_parser.add_argument('--type', '-t', choices=['message', 'observation'], default='message', help='Memory type')
+
+    # decay command
+    decay_parser = subparsers.add_parser('decay', help='Apply time-based decay to memories')
+    decay_parser.add_argument('--batch-size', '-b', type=int, default=1000, help='Batch size')
+
+    # forget command
+    forget_parser = subparsers.add_parser('forget', help='Mark memory for forgetting')
+    forget_parser.add_argument('memory_id', help='Memory ID to forget')
+    forget_parser.add_argument('--type', '-t', choices=['message', 'observation'], default='message', help='Memory type')
+    forget_parser.add_argument('--reason', '-r', type=str, default='manual', help='Reason for forgetting')
+
+    # search-scored command
+    search_scored_parser = subparsers.add_parser('search-scored', help='Search with heuristic R/I/T scores')
+    search_scored_parser.add_argument('query', help='Search query')
+    search_scored_parser.add_argument('--limit', '-n', type=int, default=10, help='Max results')
+    search_scored_parser.add_argument('--verbose', '-v', action='store_true', help='Show more details')
+
+    # stats-v2 command
+    stats_v2_parser = subparsers.add_parser('stats-v2', help='Show extended v2.0 statistics')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -657,6 +1032,26 @@ Phase 7 Commands:
         return cli.cmd_stats(args.detailed)
     elif args.command == 'export':
         return cli.cmd_export(args.format, args.output)
+    # Phase 8 commands
+    elif args.command == 'sync-streams':
+        return cli.cmd_sync_streams(args.force)
+    elif args.command == 'stream':
+        return cli.cmd_stream(args.request_id, args.type)
+    elif args.command == 'thinking':
+        return cli.cmd_thinking(args.request_id)
+    elif args.command == 'timeline':
+        return cli.cmd_timeline(args.request_id)
+    # v2.0: Heuristic commands
+    elif args.command == 'importance':
+        return cli.cmd_importance(args.memory_id, args.score, args.type)
+    elif args.command == 'decay':
+        return cli.cmd_decay(args.batch_size)
+    elif args.command == 'forget':
+        return cli.cmd_forget(args.memory_id, args.type, args.reason)
+    elif args.command == 'search-scored':
+        return cli.cmd_search_scored(args.query, args.limit, args.verbose)
+    elif args.command == 'stats-v2':
+        return cli.cmd_stats_v2()
     else:
         parser.print_help()
         return 1

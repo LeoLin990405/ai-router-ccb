@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+"""
+ccb-consolidate - CCB Memory System v2.0 Consolidation CLI
+
+System 2 (Slow Path) operations for memory management:
+- consolidate: Run full nightly consolidation
+- decay: Apply time-based importance decay
+- merge: Find and merge similar memories
+- abstract: Generate abstractions for memory groups
+- forget: Clean up expired memories
+- stats: Show consolidation statistics
+
+Usage:
+    ccb-consolidate consolidate [--hours N] [--llm]
+    ccb-consolidate decay [--batch-size N]
+    ccb-consolidate merge [--threshold 0.9]
+    ccb-consolidate abstract [--min-group-size N]
+    ccb-consolidate forget [--max-age-days N]
+    ccb-consolidate stats
+    ccb-consolidate nightly [--dry-run]
+"""
+
+import argparse
+import asyncio
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent / "lib"
+sys.path.insert(0, str(project_root))
+
+try:
+    from memory.consolidator import NightlyConsolidator
+except ImportError:
+    print("Error: Could not import NightlyConsolidator")
+    print("Make sure you're running from the codex-dual directory")
+    sys.exit(1)
+
+
+def cmd_consolidate(args):
+    """Run session archive consolidation."""
+    consolidator = NightlyConsolidator(llm_provider=args.llm_provider)
+
+    if args.llm:
+        print(f"Running LLM-enhanced consolidation (last {args.hours} hours)...")
+        result = asyncio.run(consolidator.consolidate_with_llm(hours=args.hours))
+    else:
+        print(f"Running basic consolidation (last {args.hours} hours)...")
+        result = consolidator.consolidate(hours=args.hours)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        if result.get("status") == "no_sessions":
+            print("No sessions found in the specified time range")
+        else:
+            print(f"\n✓ Consolidation complete")
+            print(f"  Sessions processed: {result.get('sessions_processed', 0)}")
+            print(f"  Learnings extracted: {len(result.get('all_learnings', []))}")
+            if result.get("llm_enhanced"):
+                print(f"  LLM insights: {len(result.get('llm_learnings', []))}")
+
+
+def cmd_decay(args):
+    """Apply decay to all memories."""
+    consolidator = NightlyConsolidator()
+
+    print(f"Applying decay (batch size: {args.batch_size})...")
+    result = consolidator.apply_decay_to_all(batch_size=args.batch_size)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"\n✓ Decay applied")
+        print(f"  Processed: {result.get('processed', 0)}")
+        print(f"  Decayed: {result.get('decayed', 0)}")
+        print(f"  Flagged for forget: {result.get('flagged_for_forget', 0)}")
+
+
+def cmd_merge(args):
+    """Find and merge similar memories."""
+    consolidator = NightlyConsolidator()
+
+    print(f"Finding similar memories (threshold: {args.threshold})...")
+    result = asyncio.run(consolidator.merge_similar_memories(
+        similarity_threshold=args.threshold
+    ))
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"\n✓ Merge complete")
+        print(f"  Groups found: {result.get('groups_found', 0)}")
+        print(f"  Merged: {result.get('merged_count', 0)}")
+
+
+def cmd_abstract(args):
+    """Generate abstractions for memory groups."""
+    consolidator = NightlyConsolidator(llm_provider=args.llm_provider)
+
+    print(f"Generating abstractions (min group size: {args.min_group_size})...")
+
+    # Update config
+    if args.min_group_size:
+        consolidator.config["system2"]["abstract_group_min_size"] = args.min_group_size
+
+    result = asyncio.run(consolidator.abstract_memory_groups())
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"\n✓ Abstraction complete")
+        print(f"  Groups processed: {result.get('groups_processed', 0)}")
+        print(f"  Abstracts created: {result.get('abstracted_count', 0)}")
+
+
+def cmd_forget(args):
+    """Clean up expired memories."""
+    consolidator = NightlyConsolidator()
+
+    print(f"Cleaning up expired memories (max age: {args.max_age_days} days)...")
+    result = consolidator.forget_expired_memories(max_age_days=args.max_age_days)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"\n✓ Forget complete")
+        print(f"  Forgotten: {result.get('forgotten_count', 0)}")
+        print(f"  Archived: {result.get('archived_count', 0)}")
+
+
+def cmd_nightly(args):
+    """Run full nightly consolidation pipeline."""
+    consolidator = NightlyConsolidator(llm_provider=args.llm_provider)
+
+    print("Running full nightly consolidation...")
+    print(f"  Started at: {datetime.now().isoformat()}")
+
+    if args.dry_run:
+        print("\n[DRY RUN] Would perform:")
+        print("  1. Session archive consolidation")
+        print("  2. Decay application")
+        print("  3. Similar memory merging")
+        print("  4. Memory group abstraction")
+        print("  5. Expired memory cleanup")
+        return
+
+    result = asyncio.run(consolidator.nightly_consolidation())
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"\n✓ Nightly consolidation complete")
+        print(f"  Status: {result.get('status', 'unknown')}")
+
+        session = result.get("session_consolidation", {})
+        print(f"  Sessions: {session.get('sessions_processed', 0)}")
+        print(f"  Learnings: {session.get('learnings_extracted', 0)}")
+
+        decay = result.get("decay_applied", {})
+        print(f"  Decay applied: {decay.get('decayed', 0)} memories")
+
+        print(f"  Merged: {result.get('merged_count', 0)}")
+        print(f"  Abstracted: {result.get('abstracted_count', 0)}")
+        print(f"  Forgotten: {result.get('forgotten_count', 0)}")
+
+        if result.get("error"):
+            print(f"\n⚠ Error: {result.get('error')}")
+
+
+def cmd_stats(args):
+    """Show consolidation statistics."""
+    consolidator = NightlyConsolidator()
+
+    stats = consolidator.get_consolidation_stats()
+
+    if args.json:
+        print(json.dumps(stats, ensure_ascii=False, indent=2))
+    else:
+        print("📊 Consolidation Statistics")
+        print("=" * 40)
+        print(f"Total consolidations: {stats.get('total_consolidations', 0)}")
+        print(f"Recent (7 days): {stats.get('recent_7d', 0)}")
+
+        by_type = stats.get("by_type", {})
+        if by_type:
+            print("\nBy type:")
+            for t, count in by_type.items():
+                print(f"  {t}: {count}")
+
+        last = stats.get("last_consolidation")
+        if last:
+            print(f"\nLast consolidation:")
+            print(f"  Time: {last.get('timestamp', 'unknown')}")
+            print(f"  Type: {last.get('type', 'unknown')}")
+            print(f"  Status: {last.get('status', 'unknown')}")
+
+        if stats.get("error"):
+            print(f"\n⚠ Error: {stats.get('error')}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="CCB Memory System v2.0 - Consolidation CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  ccb-consolidate consolidate --hours 24 --llm
+  ccb-consolidate decay --batch-size 500
+  ccb-consolidate merge --threshold 0.85
+  ccb-consolidate nightly --dry-run
+  ccb-consolidate stats --json
+"""
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON"
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default="kimi",
+        help="LLM provider for operations (default: kimi)"
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    # consolidate command
+    p_consolidate = subparsers.add_parser(
+        "consolidate",
+        help="Run session archive consolidation"
+    )
+    p_consolidate.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="Hours to look back (default: 24)"
+    )
+    p_consolidate.add_argument(
+        "--llm",
+        action="store_true",
+        help="Use LLM for enhanced consolidation"
+    )
+    p_consolidate.set_defaults(func=cmd_consolidate)
+
+    # decay command
+    p_decay = subparsers.add_parser(
+        "decay",
+        help="Apply time-based decay to memories"
+    )
+    p_decay.add_argument(
+        "--batch-size",
+        type=int,
+        default=1000,
+        help="Number of memories to process (default: 1000)"
+    )
+    p_decay.set_defaults(func=cmd_decay)
+
+    # merge command
+    p_merge = subparsers.add_parser(
+        "merge",
+        help="Find and merge similar memories"
+    )
+    p_merge.add_argument(
+        "--threshold",
+        type=float,
+        default=0.9,
+        help="Similarity threshold for merging (default: 0.9)"
+    )
+    p_merge.set_defaults(func=cmd_merge)
+
+    # abstract command
+    p_abstract = subparsers.add_parser(
+        "abstract",
+        help="Generate abstractions for memory groups"
+    )
+    p_abstract.add_argument(
+        "--min-group-size",
+        type=int,
+        default=5,
+        help="Minimum group size for abstraction (default: 5)"
+    )
+    p_abstract.set_defaults(func=cmd_abstract)
+
+    # forget command
+    p_forget = subparsers.add_parser(
+        "forget",
+        help="Clean up expired memories"
+    )
+    p_forget.add_argument(
+        "--max-age-days",
+        type=int,
+        default=90,
+        help="Maximum age for memories (default: 90)"
+    )
+    p_forget.set_defaults(func=cmd_forget)
+
+    # nightly command
+    p_nightly = subparsers.add_parser(
+        "nightly",
+        help="Run full nightly consolidation pipeline"
+    )
+    p_nightly.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without executing"
+    )
+    p_nightly.set_defaults(func=cmd_nightly)
+
+    # stats command
+    p_stats = subparsers.add_parser(
+        "stats",
+        help="Show consolidation statistics"
+    )
+    p_stats.set_defaults(func=cmd_stats)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

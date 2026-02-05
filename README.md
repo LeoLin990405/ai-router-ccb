@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/LeoLin990405/ai-router-ccb?color=blue)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Version](https://img.shields.io/badge/version-0.21--alpha-brightgreen)](https://github.com/LeoLin990405/ai-router-ccb/releases)
+[![Version](https://img.shields.io/badge/version-0.22--alpha-brightgreen)](https://github.com/LeoLin990405/ai-router-ccb/releases)
 
 **Claude orchestrates 9 AI providers through unified Gateway API with dual-system memory and real-time monitoring**
 
@@ -25,7 +25,7 @@
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
-- [What's New in v0.21](#-whats-new-in-v021)
+- [What's New in v0.22](#-whats-new-in-v022)
 - [Why CCB Gateway?](#-why-ccb-gateway)
 - [Features](#-features)
 - [Architecture](#-architecture)
@@ -86,9 +86,122 @@
 
 ---
 
-## 🆕 What's New in v0.21
+## 🆕 What's New in v0.22
 
-### Enhanced Memory System
+### Heuristic Memory Retrieval ⭐
+
+**Stanford Generative Agents-inspired retrieval** with multi-dimensional scoring:
+
+```
+final_score = α × Relevance + β × Importance + γ × Recency
+
+Default weights: α=0.4, β=0.3, γ=0.3
+Recency decay: exp(-λ × hours_since_access), λ=0.1
+```
+
+| Dimension | Source | Description |
+|-----------|--------|-------------|
+| **Relevance** | FTS5 BM25 | Keyword match quality |
+| **Importance** | User/LLM rated | 0.0-1.0 importance score |
+| **Recency** | Ebbinghaus curve | Time-decayed access score |
+
+### Enhanced System 2 Operations
+
+| Operation | Description | Trigger |
+|-----------|-------------|---------|
+| **Decay** | Apply Ebbinghaus forgetting curve | `ccb-consolidate decay` |
+| **Merge** | Combine similar memories (>90% similarity) | `ccb-consolidate merge` |
+| **Abstract** | LLM-generate summaries from groups | `ccb-consolidate abstract` |
+| **Forget** | Remove memories below threshold | `ccb-consolidate forget` |
+
+### New Database Tables
+
+```sql
+-- Importance tracking
+CREATE TABLE memory_importance (
+    memory_id TEXT PRIMARY KEY,
+    importance_score REAL DEFAULT 0.5,
+    last_accessed_at DATETIME,
+    access_count INTEGER DEFAULT 0,
+    decay_rate REAL DEFAULT 0.1
+);
+
+-- Access logging for recency calculation
+CREATE TABLE memory_access_log (
+    memory_id TEXT, memory_type TEXT,
+    accessed_at DATETIME, access_context TEXT
+);
+
+-- System 2 consolidation audit trail
+CREATE TABLE consolidation_log (
+    consolidation_type TEXT,  -- 'merge' | 'abstract' | 'forget'
+    source_ids TEXT, result_id TEXT
+);
+```
+
+### New CLI Commands
+
+```bash
+# Heuristic search with scores
+ccb-mem search-scored "query" --limit 10
+
+# Set memory importance
+ccb-mem importance <id> 0.8
+
+# Apply time decay
+ccb-mem decay --all
+
+# Mark for forgetting
+ccb-mem forget <id>
+
+# View v2 statistics
+ccb-mem stats-v2
+
+# System 2 consolidation CLI
+ccb-consolidate nightly        # Full consolidation pipeline
+ccb-consolidate decay          # Apply decay to all memories
+ccb-consolidate merge          # Merge similar memories
+ccb-consolidate abstract       # Generate abstractions
+ccb-consolidate forget         # Clean expired memories
+ccb-consolidate stats          # View consolidation stats
+```
+
+### Configuration
+
+**`~/.ccb/heuristic_config.json`:**
+```json
+{
+  "retrieval": {
+    "relevance_weight": 0.4,
+    "importance_weight": 0.3,
+    "recency_weight": 0.3,
+    "decay_rate": 0.1,
+    "candidate_pool_size": 50,
+    "final_limit": 5
+  },
+  "importance": {
+    "default_score": 0.5,
+    "user_marked_boost": 0.3
+  },
+  "decay": {
+    "lambda": 0.1,
+    "min_score": 0.01,
+    "max_age_days": 90
+  },
+  "system2": {
+    "merge_similarity_threshold": 0.9,
+    "abstract_group_min_size": 5,
+    "forget_score_threshold": 0.01,
+    "forget_age_days": 90
+  }
+}
+```
+
+---
+
+## 📦 v0.21 Features (Previous)
+
+### Memory Transparency & Write APIs
 
 **Building on v0.20's dual-system architecture** with transparency, write APIs, and LLM integration:
 
@@ -249,9 +362,34 @@ ccb-mem inject 2026-02-05
 
 ## ✨ Features
 
-### 🧠 Dual-System Memory (v0.21)
+### 🧠 Dual-System Memory (v0.22)
 
-**Human-like memory architecture** - Fast automatic capture combined with deep overnight processing.
+**Human-like memory architecture** - Fast automatic capture combined with deep overnight processing, now with **heuristic retrieval**.
+
+<details>
+<summary><b>Heuristic Retrieval (NEW in v0.22)</b></summary>
+
+**Stanford Generative Agents-inspired scoring** combining three dimensions:
+
+```
+final_score = α × Relevance + β × Importance + γ × Recency
+```
+
+- **Relevance (α=0.4)**: FTS5 BM25 keyword matching score
+- **Importance (β=0.3)**: User-rated or LLM-evaluated importance (0.0-1.0)
+- **Recency (γ=0.3)**: Ebbinghaus forgetting curve: `exp(-0.1 × hours_since_access)`
+
+**Example retrieval:**
+```bash
+# Search with heuristic scoring
+ccb-mem search-scored "authentication" --limit 5
+
+# Output shows all dimensions:
+# ID: 123 | Score: 0.82 | R: 0.95 | I: 0.80 | T: 0.65
+# ID: 456 | Score: 0.71 | R: 0.80 | I: 0.70 | T: 0.60
+```
+
+</details>
 
 <details>
 <summary><b>System 1: Context Saver (Click to expand)</b></summary>
@@ -570,11 +708,11 @@ ccb-submit discuss \
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      CCB Gateway (v0.21)                         │
+│                      CCB Gateway (v0.22)                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌────────────────────────────────────────────────────────┐    │
-│  │            Dual-System Memory (v0.20)                   │    │
+│  │            Dual-System Memory (v0.22)                   │    │
 │  ├────────────────────────────────────────────────────────┤    │
 │  │                                                          │    │
 │  │  System 1 (Fast):           System 2 (Deep):            │    │
@@ -737,7 +875,7 @@ ccb-mem inject 2026-02-05
 
 ---
 
-## 🧠 Memory System (v0.21)
+## 🧠 Memory System (v0.22)
 
 ### Dual-System Architecture
 
@@ -747,6 +885,21 @@ The memory system is inspired by human cognition:
 |--------|---------|---------|--------|
 | **System 1** | Short-term memory | `/clear`, `/compact` | Markdown archive |
 | **System 2** | Long-term memory | Nightly cron | Consolidated memory |
+
+### Heuristic Retrieval (NEW)
+
+v0.22 introduces **Stanford Generative Agents-inspired retrieval**:
+
+```
+final_score = α × Relevance + β × Importance + γ × Recency
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| α (relevance) | 0.4 | FTS5 BM25 score weight |
+| β (importance) | 0.3 | User/LLM importance weight |
+| γ (recency) | 0.3 | Time decay weight |
+| λ (decay rate) | 0.1 | Ebbinghaus curve parameter |
 
 ### File Locations
 
@@ -914,7 +1067,17 @@ Smart skills discovery powered by Vercel Skills CLI.
 
 ## 🗺️ Roadmap
 
-### v0.21 (Current) - Memory Enhancement ✅
+### v0.22 (Current) - Heuristic Memory ✅
+
+- [x] **Heuristic Retrieval** - Stanford Generative Agents-inspired αR + βI + γT scoring
+- [x] **Importance Tracking** - User-rated and LLM-evaluated importance scores
+- [x] **Access Logging** - Track memory access for recency calculation
+- [x] **Ebbinghaus Decay** - Time-based forgetting curve implementation
+- [x] **System 2 Enhancement** - Merge, abstract, forget operations
+- [x] **ccb-consolidate CLI** - New consolidation management tool
+- [x] **Configurable Weights** - `~/.ccb/heuristic_config.json`
+
+### v0.21 (Previous) - Memory Enhancement ✅
 
 - [x] **Memory Transparency** - Track injected memories per request
 - [x] **Observations CRUD** - Manual memory management API
@@ -932,21 +1095,21 @@ Smart skills discovery powered by Vercel Skills CLI.
 - [x] **Security Hardening** - Path traversal protection
 - [x] **Claude Provider** - Added as 9th provider
 
-### v0.22 (Q2 2026) - Semantic Enhancement
+### v0.23 (Q2 2026) - Semantic Enhancement
 
 - [ ] Qdrant vector database integration
 - [ ] Semantic similarity search
 - [ ] Multi-language embeddings
 - [ ] Memory clustering
 
-### v0.23 (Q3 2026) - Agent Autonomy
+### v0.24 (Q3 2026) - Agent Autonomy
 
 - [ ] Agent memory function calls (Letta mode)
 - [ ] Structured memory blocks (core_memory)
 - [ ] Self-updating agents
 - [ ] Memory version control
 
-### v0.24 (Q4 2026) - Team Collaboration
+### v0.25 (Q4 2026) - Team Collaboration
 
 - [ ] Multi-user memory isolation
 - [ ] Shared memory pools
@@ -990,6 +1153,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 **Inspired by:**
+- [Stanford Generative Agents](https://arxiv.org/pdf/2304.03442) - Heuristic retrieval formula
+- [Awesome-AI-Memory](https://github.com/IAAR-Shanghai/Awesome-AI-Memory) - Memory system survey
 - [Mem0](https://github.com/mem0ai/mem0) - Semantic memory architecture
 - [Letta (MemGPT)](https://github.com/cpacker/MemGPT) - Structured memory blocks
 - [LangChain](https://github.com/langchain-ai/langchain) - Memory patterns

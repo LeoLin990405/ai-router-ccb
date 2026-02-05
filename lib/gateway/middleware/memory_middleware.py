@@ -1,6 +1,8 @@
 """
 CCB Gateway Memory Middleware
 在 Gateway 层自动处理记忆的记录和注入
+
+v2.0 Enhancement: Heuristic Retrieval with αR + βI + γT scoring
 """
 
 import asyncio
@@ -19,9 +21,17 @@ from lib.memory.registry import CCBRegistry
 from lib.skills.skills_discovery import SkillsDiscoveryService
 from .system_context import SystemContextBuilder
 
+# v2.0: Heuristic Retriever
+try:
+    from lib.memory.heuristic_retriever import HeuristicRetriever, ScoredMemory
+    HAS_HEURISTIC = True
+except ImportError:
+    HAS_HEURISTIC = False
+    print("[MemoryMiddleware] Warning: HeuristicRetriever not available, using basic search")
+
 
 class MemoryMiddleware:
-    """Gateway 记忆中间件"""
+    """Gateway 记忆中间件 (v2.0: Heuristic Retrieval)"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.memory = CCBLightMemory()
@@ -42,7 +52,17 @@ class MemoryMiddleware:
         self.skills_discovery = SkillsDiscoveryService()
         self.enable_skill_discovery = self.config.get("skills", {}).get("auto_discover", True)
 
-        print(f"[MemoryMiddleware] Initialized (enabled={self.enabled})")
+        # 🆕 v2.0: 启发式检索器
+        self.heuristic_retriever = None
+        self.use_heuristic = self.config.get("memory", {}).get("use_heuristic_retrieval", True)
+        if HAS_HEURISTIC and self.use_heuristic:
+            try:
+                self.heuristic_retriever = HeuristicRetriever()
+                print(f"[MemoryMiddleware] Heuristic retriever initialized")
+            except Exception as e:
+                print(f"[MemoryMiddleware] Heuristic retriever init error: {e}")
+
+        print(f"[MemoryMiddleware] Initialized (enabled={self.enabled}, heuristic={self.heuristic_retriever is not None})")
         print(f"[MemoryMiddleware] System context preloaded: {self.system_context.get_stats()}")
         print(f"[MemoryMiddleware] Skills discovery: {self.enable_skill_discovery}")
 
@@ -62,7 +82,8 @@ class MemoryMiddleware:
                 "auto_record": True,
                 "max_injected_memories": 5,
                 "inject_system_context": True,  # 新增：注入系统上下文
-                "injection_strategy": "recent_plus_relevant"
+                "injection_strategy": "recent_plus_relevant",
+                "use_heuristic_retrieval": True  # v2.0: 使用启发式检索
             },
             "skills": {
                 "auto_discover": True,  # 🆕 自动发现相关技能
@@ -109,15 +130,43 @@ class MemoryMiddleware:
             except Exception as e:
                 print(f"[MemoryMiddleware] Skills discovery error: {e}")
 
-        # 2. 搜索相关记忆
+        # 2. 搜索相关记忆 (v2.0: 使用启发式检索)
         relevant_memories = []
+        heuristic_results = []  # v2.0: 保存评分结果
         if keywords:
             try:
-                relevant_memories = self.memory.search_conversations(
-                    " ".join(keywords),
-                    limit=self.max_injected
-                )
-                print(f"[MemoryMiddleware] Found {len(relevant_memories)} relevant memories")
+                if self.heuristic_retriever:
+                    # v2.0: 使用 HeuristicRetriever 的 αR + βI + γT 评分
+                    heuristic_results = self.heuristic_retriever.retrieve(
+                        " ".join(keywords),
+                        limit=self.max_injected,
+                        request_id=request.get("request_id"),
+                        track_access=True
+                    )
+                    # 转换为兼容格式
+                    relevant_memories = [
+                        {
+                            "id": m.memory_id,
+                            "message_id": m.memory_id,
+                            "provider": m.provider,
+                            "question": "",
+                            "answer": m.content[:300] if m.role == 'assistant' else m.content[:300],
+                            "timestamp": m.timestamp,
+                            "relevance_score": m.relevance_score,
+                            "importance_score": m.importance_score,
+                            "recency_score": m.recency_score,
+                            "final_score": m.final_score
+                        }
+                        for m in heuristic_results
+                    ]
+                    print(f"[MemoryMiddleware] Heuristic search: found {len(relevant_memories)} memories")
+                else:
+                    # 回退到基本搜索
+                    relevant_memories = self.memory.search_conversations(
+                        " ".join(keywords),
+                        limit=self.max_injected
+                    )
+                    print(f"[MemoryMiddleware] Basic search: found {len(relevant_memories)} memories")
             except Exception as e:
                 print(f"[MemoryMiddleware] Search error: {e}")
 
@@ -280,7 +329,7 @@ class MemoryMiddleware:
         return keywords[:10]  # 最多保留 10 个关键词
 
     def _format_memory_context(self, memories: List[Dict[str, Any]]) -> str:
-        """格式化记忆上下文（只包含对话记忆）"""
+        """格式化记忆上下文（v2.0: 包含评分信息）"""
         if not memories:
             return ""
 
@@ -290,7 +339,13 @@ class MemoryMiddleware:
             provider_name = mem.get("provider", "unknown")
             question = mem.get("question", "")[:100]
             answer = mem.get("answer", "")[:200]
-            context_parts.append(f"{i}. [{provider_name}] {question}")
+
+            # v2.0: 如果有评分，显示评分信息
+            score_info = ""
+            if mem.get("final_score") is not None:
+                score_info = f" (score: {mem['final_score']:.2f})"
+
+            context_parts.append(f"{i}. [{provider_name}]{score_info} {question}")
             context_parts.append(f"   A: {answer}...")
             context_parts.append("")
 
@@ -334,13 +389,23 @@ class MemoryMiddleware:
         return self._format_memory_context(memories)
 
     def get_stats(self) -> Dict[str, Any]:
-        """获取中间件统计信息"""
-        return {
+        """获取中间件统计信息 (v2.0: 包含启发式检索统计)"""
+        stats = {
             "enabled": self.enabled,
             "auto_inject": self.auto_inject,
             "auto_record": self.auto_record,
-            "memory_stats": self.memory.get_stats()
+            "memory_stats": self.memory.get_stats(),
+            "heuristic_enabled": self.heuristic_retriever is not None
         }
+
+        # v2.0: 添加启发式检索统计
+        if self.heuristic_retriever:
+            try:
+                stats["heuristic_stats"] = self.heuristic_retriever.get_statistics()
+            except Exception as e:
+                stats["heuristic_error"] = str(e)
+
+        return stats
 
     def _record_skill_usage(self, request: Dict[str, Any], response: Dict[str, Any]):
         """记录技能使用情况（🆕 新增）"""

@@ -189,6 +189,18 @@ class MemoryMiddleware:
                 request["_system_context_injected"] = self.inject_system_context
                 request["_skills_recommended"] = bool(skill_recommendations and skill_recommendations['found'])
 
+                # 🆕 Phase 1: 追踪注入详情（如果有 request_id）
+                request_id = request.get("request_id")
+                if request_id:
+                    self._track_injection(
+                        request_id=request_id,
+                        provider=provider,
+                        original_message=message,
+                        memories=relevant_memories,
+                        skills=skill_recommendations,
+                        system_context_injected=self.inject_system_context
+                    )
+
         except Exception as e:
             print(f"[MemoryMiddleware] Context injection error: {e}")
 
@@ -357,3 +369,99 @@ class MemoryMiddleware:
 
         except Exception as e:
             print(f"[MemoryMiddleware] Skill usage recording error: {e}")
+
+    def _track_injection(
+        self,
+        request_id: str,
+        provider: str,
+        original_message: str,
+        memories: List[Dict[str, Any]],
+        skills: Optional[Dict[str, Any]],
+        system_context_injected: bool
+    ):
+        """追踪记忆注入详情（Phase 1: Transparency）"""
+        try:
+            # 提取记忆 IDs 和相关性分数
+            memory_ids = []
+            relevance_scores = {}
+            for mem in memories:
+                mem_id = mem.get("id") or mem.get("message_id")
+                if mem_id:
+                    memory_ids.append(mem_id)
+                    # 如果有相关性分数
+                    if mem.get("relevance_score"):
+                        relevance_scores[mem_id] = mem.get("relevance_score")
+
+            # 提取技能名称
+            skill_names = []
+            if skills and skills.get("found"):
+                for skill in skills.get("skills", []):
+                    skill_names.append(skill.get("name"))
+
+            # 使用 memory v2 追踪
+            self.memory.v2.track_request_injection(
+                request_id=request_id,
+                provider=provider,
+                original_message=original_message,
+                injected_memory_ids=memory_ids,
+                injected_skills=skill_names,
+                injected_system_context=system_context_injected,
+                relevance_scores=relevance_scores,
+                metadata={
+                    "memory_count": len(memories),
+                    "skills_count": len(skill_names),
+                    "system_context": system_context_injected
+                }
+            )
+
+            print(f"[MemoryMiddleware] Tracked injection for {request_id}: "
+                  f"{len(memory_ids)} memories, {len(skill_names)} skills")
+
+        except Exception as e:
+            print(f"[MemoryMiddleware] Injection tracking error: {e}")
+
+    # ========================================================================
+    # Discussion Memory (Phase 6)
+    # ========================================================================
+
+    async def post_discussion(
+        self,
+        session_id: str,
+        topic: str,
+        providers: List[str],
+        summary: str = None,
+        insights: List[Dict[str, Any]] = None,
+        messages: List[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """Record a discussion to memory system (Phase 6)
+
+        Args:
+            session_id: Discussion session ID
+            topic: Discussion topic
+            providers: List of participating providers
+            summary: Discussion summary
+            insights: Extracted insights
+            messages: Discussion messages
+
+        Returns:
+            observation_id if recorded, None otherwise
+        """
+        if not self.enabled or not self.auto_record:
+            return None
+
+        try:
+            observation_id = self.memory.v2.record_discussion(
+                session_id=session_id,
+                topic=topic,
+                providers=providers,
+                summary=summary,
+                insights=insights,
+                messages=messages
+            )
+
+            print(f"[MemoryMiddleware] Discussion recorded: {session_id} -> {observation_id}")
+            return observation_id
+
+        except Exception as e:
+            print(f"[MemoryMiddleware] Discussion recording error: {e}")
+            return None

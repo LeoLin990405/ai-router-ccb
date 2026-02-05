@@ -154,7 +154,36 @@ CREATE INDEX IF NOT EXISTS idx_learnings_session ON learnings(session_id);
 CREATE INDEX IF NOT EXISTS idx_learnings_category ON learnings(category);
 
 -- ============================================================================
--- 9. Archived Sessions Table - 归档会话（分区存储）
+-- 9. Request Memory Map Table - 请求记忆注入追踪（Phase 1: Transparency）
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS request_memory_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id TEXT NOT NULL UNIQUE,        -- Gateway Request ID
+    session_id TEXT,                        -- 关联到会话
+    provider TEXT,                          -- 请求的 Provider
+    original_message TEXT,                  -- 原始用户消息
+
+    -- 注入详情
+    injected_memory_ids TEXT,               -- JSON array of memory message_ids
+    injected_skills TEXT,                   -- JSON array of skill names
+    injected_system_context INTEGER DEFAULT 0,  -- 是否注入了系统上下文
+
+    -- 元数据
+    injection_timestamp TEXT NOT NULL,      -- 注入时间
+    memory_count INTEGER DEFAULT 0,         -- 注入的记忆条数
+    skills_count INTEGER DEFAULT 0,         -- 注入的技能数
+    relevance_scores TEXT,                  -- JSON: {memory_id: score, ...}
+
+    -- 追踪字段
+    metadata TEXT                           -- JSON: 扩展信息
+);
+
+CREATE INDEX IF NOT EXISTS idx_request_memory_map_request ON request_memory_map(request_id);
+CREATE INDEX IF NOT EXISTS idx_request_memory_map_session ON request_memory_map(session_id);
+CREATE INDEX IF NOT EXISTS idx_request_memory_map_timestamp ON request_memory_map(injection_timestamp);
+
+-- ============================================================================
+-- 10. Archived Sessions Table - 归档会话（分区存储）
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS archived_sessions (
     session_id TEXT PRIMARY KEY,
@@ -170,6 +199,84 @@ CREATE TABLE IF NOT EXISTS archived_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_archived_user ON archived_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_archived_date ON archived_sessions(archived_at);
+
+-- ============================================================================
+-- 11. Observations Table - 用户观察/洞察记录（Phase 2: Write APIs）
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS observations (
+    observation_id TEXT PRIMARY KEY,        -- UUID
+    user_id TEXT NOT NULL,                  -- 用户ID（支持多用户）
+    category TEXT NOT NULL,                 -- 'insight', 'preference', 'fact', 'note'
+    content TEXT NOT NULL,                  -- 观察内容
+    tags TEXT,                              -- JSON array of tags
+
+    -- 来源和可信度
+    source TEXT DEFAULT 'manual',           -- 'manual', 'llm_extracted', 'consolidator'
+    confidence REAL DEFAULT 1.0,            -- 可信度 0-1
+
+    -- 时间
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+
+    -- 元数据
+    metadata TEXT                           -- JSON: 扩展信息
+);
+
+CREATE INDEX IF NOT EXISTS idx_observations_user ON observations(user_id);
+CREATE INDEX IF NOT EXISTS idx_observations_category ON observations(category);
+CREATE INDEX IF NOT EXISTS idx_observations_created ON observations(created_at);
+
+-- Observations FTS5 索引
+CREATE VIRTUAL TABLE IF NOT EXISTS observations_fts USING fts5(
+    content,
+    tags,
+    content='observations',
+    content_rowid='rowid',
+    tokenize='porter unicode61'
+);
+
+-- 自动更新 Observations FTS5 索引
+CREATE TRIGGER IF NOT EXISTS observations_fts_insert
+AFTER INSERT ON observations
+BEGIN
+    INSERT INTO observations_fts(rowid, content, tags)
+    VALUES (NEW.rowid, NEW.content, NEW.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS observations_fts_delete
+AFTER DELETE ON observations
+BEGIN
+    DELETE FROM observations_fts WHERE rowid = OLD.rowid;
+END;
+
+CREATE TRIGGER IF NOT EXISTS observations_fts_update
+AFTER UPDATE ON observations
+BEGIN
+    DELETE FROM observations_fts WHERE rowid = OLD.rowid;
+    INSERT INTO observations_fts(rowid, content, tags)
+    VALUES (NEW.rowid, NEW.content, NEW.tags);
+END;
+
+-- ============================================================================
+-- 12. Skills Feedback Table - 技能反馈记录（Phase 5: Feedback Loop）
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS skills_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name TEXT NOT NULL,               -- 技能名称
+    user_id TEXT NOT NULL DEFAULT 'default', -- 用户ID
+    rating INTEGER NOT NULL,                -- 评分 1-5
+    task_keywords TEXT,                     -- JSON: 任务关键词
+    task_description TEXT,                  -- 任务描述
+    helpful INTEGER DEFAULT 1,              -- 是否有帮助 0/1
+    comment TEXT,                           -- 用户评论
+    timestamp TEXT NOT NULL,                -- 反馈时间
+    metadata TEXT                           -- JSON: 扩展信息
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_feedback_skill ON skills_feedback(skill_name);
+CREATE INDEX IF NOT EXISTS idx_skills_feedback_user ON skills_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_skills_feedback_timestamp ON skills_feedback(timestamp);
+CREATE INDEX IF NOT EXISTS idx_skills_feedback_rating ON skills_feedback(rating);
 
 -- ============================================================================
 -- Triggers - 自动维护

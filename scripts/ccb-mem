@@ -9,9 +9,16 @@ Commands:
   show <date>             Show memory for a specific date
   inject <date>           Output path for @ injection in new conversations
   list                    List recent archives and memories
+
+Phase 7 New Commands:
+  trace <request_id>      Trace injection details for a request
+  injections [--limit N]  Show recent memory injections
+  stats [--detailed]      Show memory system statistics
+  export [--format json]  Export memory to file
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -25,6 +32,9 @@ sys.path.insert(0, str(LIB_DIR))
 
 from memory.context_saver import ContextSaver, find_current_session
 from memory.consolidator import NightlyConsolidator
+
+# Gateway API URL
+GATEWAY_URL = "http://localhost:8765"
 
 
 class CCBMemoryCLI:
@@ -69,18 +79,34 @@ class CCBMemoryCLI:
             print("Session too short or trivial, skipped")
             return 0
 
-    def cmd_consolidate(self, hours: int = 24) -> int:
+    def cmd_consolidate(self, hours: int = 24, use_llm: bool = False,
+                        llm_provider: str = "kimi", dry_run: bool = False) -> int:
         """Consolidate recent sessions into long-term memory."""
         consolidator = NightlyConsolidator(
             archive_dir=self.archive_dir,
-            memory_dir=self.memory_dir
+            memory_dir=self.memory_dir,
+            llm_provider=llm_provider
         )
 
         print(f"Consolidating sessions from the last {hours} hours...")
-        memory = consolidator.consolidate(hours=hours)
+        if use_llm:
+            print(f"Using LLM provider: {llm_provider}")
+
+        # Choose consolidation method
+        if use_llm:
+            import asyncio
+            memory = asyncio.run(consolidator.consolidate_with_llm(hours=hours))
+        else:
+            memory = consolidator.consolidate(hours=hours)
 
         if memory.get("status") == "no_sessions":
             print("No sessions found in the specified time range")
+            return 0
+
+        if dry_run:
+            print("\n[DRY RUN] Would save the following:")
+            import json
+            print(json.dumps(memory, indent=2, ensure_ascii=False)[:2000])
             return 0
 
         print(f"\nConsolidation complete!")
@@ -89,6 +115,14 @@ class CCBMemoryCLI:
 
         if memory.get('project_progress'):
             print(f"  Projects: {', '.join(memory['project_progress'].keys())}")
+
+        if memory.get('llm_enhanced'):
+            print(f"\n  LLM Enhancement:")
+            print(f"    Learnings: {len(memory.get('llm_learnings', []))}")
+            print(f"    Preferences: {len(memory.get('llm_preferences', []))}")
+            print(f"    Patterns: {len(memory.get('llm_patterns', []))}")
+        elif memory.get('llm_error'):
+            print(f"\n  LLM Error: {memory.get('llm_error')}")
 
         return 0
 
@@ -255,6 +289,266 @@ class CCBMemoryCLI:
 
         return 0
 
+    # ========================================================================
+    # Phase 7: New CLI Commands
+    # ========================================================================
+
+    def cmd_trace(self, request_id: str) -> int:
+        """Trace injection details for a specific request."""
+        try:
+            import httpx
+
+            response = httpx.get(
+                f"{GATEWAY_URL}/api/memory/request/{request_id}",
+                timeout=10.0
+            )
+
+            if response.status_code == 404:
+                print(f"✖ No injection record found for request: {request_id}", file=sys.stderr)
+                return 1
+
+            if response.status_code != 200:
+                print(f"✖ API error: {response.status_code}", file=sys.stderr)
+                return 1
+
+            data = response.json()
+            injection = data.get("injection", {})
+            memories = data.get("injected_memories", [])
+
+            print(f"=== Injection Trace: {request_id[:12]}... ===\n")
+
+            # Basic info
+            print(f"Provider:     {injection.get('provider', 'unknown')}")
+            print(f"Timestamp:    {injection.get('injection_timestamp', 'unknown')}")
+            print(f"Memory Count: {injection.get('memory_count', 0)}")
+            print(f"Skills Count: {injection.get('skills_count', 0)}")
+            print(f"System Ctx:   {'Yes' if injection.get('injected_system_context') else 'No'}")
+
+            # Original message
+            original = injection.get('original_message', '')
+            if original:
+                print(f"\nOriginal Message:")
+                print(f"  {original[:200]}{'...' if len(original) > 200 else ''}")
+
+            # Injected skills
+            skills = injection.get('injected_skills', [])
+            if skills:
+                print(f"\nInjected Skills:")
+                for skill in skills:
+                    print(f"  • {skill}")
+
+            # Injected memories
+            if memories:
+                print(f"\nInjected Memories:")
+                for mem in memories:
+                    score = mem.get('relevance_score', '-')
+                    content = mem.get('content', '')[:100]
+                    print(f"  [{mem.get('provider', '?')}] {content}...")
+                    if score != '-':
+                        print(f"       (relevance: {score})")
+
+            return 0
+
+        except ImportError:
+            print("✖ httpx not installed. Run: pip install httpx", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_injections(self, limit: int = 10, session_id: str = None) -> int:
+        """Show recent memory injections."""
+        try:
+            import httpx
+
+            params = {"limit": limit}
+            if session_id:
+                params["session_id"] = session_id
+
+            response = httpx.get(
+                f"{GATEWAY_URL}/api/memory/injections",
+                params=params,
+                timeout=10.0
+            )
+
+            if response.status_code != 200:
+                print(f"✖ API error: {response.status_code}", file=sys.stderr)
+                return 1
+
+            data = response.json()
+            injections = data.get("injections", [])
+
+            if not injections:
+                print("No recent injections found")
+                return 0
+
+            print(f"=== Recent Memory Injections ({len(injections)}) ===\n")
+
+            for inj in injections:
+                req_id = inj.get("request_id", "?")[:12]
+                provider = inj.get("provider", "?")
+                mem_count = inj.get("memory_count", 0)
+                skill_count = inj.get("skills_count", 0)
+                timestamp = inj.get("injection_timestamp", "")[:16]
+
+                print(f"  {timestamp}  {req_id}...  [{provider}]  "
+                      f"📚{mem_count} 🛠️{skill_count}")
+
+            print(f"\nUse 'ccb-mem trace <request_id>' for details")
+            return 0
+
+        except ImportError:
+            print("✖ httpx not installed. Run: pip install httpx", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_stats(self, detailed: bool = False) -> int:
+        """Show memory system statistics."""
+        try:
+            import httpx
+
+            response = httpx.get(
+                f"{GATEWAY_URL}/api/memory/stats",
+                timeout=10.0
+            )
+
+            if response.status_code != 200:
+                print(f"✖ API error: {response.status_code}", file=sys.stderr)
+                return 1
+
+            stats = response.json()
+
+            print("=== CCB Memory Statistics ===\n")
+            print(f"User:           {stats.get('user_id', 'unknown')}")
+            print(f"Total Sessions: {stats.get('total_sessions', 0)}")
+            print(f"Total Messages: {stats.get('total_messages', 0)}")
+            print(f"Total Tokens:   {stats.get('total_tokens', 0):,}")
+
+            if detailed:
+                print("\n=== Provider Statistics ===\n")
+                provider_stats = stats.get("provider_stats", [])
+                if provider_stats:
+                    print(f"  {'Provider':<12} {'Requests':<10} {'Success':<10} {'Avg Latency':<12} {'Tokens':<10}")
+                    print(f"  {'-'*12} {'-'*10} {'-'*10} {'-'*12} {'-'*10}")
+                    for ps in provider_stats:
+                        name = ps.get("provider", "?")
+                        reqs = ps.get("total_requests", 0)
+                        succ = ps.get("total_success", 0)
+                        lat = ps.get("avg_latency_ms", 0)
+                        tokens = ps.get("total_tokens", 0)
+                        print(f"  {name:<12} {reqs:<10} {succ:<10} {lat:<12.0f} {tokens:<10}")
+                else:
+                    print("  (no provider data)")
+
+                # Also fetch config
+                try:
+                    config_resp = httpx.get(f"{GATEWAY_URL}/api/memory/config", timeout=5.0)
+                    if config_resp.status_code == 200:
+                        config = config_resp.json().get("config", {})
+                        print("\n=== Configuration ===\n")
+                        print(f"  Enabled:        {config.get('enabled', '?')}")
+                        print(f"  Auto Inject:    {config.get('auto_inject', '?')}")
+                        print(f"  Max Memories:   {config.get('max_injected_memories', '?')}")
+                        print(f"  Strategy:       {config.get('injection_strategy', '?')}")
+                except:
+                    pass
+
+            return 0
+
+        except ImportError:
+            print("✖ httpx not installed. Run: pip install httpx", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
+    def cmd_export(self, format: str = "json", output: str = None) -> int:
+        """Export memory to file."""
+        try:
+            import httpx
+
+            # Fetch all memory components
+            export_data = {
+                "exported_at": datetime.now().isoformat(),
+                "stats": {},
+                "observations": [],
+                "sessions": [],
+                "injections": []
+            }
+
+            # Fetch stats
+            try:
+                resp = httpx.get(f"{GATEWAY_URL}/api/memory/stats", timeout=10.0)
+                if resp.status_code == 200:
+                    export_data["stats"] = resp.json()
+            except:
+                pass
+
+            # Fetch observations
+            try:
+                resp = httpx.get(f"{GATEWAY_URL}/api/memory/observations?limit=100", timeout=10.0)
+                if resp.status_code == 200:
+                    export_data["observations"] = resp.json().get("observations", [])
+            except:
+                pass
+
+            # Fetch sessions
+            try:
+                resp = httpx.get(f"{GATEWAY_URL}/api/memory/sessions?limit=50", timeout=10.0)
+                if resp.status_code == 200:
+                    export_data["sessions"] = resp.json().get("sessions", [])
+            except:
+                pass
+
+            # Fetch recent injections
+            try:
+                resp = httpx.get(f"{GATEWAY_URL}/api/memory/injections?limit=50", timeout=10.0)
+                if resp.status_code == 200:
+                    export_data["injections"] = resp.json().get("injections", [])
+            except:
+                pass
+
+            # Output
+            if format == "json":
+                output_str = json.dumps(export_data, indent=2, ensure_ascii=False)
+            else:
+                # Markdown format
+                lines = ["# CCB Memory Export", ""]
+                lines.append(f"Exported: {export_data['exported_at']}")
+                lines.append("")
+
+                stats = export_data.get("stats", {})
+                lines.append("## Statistics")
+                lines.append(f"- Sessions: {stats.get('total_sessions', 0)}")
+                lines.append(f"- Messages: {stats.get('total_messages', 0)}")
+                lines.append(f"- Tokens: {stats.get('total_tokens', 0)}")
+                lines.append("")
+
+                if export_data.get("observations"):
+                    lines.append("## Observations")
+                    for obs in export_data["observations"][:20]:
+                        lines.append(f"- [{obs.get('category')}] {obs.get('content', '')[:100]}")
+                    lines.append("")
+
+                output_str = "\n".join(lines)
+
+            if output:
+                Path(output).write_text(output_str, encoding='utf-8')
+                print(f"✓ Exported to: {output}")
+            else:
+                print(output_str)
+
+            return 0
+
+        except ImportError:
+            print("✖ httpx not installed. Run: pip install httpx", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"✖ Error: {e}", file=sys.stderr)
+            return 1
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -266,11 +560,22 @@ Examples:
   ccb-mem save ~/path/to/session.jsonl
   ccb-mem consolidate              # Consolidate last 24 hours
   ccb-mem consolidate --hours 48   # Consolidate last 48 hours
+  ccb-mem consolidate --llm        # Use LLM for enhanced consolidation
   ccb-mem search "gateway"         # Search for keyword
   ccb-mem show today               # Show today's memory
   ccb-mem show 2026-02-05          # Show specific date
   ccb-mem inject yesterday         # Get path for @ injection
   ccb-mem list                     # List recent files
+
+Phase 7 Commands:
+  ccb-mem trace <request_id>       # Trace injection details
+  ccb-mem injections               # Show recent injections
+  ccb-mem injections --limit 20    # Show more injections
+  ccb-mem stats                    # Show basic statistics
+  ccb-mem stats --detailed         # Show detailed statistics
+  ccb-mem export                   # Export memory as JSON
+  ccb-mem export --format md       # Export as Markdown
+  ccb-mem export -o memory.json    # Export to file
 """
     )
 
@@ -284,6 +589,9 @@ Examples:
     # consolidate command
     consolidate_parser = subparsers.add_parser('consolidate', help='Consolidate to long-term memory')
     consolidate_parser.add_argument('--hours', '-H', type=int, default=24, help='Hours to look back')
+    consolidate_parser.add_argument('--llm', action='store_true', help='Use LLM for enhanced consolidation')
+    consolidate_parser.add_argument('--llm-provider', type=str, default='kimi', help='LLM provider')
+    consolidate_parser.add_argument('--dry-run', action='store_true', help='Run without saving')
 
     # search command
     search_parser = subparsers.add_parser('search', help='Search archives')
@@ -301,6 +609,25 @@ Examples:
     list_parser = subparsers.add_parser('list', help='List recent files')
     list_parser.add_argument('--limit', '-n', type=int, default=10, help='Max items to show')
 
+    # Phase 7: New commands
+    # trace command
+    trace_parser = subparsers.add_parser('trace', help='Trace injection details for a request')
+    trace_parser.add_argument('request_id', help='Request ID to trace')
+
+    # injections command
+    injections_parser = subparsers.add_parser('injections', help='Show recent memory injections')
+    injections_parser.add_argument('--limit', '-n', type=int, default=10, help='Max items to show')
+    injections_parser.add_argument('--session', '-s', type=str, help='Filter by session ID')
+
+    # stats command
+    stats_parser = subparsers.add_parser('stats', help='Show memory system statistics')
+    stats_parser.add_argument('--detailed', '-d', action='store_true', help='Show detailed stats')
+
+    # export command
+    export_parser = subparsers.add_parser('export', help='Export memory to file')
+    export_parser.add_argument('--format', '-f', choices=['json', 'md'], default='json', help='Export format')
+    export_parser.add_argument('--output', '-o', type=str, help='Output file path')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -312,7 +639,7 @@ Examples:
     if args.command == 'save':
         return cli.cmd_save(args.session_path, args.force)
     elif args.command == 'consolidate':
-        return cli.cmd_consolidate(args.hours)
+        return cli.cmd_consolidate(args.hours, args.llm, args.llm_provider, args.dry_run)
     elif args.command == 'search':
         return cli.cmd_search(args.keyword)
     elif args.command == 'show':
@@ -321,6 +648,15 @@ Examples:
         return cli.cmd_inject(args.date)
     elif args.command == 'list':
         return cli.cmd_list(args.limit)
+    # Phase 7 commands
+    elif args.command == 'trace':
+        return cli.cmd_trace(args.request_id)
+    elif args.command == 'injections':
+        return cli.cmd_injections(args.limit, args.session)
+    elif args.command == 'stats':
+        return cli.cmd_stats(args.detailed)
+    elif args.command == 'export':
+        return cli.cmd_export(args.format, args.output)
     else:
         parser.print_help()
         return 1

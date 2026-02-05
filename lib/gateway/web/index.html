@@ -679,7 +679,7 @@
             <!-- Memory Tab -->
             <div v-show="activeTab === 'memory'" class="space-y-6">
                 <!-- Memory Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div class="stat-card p-4">
                         <div class="flex items-center justify-between">
                             <div>
@@ -716,17 +716,43 @@
                     <div class="stat-card p-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="text-sm text-gray-400 mb-1">{{ t('searchAccuracy') }}</div>
-                                <div class="text-2xl font-semibold text-white">~80%</div>
+                                <div class="text-sm text-gray-400 mb-1">{{ t('observations') }}</div>
+                                <div class="text-2xl font-semibold text-white">{{ observations.length }}</div>
+                            </div>
+                            <div class="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-lightbulb text-amber-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">{{ t('memoryInjections') }}</div>
+                                <div class="text-2xl font-semibold text-white">{{ memoryInjections.length }}</div>
                             </div>
                             <div class="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-search text-cyan-400"></i>
+                                <i class="fas fa-syringe text-cyan-400"></i>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Memory Search -->
+                <!-- Memory Sub-tabs & Settings Button -->
+                <div class="flex items-center justify-between">
+                    <div class="flex space-x-2">
+                        <button v-for="(label, key) in t('memorySubTabs')" :key="key"
+                                @click="memorySubTab = key"
+                                :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                                         memorySubTab === key ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-gray-400 hover:text-white hover:bg-gray-700/30']">
+                            {{ label }}
+                        </button>
+                    </div>
+                    <button @click="showMemoryConfigModal = true; fetchMemoryConfig()" class="btn-secondary text-sm">
+                        <i class="fas fa-cog mr-2"></i>{{ t('memorySettings') }}
+                    </button>
+                </div>
+
+                <!-- Memory Search (always visible) -->
                 <div class="glass-card p-6">
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-400 mb-2">{{ t('searchConversations') }}</label>
@@ -760,8 +786,8 @@
                     </div>
                 </div>
 
-                <!-- Sessions List -->
-                <div class="glass-card p-6">
+                <!-- Sessions Sub-tab -->
+                <div v-show="memorySubTab === 'sessions'" class="glass-card p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold flex items-center">
                             <i class="fas fa-brain text-indigo-400 mr-3"></i>{{ t('recentSessions') }}
@@ -798,6 +824,121 @@
                     </div>
                 </div>
 
+                <!-- Observations Sub-tab -->
+                <div v-show="memorySubTab === 'observations'" class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-lightbulb text-amber-400 mr-3"></i>{{ t('observations') }}
+                        </h2>
+                        <div class="flex gap-2">
+                            <button @click="fetchObservations" class="btn-secondary text-sm">
+                                <i class="fas fa-sync mr-2"></i>{{ t('refresh') }}
+                            </button>
+                            <button @click="showAddObservationModal = true; newObservation = { content: '', category: 'insight', tags: '' }" class="btn-primary text-sm">
+                                <i class="fas fa-plus mr-2"></i>{{ t('addObservation') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="observations.length > 0" class="space-y-3">
+                        <div v-for="obs in observations" :key="obs.observation_id"
+                             class="p-4 bg-gray-900/30 border border-gray-700/30 rounded-lg">
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span :class="['px-2 py-1 text-xs rounded-full', getCategoryColor(obs.category)]">
+                                        {{ t(obs.category) }}
+                                    </span>
+                                    <span class="text-xs text-gray-500">{{ obs.source || 'manual' }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-gray-500">{{ formatDate(obs.created_at) }}</span>
+                                    <button @click="startEditObservation(obs)" class="text-gray-400 hover:text-indigo-400 text-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button @click="deleteObservation(obs.observation_id)" class="text-gray-400 hover:text-rose-400 text-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-300 whitespace-pre-wrap">{{ obs.content }}</div>
+                            <div v-if="obs.tags" class="mt-2 flex flex-wrap gap-1">
+                                <span v-for="tag in JSON.parse(obs.tags || '[]')" :key="tag"
+                                      class="px-2 py-0.5 bg-gray-700/50 text-gray-400 text-xs rounded-full">
+                                    {{ tag }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="text-center py-12 text-gray-500">
+                        <i class="fas fa-lightbulb text-5xl mb-4"></i>
+                        <p class="text-lg">{{ t('noObservations') }}</p>
+                    </div>
+                </div>
+
+                <!-- Injections Sub-tab -->
+                <div v-show="memorySubTab === 'injections'" class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-syringe text-cyan-400 mr-3"></i>{{ t('memoryInjections') }}
+                        </h2>
+                        <button @click="fetchMemoryInjections" class="btn-secondary text-sm">
+                            <i class="fas fa-sync mr-2"></i>{{ t('refresh') }}
+                        </button>
+                    </div>
+
+                    <div v-if="memoryInjections.length > 0" class="space-y-3">
+                        <div v-for="inj in memoryInjections" :key="inj.request_id"
+                             class="p-4 bg-gray-900/30 border border-gray-700/30 rounded-lg hover:border-cyan-500/30 cursor-pointer transition-colors"
+                             @click="viewInjectionDetails(inj.request_id)">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-gray-500 font-mono">{{ inj.request_id.substring(0, 12) }}...</span>
+                                    <span class="text-sm text-cyan-400">{{ JSON.parse(inj.injected_memory_ids || '[]').length }} memories</span>
+                                    <span v-if="inj.injected_skills" class="text-sm text-purple-400">{{ JSON.parse(inj.injected_skills || '[]').length }} skills</span>
+                                </div>
+                                <span class="text-xs text-gray-500">{{ formatDate(inj.injection_timestamp) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="text-center py-12 text-gray-500">
+                        <i class="fas fa-syringe text-5xl mb-4"></i>
+                        <p class="text-lg">{{ t('noInjections') }}</p>
+                    </div>
+                </div>
+
+                <!-- Discussions Sub-tab -->
+                <div v-show="memorySubTab === 'discussions'" class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <i class="fas fa-comments text-purple-400 mr-3"></i>{{ t('discussionMemories') }}
+                        </h2>
+                        <button @click="fetchDiscussionMemories" class="btn-secondary text-sm">
+                            <i class="fas fa-sync mr-2"></i>{{ t('refresh') }}
+                        </button>
+                    </div>
+
+                    <div v-if="discussionMemories.length > 0" class="space-y-3">
+                        <div v-for="dm in discussionMemories" :key="dm.session_id"
+                             class="p-4 bg-gray-900/30 border border-gray-700/30 rounded-lg">
+                            <div class="flex items-start justify-between mb-2">
+                                <div>
+                                    <div class="text-sm font-medium text-white">{{ dm.topic }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">{{ dm.providers }}</div>
+                                </div>
+                                <span class="text-xs text-gray-500">{{ formatDate(dm.created_at) }}</span>
+                            </div>
+                            <div v-if="dm.summary" class="text-sm text-gray-400 mt-2">{{ dm.summary }}</div>
+                        </div>
+                    </div>
+
+                    <div v-else class="text-center py-12 text-gray-500">
+                        <i class="fas fa-comments text-5xl mb-4"></i>
+                        <p class="text-lg">{{ t('noDiscussionMemories') }}</p>
+                    </div>
+                </div>
+
                 <!-- Session Detail Modal -->
                 <div v-if="selectedSession" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="selectedSession = null">
                     <div class="modal-content max-w-4xl w-full max-h-[80vh] overflow-y-auto" @click.stop>
@@ -822,6 +963,102 @@
                                     Provider: {{ msg.provider }}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add/Edit Observation Modal -->
+                <div v-if="showAddObservationModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="showAddObservationModal = false">
+                    <div class="modal-content max-w-lg w-full p-6" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">{{ editingObservation ? t('editObservation') : t('addObservation') }}</h3>
+                            <button @click="showAddObservationModal = false; editingObservation = null" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('observationCategory') }}</label>
+                                <select v-model="newObservation.category" class="input-field">
+                                    <option value="insight">{{ t('insight') }}</option>
+                                    <option value="preference">{{ t('preference') }}</option>
+                                    <option value="fact">{{ t('fact') }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Content</label>
+                                <textarea v-model="newObservation.content" rows="4" class="input-field" placeholder="Enter observation..."></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('observationTags') }} (comma-separated)</label>
+                                <input v-model="newObservation.tags" type="text" class="input-field" placeholder="tag1, tag2, tag3">
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button @click="showAddObservationModal = false; editingObservation = null" class="btn-secondary">{{ t('cancelBtn') }}</button>
+                                <button @click="saveObservation" class="btn-primary">{{ t('saveObservation') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Memory Config Modal -->
+                <div v-if="showMemoryConfigModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="showMemoryConfigModal = false">
+                    <div class="modal-content max-w-lg w-full p-6" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">{{ t('memorySettings') }}</h3>
+                            <button @click="showMemoryConfigModal = false" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm text-gray-300">{{ t('memoryEnabled') }}</label>
+                                <div @click="memoryConfig.enabled = !memoryConfig.enabled"
+                                     :class="['toggle-switch', memoryConfig.enabled ? 'active' : '']"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm text-gray-300">{{ t('autoInject') }}</label>
+                                <div @click="memoryConfig.auto_inject = !memoryConfig.auto_inject"
+                                     :class="['toggle-switch', memoryConfig.auto_inject ? 'active' : '']"></div>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">{{ t('maxInjected') }}: {{ memoryConfig.max_injected_memories }}</label>
+                                <input type="range" v-model.number="memoryConfig.max_injected_memories" min="1" max="20" class="w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('injectionStrategy') }}</label>
+                                <select v-model="memoryConfig.injection_strategy" class="input-field">
+                                    <option value="recent">{{ t('recent') }}</option>
+                                    <option value="relevant">{{ t('relevant') }}</option>
+                                    <option value="recent_plus_relevant">{{ t('recentPlusRelevant') }}</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button @click="resetMemoryConfig" class="btn-secondary">Reset</button>
+                                <button @click="saveMemoryConfig" class="btn-primary">{{ t('save') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Injection Detail Modal -->
+                <div v-if="selectedInjection" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="selectedInjection = null">
+                    <div class="modal-content max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">{{ t('injectedMemories') }}</h3>
+                            <button @click="selectedInjection = null" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div v-if="selectedInjection.memories && selectedInjection.memories.length > 0" class="space-y-3">
+                            <div v-for="mem in selectedInjection.memories" :key="mem.message_id"
+                                 class="p-3 bg-gray-900/30 border border-gray-700/30 rounded-lg">
+                                <div class="text-sm text-gray-300">{{ mem.content }}</div>
+                                <div class="text-xs text-gray-500 mt-1">{{ mem.role }} - {{ formatDate(mem.timestamp) }}</div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-8 text-gray-500">
+                            No memory details available
                         </div>
                     </div>
                 </div>
@@ -897,11 +1134,19 @@
                                         <i class="fas fa-download mr-1"></i>Available
                                     </span>
                                 </div>
-                                <span class="text-sm text-indigo-400">Score: {{ skill.relevance_score }}</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm text-indigo-400">Score: {{ skill.relevance_score }}</span>
+                                    <button @click="openSkillFeedback(skill)" class="text-gray-400 hover:text-amber-400 text-sm" :title="t('giveFeedback')">
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="text-sm text-gray-300 mb-2">{{ skill.description }}</div>
-                            <div v-if="skill.usage_count > 0" class="text-xs text-gray-500">
-                                Used {{ skill.usage_count }} times
+                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                <span v-if="skill.usage_count > 0">Used {{ skill.usage_count }} times</span>
+                                <span v-if="skill.feedback_boost" class="text-amber-400">
+                                    <i class="fas fa-arrow-up mr-1"></i>{{ t('feedbackBoost') }}: +{{ (skill.feedback_boost * 100).toFixed(0) }}%
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -925,7 +1170,7 @@
 
                     <div v-if="skillsStats.top_skills && skillsStats.top_skills.length > 0" class="space-y-2">
                         <div v-for="skill in skillsStats.top_skills.slice(0, 10)" :key="skill.skill_name"
-                             class="flex items-center justify-between p-3 bg-gray-900/30 border border-gray-700/30 rounded-lg">
+                             class="flex items-center justify-between p-3 bg-gray-900/30 border border-gray-700/30 rounded-lg hover:border-gray-600/50 transition-colors">
                             <div class="flex items-center gap-3">
                                 <span class="text-sm font-medium text-white">/{{ skill.skill_name }}</span>
                             </div>
@@ -934,6 +1179,9 @@
                                 <div class="w-24 h-2 bg-gray-700/50 rounded-full overflow-hidden">
                                     <div class="h-full bg-indigo-500" :style="{ width: (skill.usage_count / skillsStats.top_skills[0].usage_count * 100) + '%' }"></div>
                                 </div>
+                                <button @click="openSkillFeedback({ name: skill.skill_name })" class="text-gray-400 hover:text-amber-400 text-sm" :title="t('giveFeedback')">
+                                    <i class="fas fa-star"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -942,6 +1190,43 @@
                         <i class="fas fa-tools text-5xl mb-4"></i>
                         <p class="text-lg">{{ t('noSkillsUsed') }}</p>
                         <p class="text-sm mt-2">{{ t('startUsingSkillsHint') }}</p>
+                    </div>
+                </div>
+
+                <!-- Skill Feedback Modal -->
+                <div v-if="showSkillFeedbackModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" @click="showSkillFeedbackModal = false">
+                    <div class="modal-content max-w-md w-full p-6" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">{{ t('giveFeedback') }}: /{{ feedbackSkill?.name }}</h3>
+                            <button @click="showSkillFeedbackModal = false" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-2">{{ t('feedbackRating') }}</label>
+                                <div class="flex gap-2">
+                                    <button v-for="n in 5" :key="n" @click="skillFeedback.rating = n"
+                                            :class="['w-10 h-10 rounded-lg border transition-colors',
+                                                     n <= skillFeedback.rating ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'border-gray-700 text-gray-500 hover:border-gray-600']">
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm text-gray-300">{{ t('feedbackHelpful') }}</label>
+                                <div @click="skillFeedback.helpful = !skillFeedback.helpful"
+                                     :class="['toggle-switch', skillFeedback.helpful ? 'active' : '']"></div>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">{{ t('feedbackTask') }} (optional)</label>
+                                <input v-model="skillFeedback.task_description" type="text" class="input-field" placeholder="What task did you use this skill for?">
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button @click="showSkillFeedbackModal = false" class="btn-secondary">{{ t('cancelBtn') }}</button>
+                                <button @click="submitSkillFeedback" class="btn-primary">{{ t('submitFeedback') }}</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1022,9 +1307,16 @@
                             <i class="fas fa-stream text-cyan-400 mr-3"></i>
                             {{ t('discussionMessages') }}
                         </h3>
-                        <button @click="selectedDiscussion = null" class="btn-secondary text-sm">
-                            <i class="fas fa-times mr-1"></i>{{ t('close') }}
-                        </button>
+                        <div class="flex gap-2">
+                            <button v-if="selectedDiscussion.status === 'completed'"
+                                    @click="saveDiscussionToMemory(selectedDiscussion)"
+                                    class="btn-secondary text-sm bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20">
+                                <i class="fas fa-brain mr-1"></i>{{ t('saveToMemory') }}
+                            </button>
+                            <button @click="selectedDiscussion = null" class="btn-secondary text-sm">
+                                <i class="fas fa-times mr-1"></i>{{ t('close') }}
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Discussion Timeline -->
@@ -2186,11 +2478,37 @@
                 const memorySearchQuery = ref('');
                 const memorySearchResults = ref([]);
                 const selectedSession = ref(null);
+                // v0.21: Memory Transparency
+                const memoryInjections = ref([]);
+                const selectedInjection = ref(null);
+                // v0.21: Observations CRUD
+                const observations = ref([]);
+                const observationSearchQuery = ref('');
+                const showAddObservationModal = ref(false);
+                const newObservation = ref({ content: '', category: 'insight', tags: '' });
+                const editingObservation = ref(null);
+                // v0.21: Memory Config
+                const memoryConfig = ref({
+                    enabled: true,
+                    auto_inject: true,
+                    max_injected_memories: 5,
+                    injection_strategy: 'recent_plus_relevant'
+                });
+                const showMemoryConfigModal = ref(false);
+                // v0.21: Memory sub-tabs
+                const memorySubTab = ref('sessions');  // 'sessions', 'observations', 'injections', 'discussions'
+                // v0.21: Discussion memories
+                const discussionMemories = ref([]);
 
                 // Skills tab state
                 const skillsStats = ref({});
                 const skillsSearchQuery = ref('');
                 const skillRecommendations = ref({ found: false, skills: [], message: '' });
+                // v0.21: Skills Feedback
+                const showSkillFeedbackModal = ref(false);
+                const feedbackSkill = ref(null);
+                const skillFeedback = ref({ rating: 5, helpful: true, task_description: '' });
+                const allSkillsFeedback = ref([]);
 
                 // UI state
                 const showShortcuts = ref(false);
@@ -2384,6 +2702,27 @@
                         // Memory & Skills tabs
                         recentSessions: 'Recent Sessions', topUsedSkills: 'Most Used Skills',
                         costByProvider: 'Cost by Provider', tokens: 'Tokens',
+                        // v0.21: Memory enhancements
+                        memorySubTabs: { sessions: 'Sessions', observations: 'Observations', injections: 'Injections', discussions: 'Discussions' },
+                        memoryInjections: 'Memory Injections', injectedMemories: 'Injected Memories',
+                        viewInjection: 'View Injection', noInjections: 'No injection records yet',
+                        observations: 'Observations', addObservation: 'Add Observation',
+                        editObservation: 'Edit', deleteObservation: 'Delete',
+                        observationCategory: 'Category', observationTags: 'Tags',
+                        insight: 'Insight', preference: 'Preference', fact: 'Fact',
+                        noObservations: 'No observations recorded', saveObservation: 'Save',
+                        memorySettings: 'Memory Settings', memoryEnabled: 'Memory Enabled',
+                        autoInject: 'Auto Inject', maxInjected: 'Max Injected',
+                        injectionStrategy: 'Injection Strategy', recent: 'Recent Only',
+                        relevant: 'Relevant Only', recentPlusRelevant: 'Recent + Relevant',
+                        configSaved: 'Configuration saved', configReset: 'Configuration reset',
+                        discussionMemories: 'Saved Discussions', saveToMemory: 'Save to Memory',
+                        savedToMemory: 'Saved to memory', noDiscussionMemories: 'No discussions saved',
+                        // v0.21: Skills feedback
+                        giveFeedback: 'Give Feedback', feedbackRating: 'Rating',
+                        feedbackHelpful: 'Was it helpful?', feedbackTask: 'Task Description',
+                        submitFeedback: 'Submit Feedback', feedbackSubmitted: 'Feedback submitted',
+                        feedbackBoost: 'Feedback Boost',
                         // Discussion templates
                         loadingTemplates: 'Loading templates...', noTemplatesAvailable: 'No templates available',
                     },
@@ -2517,6 +2856,27 @@
                         starting: '启动中...', refreshDiscussions: '刷新',
                         // Memory & Skills tab
                         recentSessions: '最近会话', topUsedSkills: '常用技能',
+                        // v0.21: Memory enhancements
+                        memorySubTabs: { sessions: '会话', observations: '观察', injections: '注入记录', discussions: '讨论' },
+                        memoryInjections: '记忆注入', injectedMemories: '注入的记忆',
+                        viewInjection: '查看注入', noInjections: '暂无注入记录',
+                        observations: '观察', addObservation: '添加观察',
+                        editObservation: '编辑', deleteObservation: '删除',
+                        observationCategory: '类别', observationTags: '标签',
+                        insight: '洞察', preference: '偏好', fact: '事实',
+                        noObservations: '暂无观察记录', saveObservation: '保存',
+                        memorySettings: '记忆设置', memoryEnabled: '启用记忆',
+                        autoInject: '自动注入', maxInjected: '最大注入数',
+                        injectionStrategy: '注入策略', recent: '仅最近',
+                        relevant: '仅相关', recentPlusRelevant: '最近+相关',
+                        configSaved: '配置已保存', configReset: '配置已重置',
+                        discussionMemories: '已保存讨论', saveToMemory: '保存到记忆',
+                        savedToMemory: '已保存到记忆', noDiscussionMemories: '暂无保存的讨论',
+                        // v0.21: Skills feedback
+                        giveFeedback: '提供反馈', feedbackRating: '评分',
+                        feedbackHelpful: '是否有帮助？', feedbackTask: '任务描述',
+                        submitFeedback: '提交反馈', feedbackSubmitted: '反馈已提交',
+                        feedbackBoost: '反馈加成',
                         // Cost tracking
                         costByProvider: '各提供者成本', tokens: 'Token数',
                         // Discussion templates
@@ -3082,6 +3442,160 @@
                     }
                 };
 
+                // v0.21: Observations CRUD
+                const fetchObservations = async () => {
+                    try {
+                        const res = await fetch('/api/memory/observations?limit=50');
+                        const data = await res.json();
+                        observations.value = data.observations || [];
+                    } catch (e) {
+                        console.error('Failed to fetch observations:', e);
+                    }
+                };
+
+                const saveObservation = async () => {
+                    try {
+                        const tags = newObservation.value.tags.split(',').map(t => t.trim()).filter(t => t);
+                        const payload = {
+                            content: newObservation.value.content,
+                            category: newObservation.value.category,
+                            tags: tags
+                        };
+                        if (editingObservation.value) {
+                            await fetch(`/api/memory/${editingObservation.value.observation_id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                        } else {
+                            await fetch('/api/memory/add', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                        }
+                        showAddObservationModal.value = false;
+                        editingObservation.value = null;
+                        fetchObservations();
+                        showToast('success', t('configSaved'));
+                    } catch (e) {
+                        console.error('Failed to save observation:', e);
+                        showToast('error', 'Failed to save observation');
+                    }
+                };
+
+                const startEditObservation = (obs) => {
+                    editingObservation.value = obs;
+                    newObservation.value = {
+                        content: obs.content,
+                        category: obs.category,
+                        tags: JSON.parse(obs.tags || '[]').join(', ')
+                    };
+                    showAddObservationModal.value = true;
+                };
+
+                const deleteObservation = async (obsId) => {
+                    try {
+                        await fetch(`/api/memory/${obsId}`, { method: 'DELETE' });
+                        fetchObservations();
+                        showToast('success', 'Observation deleted');
+                    } catch (e) {
+                        console.error('Failed to delete observation:', e);
+                        showToast('error', 'Failed to delete observation');
+                    }
+                };
+
+                const getCategoryColor = (category) => {
+                    const colors = {
+                        insight: 'bg-amber-500/20 text-amber-400',
+                        preference: 'bg-purple-500/20 text-purple-400',
+                        fact: 'bg-cyan-500/20 text-cyan-400'
+                    };
+                    return colors[category] || 'bg-gray-500/20 text-gray-400';
+                };
+
+                // v0.21: Memory Injections
+                const fetchMemoryInjections = async () => {
+                    try {
+                        const res = await fetch('/api/memory/injections?limit=20');
+                        const data = await res.json();
+                        memoryInjections.value = data.injections || [];
+                    } catch (e) {
+                        console.error('Failed to fetch memory injections:', e);
+                    }
+                };
+
+                const viewInjectionDetails = async (requestId) => {
+                    try {
+                        const res = await fetch(`/api/memory/request/${requestId}`);
+                        const data = await res.json();
+                        selectedInjection.value = data;
+                    } catch (e) {
+                        console.error('Failed to fetch injection details:', e);
+                        showToast('error', 'Failed to load injection details');
+                    }
+                };
+
+                // v0.21: Memory Config
+                const fetchMemoryConfig = async () => {
+                    try {
+                        const res = await fetch('/api/memory/config');
+                        const data = await res.json();
+                        memoryConfig.value = data.config || memoryConfig.value;
+                    } catch (e) {
+                        console.error('Failed to fetch memory config:', e);
+                    }
+                };
+
+                const saveMemoryConfig = async () => {
+                    try {
+                        await fetch('/api/memory/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(memoryConfig.value)
+                        });
+                        showMemoryConfigModal.value = false;
+                        showToast('success', t('configSaved'));
+                    } catch (e) {
+                        console.error('Failed to save memory config:', e);
+                        showToast('error', 'Failed to save configuration');
+                    }
+                };
+
+                const resetMemoryConfig = async () => {
+                    try {
+                        await fetch('/api/memory/config/reset', { method: 'POST' });
+                        fetchMemoryConfig();
+                        showToast('success', t('configReset'));
+                    } catch (e) {
+                        console.error('Failed to reset memory config:', e);
+                    }
+                };
+
+                // v0.21: Discussion Memories
+                const fetchDiscussionMemories = async () => {
+                    try {
+                        const res = await fetch('/api/memory/discussions?limit=20');
+                        const data = await res.json();
+                        discussionMemories.value = data.discussions || [];
+                    } catch (e) {
+                        console.error('Failed to fetch discussion memories:', e);
+                    }
+                };
+
+                const saveDiscussionToMemory = async (discussion) => {
+                    try {
+                        await fetch(`/api/discussion/${discussion.session_id}/save-to-memory`, {
+                            method: 'POST'
+                        });
+                        showToast('success', t('savedToMemory'));
+                        fetchDiscussionMemories();
+                    } catch (e) {
+                        console.error('Failed to save discussion to memory:', e);
+                        showToast('error', 'Failed to save to memory');
+                    }
+                };
+
                 // Skills methods
                 const fetchSkillsStats = async () => {
                     try {
@@ -3103,6 +3617,45 @@
                     } catch (e) {
                         console.error('Failed to search skills:', e);
                         showToast('error', 'Skills search failed');
+                    }
+                };
+
+                // v0.21: Skills Feedback
+                const openSkillFeedback = (skill) => {
+                    feedbackSkill.value = skill;
+                    skillFeedback.value = { rating: 5, helpful: true, task_description: '' };
+                    showSkillFeedbackModal.value = true;
+                };
+
+                const submitSkillFeedback = async () => {
+                    try {
+                        await fetch(`/api/skills/${feedbackSkill.value.name}/feedback`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                rating: skillFeedback.value.rating,
+                                helpful: skillFeedback.value.helpful,
+                                task_description: skillFeedback.value.task_description
+                            })
+                        });
+                        showSkillFeedbackModal.value = false;
+                        showToast('success', t('feedbackSubmitted'));
+                        // Refresh skills to show updated feedback boost
+                        if (skillsSearchQuery.value) {
+                            searchSkills();
+                        }
+                    } catch (e) {
+                        console.error('Failed to submit skill feedback:', e);
+                        showToast('error', 'Failed to submit feedback');
+                    }
+                };
+
+                const fetchAllSkillsFeedback = async () => {
+                    try {
+                        const res = await fetch('/api/skills/feedback/all');
+                        allSkillsFeedback.value = await res.json();
+                    } catch (e) {
+                        console.error('Failed to fetch skills feedback:', e);
                     }
                 };
 
@@ -4241,6 +4794,14 @@
                         if (activeTab.value === 'memory') {
                             fetchMemoryStats();
                             fetchMemorySessions();
+                            // v0.21: Also refresh observations and injections based on sub-tab
+                            if (memorySubTab.value === 'observations') {
+                                fetchObservations();
+                            } else if (memorySubTab.value === 'injections') {
+                                fetchMemoryInjections();
+                            } else if (memorySubTab.value === 'discussions') {
+                                fetchDiscussionMemories();
+                            }
                         }
                         if (activeTab.value === 'skills') {
                             fetchSkillsStats();
@@ -4290,9 +4851,18 @@
                     // Memory tab
                     memoryStats, memorySessions, memorySearchQuery, memorySearchResults, selectedSession,
                     fetchMemoryStats, fetchMemorySessions, searchMemory, viewSession, formatDate, getRoleColor,
+                    // v0.21: Memory enhancements
+                    memorySubTab, observations, observationSearchQuery, showAddObservationModal, newObservation, editingObservation,
+                    fetchObservations, saveObservation, startEditObservation, deleteObservation, getCategoryColor,
+                    memoryInjections, selectedInjection, fetchMemoryInjections, viewInjectionDetails,
+                    memoryConfig, showMemoryConfigModal, fetchMemoryConfig, saveMemoryConfig, resetMemoryConfig,
+                    discussionMemories, fetchDiscussionMemories, saveDiscussionToMemory,
                     // Skills tab
                     skillsStats, skillsSearchQuery, skillRecommendations,
                     fetchSkillsStats, searchSkills,
+                    // v0.21: Skills feedback
+                    showSkillFeedbackModal, feedbackSkill, skillFeedback, allSkillsFeedback,
+                    openSkillFeedback, submitSkillFeedback, fetchAllSkillsFeedback,
                     // Discussions tab
                     discussions, selectedDiscussion, discussionMessages, showNewDiscussionModal,
                     newDiscussionTopic, newDiscussionProviders, newDiscussionQuickMode, startingDiscussion,

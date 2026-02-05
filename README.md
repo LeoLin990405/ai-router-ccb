@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/LeoLin990405/ai-router-ccb?color=blue)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Version](https://img.shields.io/badge/version-0.20--alpha-brightgreen)](https://github.com/LeoLin990405/ai-router-ccb/releases)
+[![Version](https://img.shields.io/badge/version-0.21--alpha-brightgreen)](https://github.com/LeoLin990405/ai-router-ccb/releases)
 
 **Claude orchestrates 9 AI providers through unified Gateway API with dual-system memory and real-time monitoring**
 
@@ -25,13 +25,13 @@
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
-- [What's New in v0.20](#-whats-new-in-v020)
+- [What's New in v0.21](#-whats-new-in-v021)
 - [Why CCB Gateway?](#-why-ccb-gateway)
 - [Features](#-features)
 - [Architecture](#-architecture)
 - [Quick Start](#-quick-start)
 - [Usage](#-usage)
-- [Memory System](#-memory-system-v020)
+- [Memory System](#-memory-system-v021)
 - [Skills Discovery](#-skills-discovery)
 - [Multi-AI Discussion](#-multi-ai-discussion)
 - [Web UI](#-web-ui)
@@ -86,7 +86,69 @@
 
 ---
 
-## 🆕 What's New in v0.20
+## 🆕 What's New in v0.21
+
+### Enhanced Memory System
+
+**Building on v0.20's dual-system architecture** with transparency, write APIs, and LLM integration:
+
+| Feature | Description |
+|---------|-------------|
+| **Memory Transparency** | Track which memories influenced each request |
+| **Observations CRUD** | Manual memory management with categories & confidence |
+| **LLM Consolidator** | AI-powered insight extraction during consolidation |
+| **Config API** | Runtime configuration for memory injection behavior |
+| **Skills Feedback** | Rating system to improve skill recommendations |
+| **Discussion Memory** | Persist multi-AI discussions to memory system |
+
+### New API Endpoints
+
+```
+# Memory Transparency
+GET  /api/memory/request/{id}       # View injected memories for request
+GET  /api/memory/injections         # List all injection history
+
+# Observations CRUD
+POST   /api/memory/add              # Create observation
+GET    /api/memory/observations     # List observations
+PUT    /api/memory/{id}             # Update observation
+DELETE /api/memory/{id}             # Delete observation
+
+# Configuration
+GET  /api/memory/config             # Get current config
+POST /api/memory/config             # Update config
+
+# Skills Feedback
+POST /api/skills/{name}/feedback    # Submit skill feedback
+GET  /api/skills/feedback/all       # List all feedback
+
+# Discussion Memory
+GET  /api/discussions               # List discussions
+POST /api/discussions/{id}/memory   # Save discussion to memory
+```
+
+### Web UI Updates
+
+- **Memory Tab Sub-tabs**: Sessions | Observations | Injections | Discussions
+- **Observations Management**: Add, edit, delete with category filters
+- **Injection Viewer**: See exactly what memories affected each request
+- **Config Panel**: Toggle auto-inject, set limits, choose strategy
+- **Skills Feedback**: Rate skill usefulness directly from Skills tab
+
+### CLI Enhancements
+
+```bash
+# New ccb-mem commands
+ccb-mem trace <request_id>       # View injection details
+ccb-mem injections --limit 10    # Recent injection history
+ccb-mem stats --detailed         # Expanded statistics
+ccb-mem consolidate --dry-run    # Preview LLM consolidation
+ccb-mem export --format json     # Export memories
+```
+
+---
+
+## 📦 v0.20 Features (Previous)
 
 ### Dual-System Memory Architecture
 
@@ -164,7 +226,7 @@ ccb-mem inject 2026-02-05
 
 ## ✨ Features
 
-### 🧠 Dual-System Memory (v0.20)
+### 🧠 Dual-System Memory (v0.21)
 
 **Human-like memory architecture** - Fast automatic capture combined with deep overnight processing.
 
@@ -485,7 +547,7 @@ ccb-submit discuss \
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      CCB Gateway (v0.20)                         │
+│                      CCB Gateway (v0.21)                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌────────────────────────────────────────────────────────┐    │
@@ -652,7 +714,7 @@ ccb-mem inject 2026-02-05
 
 ---
 
-## 🧠 Memory System (v0.20)
+## 🧠 Memory System (v0.21)
 
 ### Dual-System Architecture
 
@@ -748,7 +810,7 @@ Smart skills discovery powered by Vercel Skills CLI.
 
 ## 📖 API Reference
 
-### Endpoints
+### Core Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -759,12 +821,40 @@ Smart skills discovery powered by Vercel Skills CLI.
 | GET | `/api/query/{id}` | Query request status |
 | GET | `/api/pending` | List pending requests |
 | POST | `/api/cancel/{id}` | Cancel request |
+| WS | `/ws` | WebSocket connection |
+
+### Memory Endpoints (v0.21)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/memory/sessions` | List memory sessions |
 | GET | `/api/memory/search` | Full-text search |
 | GET | `/api/memory/stats` | Memory statistics |
+| POST | `/api/memory/add` | Create observation |
+| GET | `/api/memory/observations` | List observations |
+| PUT | `/api/memory/{id}` | Update observation |
+| DELETE | `/api/memory/{id}` | Delete observation |
+| GET | `/api/memory/request/{id}` | View injection for request |
+| GET | `/api/memory/injections` | List injection history |
+| GET | `/api/memory/config` | Get memory config |
+| POST | `/api/memory/config` | Update memory config |
+
+### Skills Endpoints (v0.21)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/skills/recommendations` | Get skill recommendations |
 | GET | `/api/skills/list` | List all skills |
-| WS | `/ws` | WebSocket connection |
+| POST | `/api/skills/{name}/feedback` | Submit skill feedback |
+| GET | `/api/skills/feedback/all` | List all feedback |
+
+### Discussion Endpoints (v0.21)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/discussions` | List all discussions |
+| GET | `/api/discussions/{id}` | Get discussion details |
+| POST | `/api/discussions/{id}/memory` | Save discussion to memory |
 
 ### Request Parameters
 
@@ -801,7 +891,17 @@ Smart skills discovery powered by Vercel Skills CLI.
 
 ## 🗺️ Roadmap
 
-### v0.20 (Current) - Dual-System Memory ✅
+### v0.21 (Current) - Memory Enhancement ✅
+
+- [x] **Memory Transparency** - Track injected memories per request
+- [x] **Observations CRUD** - Manual memory management API
+- [x] **LLM Consolidator** - AI-powered insight extraction
+- [x] **Memory Config API** - Runtime configuration
+- [x] **Skills Feedback Loop** - Rating-based recommendations
+- [x] **Discussion Memory** - Persist multi-AI discussions
+- [x] **CLI Enhancements** - trace, injections, export commands
+
+### v0.20 (Previous) - Dual-System Memory ✅
 
 - [x] **Context Saver** - System 1 instant archiving
 - [x] **Memory Consolidator** - System 2 nightly processing
@@ -809,21 +909,21 @@ Smart skills discovery powered by Vercel Skills CLI.
 - [x] **Security Hardening** - Path traversal protection
 - [x] **Claude Provider** - Added as 9th provider
 
-### v0.21 (Q2 2026) - Semantic Enhancement
+### v0.22 (Q2 2026) - Semantic Enhancement
 
 - [ ] Qdrant vector database integration
 - [ ] Semantic similarity search
-- [ ] LLM-driven fact extraction
 - [ ] Multi-language embeddings
+- [ ] Memory clustering
 
-### v0.22 (Q3 2026) - Agent Autonomy
+### v0.23 (Q3 2026) - Agent Autonomy
 
 - [ ] Agent memory function calls (Letta mode)
 - [ ] Structured memory blocks (core_memory)
 - [ ] Self-updating agents
 - [ ] Memory version control
 
-### v0.23 (Q4 2026) - Team Collaboration
+### v0.24 (Q4 2026) - Team Collaboration
 
 - [ ] Multi-user memory isolation
 - [ ] Shared memory pools

@@ -188,6 +188,43 @@ if HAS_FASTAPI:
         vault_path: str = Field(..., description="Path to Obsidian vault")
         folder: str = Field("CCB Discussions", description="Subfolder within vault")
 
+    # ==================== Memory API Models (v0.21) ====================
+
+    class SaveDiscussionMemoryRequest(BaseModel):
+        """Request body for saving discussion to memory."""
+        summary_override: Optional[str] = Field(None, description="Override auto-generated summary")
+        tags: Optional[List[str]] = Field(None, description="Tags for the memory")
+
+    class CreateObservationRequest(BaseModel):
+        """Request body for creating an observation."""
+        content: str = Field(..., min_length=1, description="Observation content")
+        category: str = Field("note", description="Category: insight, preference, fact, note")
+        tags: Optional[List[str]] = Field(None, description="Tags for the observation")
+        confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confidence score")
+
+    class UpdateObservationRequest(BaseModel):
+        """Request body for updating an observation."""
+        content: Optional[str] = Field(None, description="New content")
+        category: Optional[str] = Field(None, description="New category")
+        tags: Optional[List[str]] = Field(None, description="New tags")
+        confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="New confidence")
+
+    class UpdateConfigRequest(BaseModel):
+        """Request body for updating memory configuration."""
+        enabled: Optional[bool] = Field(None, description="Enable/disable memory system")
+        auto_inject: Optional[bool] = Field(None, description="Auto-inject memories")
+        max_injected_memories: Optional[int] = Field(None, ge=0, le=50, description="Max memories to inject")
+        injection_strategy: Optional[str] = Field(None, description="Injection strategy")
+        skills_auto_discover: Optional[bool] = Field(None, description="Auto-discover skills")
+        skills_max_recommendations: Optional[int] = Field(None, ge=0, le=10, description="Max skill recommendations")
+
+    class SkillFeedbackRequest(BaseModel):
+        """Request body for skill feedback."""
+        rating: int = Field(..., ge=1, le=5, description="Rating 1-5")
+        helpful: bool = Field(True, description="Was the skill helpful?")
+        task_description: Optional[str] = Field(None, description="Task description")
+        comment: Optional[str] = Field(None, description="Optional comment")
+
 
 class WebSocketManager:
     """Manages WebSocket connections for real-time updates."""
@@ -1621,6 +1658,78 @@ def create_api(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+    # ==================== Discussion Memory API (Phase 6) ====================
+
+    @app.post("/api/discussion/{session_id}/save-to-memory")
+    async def save_discussion_to_memory(
+        session_id: str,
+        request: SaveDiscussionMemoryRequest = None
+    ):
+        """Save a discussion to memory system (Phase 6: Discussion Memory)."""
+        if not memory_middleware:
+            raise HTTPException(status_code=503, detail="Memory middleware not available")
+
+        try:
+            # Get discussion session
+            session = store.get_discussion_session(session_id)
+            if not session:
+                raise HTTPException(status_code=404, detail=f"Discussion {session_id} not found")
+
+            # Get messages if requested
+            messages = None
+            if request and request.include_messages:
+                messages_list = store.get_discussion_messages(session_id)
+                messages = [
+                    {
+                        "provider": m.provider,
+                        "content": m.content,
+                        "round": m.round_number,
+                        "message_type": m.message_type.value
+                    }
+                    for m in messages_list if m.content
+                ]
+
+            # Save to memory
+            observation_id = await memory_middleware.post_discussion(
+                session_id=session_id,
+                topic=session.topic,
+                providers=session.providers,
+                summary=request.summary if request else session.summary,
+                insights=request.insights if request else None,
+                messages=messages
+            )
+
+            if not observation_id:
+                raise HTTPException(status_code=500, detail="Failed to save discussion to memory")
+
+            return JSONResponse(content={
+                "session_id": session_id,
+                "observation_id": observation_id,
+                "message": "Discussion saved to memory successfully"
+            })
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save discussion: {str(e)}")
+
+    @app.get("/api/memory/discussions")
+    async def get_discussion_memories(
+        limit: int = Query(10, ge=1, le=50)
+    ):
+        """Get discussions saved to memory (Phase 6)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            discussions = memory_middleware.memory.v2.get_discussion_memory(limit=limit)
+            return JSONResponse(content={
+                "total": len(discussions),
+                "discussions": discussions
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get discussions: {str(e)}")
+
     # ==================== Unified Results Endpoints ====================
 
     @app.get("/api/results")
@@ -1773,6 +1882,242 @@ def create_api(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to fetch stats: {str(e)}")
 
+    # ==================== Memory Transparency API (Phase 1) ====================
+
+    @app.get("/api/memory/request/{request_id}")
+    async def get_request_memory(request_id: str):
+        """Get injection details for a specific request (Phase 1: Transparency)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            injection = memory_middleware.memory.v2.get_request_injection(request_id)
+            if not injection:
+                raise HTTPException(status_code=404, detail=f"No injection record found for request {request_id}")
+
+            # Also fetch the full memory details
+            memories = memory_middleware.memory.v2.get_injected_memories_for_request(request_id)
+
+            return JSONResponse(content={
+                "request_id": request_id,
+                "injection": injection,
+                "injected_memories": memories
+            })
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch request memory: {str(e)}")
+
+    @app.get("/api/memory/injections")
+    async def get_recent_injections(
+        limit: int = Query(20, ge=1, le=100),
+        session_id: Optional[str] = None
+    ):
+        """Get recent memory injections for debugging (Phase 1: Transparency)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            injections = memory_middleware.memory.v2.get_request_injections(
+                limit=limit,
+                session_id=session_id
+            )
+            return JSONResponse(content={
+                "total": len(injections),
+                "injections": injections
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch injections: {str(e)}")
+
+    # ==================== Memory Write API (Phase 2) ====================
+
+    @app.post("/api/memory/add")
+    async def create_observation(request: CreateObservationRequest):
+        """Create a new observation (Phase 2: Write APIs)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            observation_id = memory_middleware.memory.v2.create_observation(
+                content=request.content,
+                category=request.category,
+                tags=request.tags,
+                source="manual",
+                confidence=request.confidence
+            )
+            return JSONResponse(content={
+                "observation_id": observation_id,
+                "message": "Observation created successfully"
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create observation: {str(e)}")
+
+    @app.get("/api/memory/observations")
+    async def list_observations(
+        category: Optional[str] = None,
+        query: Optional[str] = None,
+        limit: int = Query(50, ge=1, le=200)
+    ):
+        """List observations with optional filtering."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            observations = memory_middleware.memory.v2.search_observations(
+                query=query,
+                category=category,
+                limit=limit
+            )
+            return JSONResponse(content={
+                "total": len(observations),
+                "observations": observations
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to list observations: {str(e)}")
+
+    @app.get("/api/memory/observations/{observation_id}")
+    async def get_observation(observation_id: str):
+        """Get a specific observation."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            observation = memory_middleware.memory.v2.get_observation(observation_id)
+            if not observation:
+                raise HTTPException(status_code=404, detail=f"Observation {observation_id} not found")
+            return JSONResponse(content=observation)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get observation: {str(e)}")
+
+    @app.put("/api/memory/{observation_id}")
+    async def update_observation(observation_id: str, request: UpdateObservationRequest):
+        """Update an existing observation (Phase 2: Write APIs)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            success = memory_middleware.memory.v2.update_observation(
+                observation_id=observation_id,
+                content=request.content,
+                category=request.category,
+                tags=request.tags,
+                confidence=request.confidence
+            )
+            if not success:
+                raise HTTPException(status_code=404, detail=f"Observation {observation_id} not found")
+            return JSONResponse(content={
+                "observation_id": observation_id,
+                "message": "Observation updated successfully"
+            })
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to update observation: {str(e)}")
+
+    @app.delete("/api/memory/{observation_id}")
+    async def delete_observation(observation_id: str):
+        """Delete an observation (Phase 2: Write APIs)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'memory'):
+            raise HTTPException(status_code=503, detail="Memory system not available")
+
+        try:
+            success = memory_middleware.memory.v2.delete_observation(observation_id)
+            if not success:
+                raise HTTPException(status_code=404, detail=f"Observation {observation_id} not found")
+            return JSONResponse(content={
+                "observation_id": observation_id,
+                "message": "Observation deleted successfully"
+            })
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to delete observation: {str(e)}")
+
+    # ==================== Memory Configuration API (Phase 4) ====================
+
+    @app.get("/api/memory/config")
+    async def get_memory_config():
+        """Get current memory system configuration (Phase 4)."""
+        try:
+            from lib.memory.memory_config import get_memory_config
+            config = get_memory_config()
+            validation = config.validate()
+            return JSONResponse(content={
+                "config": config.get_all(),
+                "valid": validation["valid"],
+                "errors": validation["errors"]
+            })
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Memory config module not available")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get config: {str(e)}")
+
+    @app.post("/api/memory/config")
+    async def update_memory_config(request: UpdateConfigRequest):
+        """Update memory system configuration (Phase 4)."""
+        try:
+            from lib.memory.memory_config import get_memory_config
+            config = get_memory_config()
+
+            # Build updates dict from non-None values
+            updates = {}
+            if request.enabled is not None:
+                updates["enabled"] = request.enabled
+            if request.auto_inject is not None:
+                updates["auto_inject"] = request.auto_inject
+            if request.max_injected_memories is not None:
+                updates["max_injected_memories"] = request.max_injected_memories
+            if request.injection_strategy is not None:
+                updates["injection_strategy"] = request.injection_strategy
+            if request.skills_auto_discover is not None:
+                updates["skills.auto_discover"] = request.skills_auto_discover
+            if request.skills_max_recommendations is not None:
+                updates["skills.max_recommendations"] = request.skills_max_recommendations
+
+            if not updates:
+                raise HTTPException(status_code=400, detail="No updates provided")
+
+            updated_config = config.update(updates)
+            validation = config.validate()
+
+            # Reload middleware config if available
+            if memory_middleware:
+                memory_middleware.config = config.get_all()
+                memory_middleware.enabled = config.get("enabled", True)
+                memory_middleware.auto_inject = config.get("auto_inject", True)
+                memory_middleware.max_injected = config.get("max_injected_memories", 5)
+
+            return JSONResponse(content={
+                "message": "Configuration updated",
+                "config": updated_config,
+                "valid": validation["valid"],
+                "errors": validation["errors"]
+            })
+        except HTTPException:
+            raise
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Memory config module not available")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
+
+    @app.post("/api/memory/config/reset")
+    async def reset_memory_config():
+        """Reset memory configuration to defaults (Phase 4)."""
+        try:
+            from lib.memory.memory_config import get_memory_config
+            config = get_memory_config()
+            default_config = config.reset()
+            return JSONResponse(content={
+                "message": "Configuration reset to defaults",
+                "config": default_config
+            })
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Memory config module not available")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to reset config: {str(e)}")
+
     # ==================== Skills Discovery API ====================
 
     @app.get("/api/skills/recommendations")
@@ -1812,6 +2157,66 @@ def create_api(
             return JSONResponse(content={"skills": skills})
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to list skills: {str(e)}")
+
+    # ==================== Skills Feedback API (Phase 5) ====================
+
+    @app.post("/api/skills/{skill_name}/feedback")
+    async def submit_skill_feedback(skill_name: str, request: SkillFeedbackRequest):
+        """Submit feedback for a skill (Phase 5: Feedback Loop)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
+            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+
+        try:
+            # Extract keywords from task description
+            task_keywords = None
+            if request.task_description:
+                words = request.task_description.lower().split()
+                task_keywords = " ".join([w for w in words if len(w) > 2][:10])
+
+            success = memory_middleware.skills_discovery.record_feedback(
+                skill_name=skill_name,
+                rating=request.rating,
+                task_keywords=task_keywords,
+                task_description=request.task_description,
+                helpful=request.helpful,
+                comment=request.comment
+            )
+
+            if not success:
+                raise HTTPException(status_code=400, detail="Invalid feedback data")
+
+            return JSONResponse(content={
+                "skill_name": skill_name,
+                "message": "Feedback recorded successfully"
+            })
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to record feedback: {str(e)}")
+
+    @app.get("/api/skills/{skill_name}/feedback")
+    async def get_skill_feedback(skill_name: str):
+        """Get feedback statistics for a skill (Phase 5)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
+            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+
+        try:
+            stats = memory_middleware.skills_discovery.get_skill_feedback_stats(skill_name)
+            return JSONResponse(content=stats)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get feedback: {str(e)}")
+
+    @app.get("/api/skills/feedback/all")
+    async def get_all_skill_feedback():
+        """Get feedback statistics for all skills (Phase 5)."""
+        if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
+            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+
+        try:
+            stats = memory_middleware.skills_discovery.get_all_feedback_stats()
+            return JSONResponse(content={"skills_feedback": stats})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get feedback: {str(e)}")
 
     # ==================== Web UI Static Files ====================
 

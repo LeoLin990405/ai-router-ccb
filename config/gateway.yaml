@@ -33,6 +33,36 @@ logging:
   level: "INFO"
   file: null  # Defaults to stdout
 
+# Health Check Configuration
+health_check:
+  enabled: true
+  interval_s: 60  # 60秒检查一次（减少频率）
+  timeout_s: 15
+  failure_threshold: 3
+  recovery_threshold: 2
+
+  # Provider-specific health check overrides
+  provider_overrides:
+    gemini:
+      enabled: false  # 禁用 Gemini 健康检查，避免触发登录
+      reason: "Requires manual OAuth authentication"
+
+    codex:
+      enabled: false  # 禁用 Codex 健康检查
+      reason: "Requires manual authentication"
+
+    kimi:
+      enabled: true
+      timeout_s: 10
+
+    qwen:
+      enabled: true
+      timeout_s: 10
+
+    deepseek:
+      enabled: true
+      timeout_s: 15
+
 # Provider configurations
 providers:
   # Claude (Anthropic API)
@@ -73,7 +103,7 @@ providers:
     priority: 50
     timeout_s: 300.0
     cli_command: "gemini"
-    cli_args: ["--non-interactive"]
+    cli_args: ["-p"]
 
   # OpenCode (CLI)
   opencode:

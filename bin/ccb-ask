@@ -247,8 +247,9 @@ def cmd_route(args: argparse.Namespace) -> int:
 
 def cmd_health(args: argparse.Namespace) -> int:
     """Check health of all providers."""
-    # Use the router's ALL_PROVIDERS list
-    providers = UnifiedRouter.ALL_PROVIDERS
+    # Use the provider_commands ALL_PROVIDERS list
+    from provider_commands import ALL_PROVIDERS
+    providers = ALL_PROVIDERS
 
     print("=" * 60)
     print("Provider Health Status")

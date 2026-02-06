@@ -217,6 +217,8 @@ class GatewayConfig:
     auth: AuthConfig = field(default_factory=AuthConfig)
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)
+    # Health check configuration
+    health_check: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def load(cls, config_path: Optional[str] = None) -> "GatewayConfig":
@@ -287,6 +289,9 @@ class GatewayConfig:
             logging = data.get("logging", {})
             self.log_level = logging.get("level", self.log_level)
             self.log_file = logging.get("file", self.log_file)
+
+            # Health check configuration
+            self.health_check = data.get("health_check", {})
 
             # Providers
             for name, pconfig in data.get("providers", {}).items():

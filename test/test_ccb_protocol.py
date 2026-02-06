@@ -22,7 +22,7 @@ def test_wrap_codex_prompt_structure() -> None:
 
     assert f"{REQ_ID_PREFIX} {req_id}" in prompt
     assert "IMPORTANT:" in prompt
-    assert "- Reply normally." in prompt
+    assert "- Reply normally, in English." in prompt
     assert f"{DONE_PREFIX} {req_id}" in prompt
     assert prompt.endswith(f"{DONE_PREFIX} {req_id}\n")
 

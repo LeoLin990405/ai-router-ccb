@@ -1,4 +1,5 @@
 """CCB configuration for Windows/WSL backend environment"""
+from __future__ import annotations
 import json
 import os
 import subprocess

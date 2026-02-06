@@ -12,7 +12,7 @@ from collections import defaultdict
 
 # Try to import prometheus_client, but make it optional
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST, CollectorRegistry
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False
@@ -76,11 +76,15 @@ class GatewayMetrics:
 
     def _init_prometheus_metrics(self) -> None:
         """Initialize native prometheus_client metrics."""
+        # Create instance-specific registry to avoid conflicts on reset
+        self._registry = CollectorRegistry()
+
         # Request counters
         self.requests_total = Counter(
             "gateway_requests_total",
             "Total number of requests",
             ["provider", "status"],
+            registry=self._registry,
         )
 
         # Request latency histogram
@@ -89,6 +93,7 @@ class GatewayMetrics:
             "Request latency in seconds",
             ["provider"],
             buckets=self.DEFAULT_LATENCY_BUCKETS,
+            registry=self._registry,
         )
 
         # Queue depth gauge
@@ -96,22 +101,26 @@ class GatewayMetrics:
             "gateway_queue_depth",
             "Current queue depth",
             ["provider"],
+            registry=self._registry,
         )
 
         # Active connections gauge
         self.active_connections = Gauge(
             "gateway_active_connections",
             "Number of active WebSocket connections",
+            registry=self._registry,
         )
 
         # Cache metrics
         self.cache_hits = Counter(
             "gateway_cache_hits_total",
             "Total cache hits",
+            registry=self._registry,
         )
         self.cache_misses = Counter(
             "gateway_cache_misses_total",
             "Total cache misses",
+            registry=self._registry,
         )
 
         # Retry metrics
@@ -119,6 +128,7 @@ class GatewayMetrics:
             "gateway_retries_total",
             "Total number of retries",
             ["provider", "reason"],
+            registry=self._registry,
         )
 
         # Fallback metrics
@@ -126,6 +136,7 @@ class GatewayMetrics:
             "gateway_fallbacks_total",
             "Total number of fallbacks",
             ["from_provider", "to_provider"],
+            registry=self._registry,
         )
 
         # Rate limit metrics
@@ -133,6 +144,7 @@ class GatewayMetrics:
             "gateway_rate_limit_hits_total",
             "Total rate limit hits",
             ["key_type"],  # "api_key" or "ip"
+            registry=self._registry,
         )
 
         # Token usage
@@ -140,6 +152,7 @@ class GatewayMetrics:
             "gateway_tokens_used_total",
             "Total tokens used",
             ["provider"],
+            registry=self._registry,
         )
 
         # Error counter
@@ -147,6 +160,7 @@ class GatewayMetrics:
             "gateway_errors_total",
             "Total errors",
             ["provider", "error_type"],
+            registry=self._registry,
         )
 
     def _init_fallback_metrics(self) -> None:
@@ -253,7 +267,7 @@ class GatewayMetrics:
             Prometheus-formatted metrics as bytes
         """
         if self._use_native:
-            return generate_latest()
+            return generate_latest(self._registry)
         else:
             return self._export_fallback()
 

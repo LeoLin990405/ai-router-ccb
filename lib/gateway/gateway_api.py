@@ -45,6 +45,21 @@ from .gateway_config import GatewayConfig
 from .discussion import DiscussionExporter, ObsidianExporter
 from .retry import detect_auth_failure, ProviderReliabilityScore, ReliabilityTracker
 from .router import SmartRouter, auto_route, RoutingDecision
+from .error_handlers import (
+    raise_memory_unavailable,
+    raise_memory_module_unavailable,
+    raise_memory_config_unavailable,
+    raise_skills_unavailable,
+    raise_consolidator_unavailable,
+    raise_health_checker_unavailable,
+    raise_request_not_found,
+    raise_provider_not_found,
+    raise_provider_not_in_health_checker,
+    raise_api_key_not_found,
+    raise_stream_not_found,
+    raise_discussion_not_found,
+    raise_cache_not_enabled,
+)
 
 
 # Pydantic models for API
@@ -285,6 +300,8 @@ def create_api(
     discussion_executor=None,
     reliability_tracker: Optional[ReliabilityTracker] = None,
     memory_middleware=None,
+    health_checker=None,
+    backpressure=None,
 ) -> "FastAPI":
     """
     Create the FastAPI application with all routes.
@@ -303,6 +320,8 @@ def create_api(
         metrics: Optional metrics collector instance
         api_key_store: Optional API key store instance
         discussion_executor: Optional discussion executor instance
+        health_checker: Optional health checker instance (v0.23)
+        backpressure: Optional backpressure controller instance (v0.23)
 
     Returns:
         Configured FastAPI application
@@ -313,7 +332,7 @@ def create_api(
     app = FastAPI(
         title="CCB Gateway",
         description="Unified API Gateway for Multi-Provider AI Communication",
-        version="2.0.0",
+        version="2.1.0",
     )
 
     ws_manager = WebSocketManager()
@@ -537,7 +556,7 @@ def create_api(
         # Get request
         request = store.get_request(request_id)
         if not request:
-            raise HTTPException(status_code=404, detail="Request not found")
+            raise_request_not_found()
 
         # If waiting and not complete, poll
         if wait and request.status in (RequestStatus.QUEUED, RequestStatus.PROCESSING, RequestStatus.RETRYING):
@@ -761,6 +780,424 @@ def create_api(
         """Simple health check endpoint."""
         return {"status": "ok"}
 
+    # ==================== System Test Endpoints ====================
+
+    @app.get("/api/test/health")
+    async def test_health() -> Dict[str, Any]:
+        """
+        Quick health check with component status.
+
+        Returns basic health indicators for all major components.
+        """
+        components = {
+            "gateway": "healthy",
+            "store": "unknown",
+            "queue": "unknown",
+            "cache": "unknown" if not cache_manager else "healthy",
+            "memory": "unknown" if not memory_middleware else "healthy",
+        }
+
+        # Test store connection
+        try:
+            store.get_stats()
+            components["store"] = "healthy"
+        except Exception as e:
+            components["store"] = f"unhealthy: {str(e)[:50]}"
+
+        # Test queue
+        try:
+            queue.stats()
+            components["queue"] = "healthy"
+        except Exception as e:
+            components["queue"] = f"unhealthy: {str(e)[:50]}"
+
+        all_healthy = all(v == "healthy" for v in components.values())
+
+        return {
+            "status": "healthy" if all_healthy else "degraded",
+            "components": components,
+            "timestamp": time.time(),
+        }
+
+    @app.get("/api/test/full")
+    async def test_full() -> Dict[str, Any]:
+        """
+        Comprehensive system test.
+
+        Tests all major components and returns detailed diagnostics.
+        """
+        results = {
+            "timestamp": time.time(),
+            "uptime_s": time.time() - start_time,
+            "tests": [],
+        }
+
+        # Test 1: Database connectivity
+        test_result = {"name": "database_connectivity", "status": "unknown", "details": {}}
+        try:
+            stats = store.get_stats()
+            test_result["status"] = "passed"
+            test_result["details"] = {
+                "total_requests": stats.get("total_requests", 0),
+                "active_requests": stats.get("active_requests", 0),
+            }
+        except Exception as e:
+            test_result["status"] = "failed"
+            test_result["details"] = {"error": str(e)}
+        results["tests"].append(test_result)
+
+        # Test 2: Queue operations
+        test_result = {"name": "queue_operations", "status": "unknown", "details": {}}
+        try:
+            queue_stats = queue.stats()
+            test_result["status"] = "passed"
+            test_result["details"] = {
+                "queue_depth": queue_stats.get("queue_depth", 0),
+                "processing_count": queue_stats.get("processing_count", 0),
+                "max_concurrent": queue_stats.get("max_concurrent", 0),
+            }
+        except Exception as e:
+            test_result["status"] = "failed"
+            test_result["details"] = {"error": str(e)}
+        results["tests"].append(test_result)
+
+        # Test 3: Cache system
+        test_result = {"name": "cache_system", "status": "unknown", "details": {}}
+        if cache_manager:
+            try:
+                cache_stats = cache_manager.get_stats()
+                test_result["status"] = "passed"
+                test_result["details"] = {
+                    "hit_rate": cache_stats.hit_rate,
+                    "total_entries": cache_stats.total_entries,
+                }
+            except Exception as e:
+                test_result["status"] = "failed"
+                test_result["details"] = {"error": str(e)}
+        else:
+            test_result["status"] = "skipped"
+            test_result["details"] = {"reason": "Cache not enabled"}
+        results["tests"].append(test_result)
+
+        # Test 4: Provider configuration
+        test_result = {"name": "provider_configuration", "status": "unknown", "details": {}}
+        try:
+            provider_count = len(config.providers)
+            enabled_count = sum(1 for p in config.providers.values() if p.enabled)
+            test_result["status"] = "passed" if enabled_count > 0 else "warning"
+            test_result["details"] = {
+                "total_providers": provider_count,
+                "enabled_providers": enabled_count,
+                "providers": list(config.providers.keys()),
+            }
+        except Exception as e:
+            test_result["status"] = "failed"
+            test_result["details"] = {"error": str(e)}
+        results["tests"].append(test_result)
+
+        # Test 5: Memory middleware
+        test_result = {"name": "memory_middleware", "status": "unknown", "details": {}}
+        if memory_middleware:
+            try:
+                if hasattr(memory_middleware, 'memory') and hasattr(memory_middleware.memory, 'v2'):
+                    mem_stats = memory_middleware.memory.v2.get_stats()
+                    test_result["status"] = "passed"
+                    test_result["details"] = mem_stats
+                else:
+                    test_result["status"] = "passed"
+                    test_result["details"] = {"note": "Memory middleware active"}
+            except Exception as e:
+                test_result["status"] = "failed"
+                test_result["details"] = {"error": str(e)}
+        else:
+            test_result["status"] = "skipped"
+            test_result["details"] = {"reason": "Memory middleware not enabled"}
+        results["tests"].append(test_result)
+
+        # Test 6: Reliability tracker
+        test_result = {"name": "reliability_tracker", "status": "unknown", "details": {}}
+        if reliability_tracker:
+            try:
+                scores = reliability_tracker.get_all_scores()
+                test_result["status"] = "passed"
+                test_result["details"] = {
+                    "tracked_providers": len(scores),
+                    "scores": scores,
+                }
+            except Exception as e:
+                test_result["status"] = "failed"
+                test_result["details"] = {"error": str(e)}
+        else:
+            test_result["status"] = "skipped"
+            test_result["details"] = {"reason": "Reliability tracker not enabled"}
+        results["tests"].append(test_result)
+
+        # Calculate overall status
+        passed = sum(1 for t in results["tests"] if t["status"] == "passed")
+        failed = sum(1 for t in results["tests"] if t["status"] == "failed")
+        skipped = sum(1 for t in results["tests"] if t["status"] == "skipped")
+
+        results["summary"] = {
+            "total": len(results["tests"]),
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+            "overall": "healthy" if failed == 0 else "unhealthy",
+        }
+
+        return results
+
+    @app.get("/api/test/providers")
+    async def test_providers() -> Dict[str, Any]:
+        """
+        Test provider connectivity.
+
+        Performs lightweight connectivity check for each configured provider.
+        """
+        results = {
+            "timestamp": time.time(),
+            "providers": {},
+        }
+
+        backends = getattr(app.state, 'backends', {})
+
+        for provider_name, pconfig in config.providers.items():
+            provider_result = {
+                "enabled": pconfig.enabled,
+                "backend_type": pconfig.backend_type.value,
+                "status": "unknown",
+                "latency_ms": None,
+                "error": None,
+            }
+
+            if not pconfig.enabled:
+                provider_result["status"] = "disabled"
+                results["providers"][provider_name] = provider_result
+                continue
+
+            backend = backends.get(provider_name)
+            if not backend:
+                provider_result["status"] = "no_backend"
+                provider_result["error"] = "Backend not initialized"
+                results["providers"][provider_name] = provider_result
+                continue
+
+            # Try a quick ping/test
+            start_ts = time.time()
+            try:
+                test_req = GatewayRequest.create(
+                    provider=provider_name,
+                    message="ping",
+                    timeout_s=15.0,
+                    metadata={"connectivity_test": True},
+                )
+
+                result = await asyncio.wait_for(
+                    backend.execute(test_req),
+                    timeout=15.0,
+                )
+
+                latency_ms = (time.time() - start_ts) * 1000
+
+                if result.success:
+                    provider_result["status"] = "healthy"
+                    provider_result["latency_ms"] = round(latency_ms, 2)
+                else:
+                    # Check if it's an auth issue
+                    is_auth = detect_auth_failure(result.error or "")
+                    provider_result["status"] = "auth_failed" if is_auth else "unhealthy"
+                    provider_result["latency_ms"] = round(latency_ms, 2)
+                    provider_result["error"] = result.error
+
+            except asyncio.TimeoutError:
+                provider_result["status"] = "timeout"
+                provider_result["latency_ms"] = 15000
+                provider_result["error"] = "Request timed out after 15s"
+            except Exception as e:
+                provider_result["status"] = "error"
+                provider_result["error"] = str(e)
+
+            results["providers"][provider_name] = provider_result
+
+        # Summary
+        healthy = sum(1 for p in results["providers"].values() if p["status"] == "healthy")
+        total_enabled = sum(1 for p in results["providers"].values() if p.get("enabled", True) and p["status"] != "disabled")
+
+        results["summary"] = {
+            "total": len(results["providers"]),
+            "healthy": healthy,
+            "unhealthy": total_enabled - healthy,
+            "disabled": sum(1 for p in results["providers"].values() if p["status"] == "disabled"),
+        }
+
+        return results
+
+    # ==================== Health Checker Endpoints (v0.23) ====================
+
+    @app.get("/api/health-checker/status")
+    async def get_health_checker_status() -> Dict[str, Any]:
+        """
+        Get health checker status and all provider health.
+
+        v0.23: Returns health status for all registered providers.
+        """
+        # Access health checker from app state if available
+        health_checker = getattr(app.state, 'health_checker', None)
+        if not health_checker:
+            return {
+                "enabled": False,
+                "message": "Health checker not available",
+            }
+
+        return health_checker.get_stats()
+
+    @app.post("/api/health-checker/check")
+    async def trigger_health_check(
+        provider: Optional[str] = Query(None, description="Specific provider to check, or all if not specified"),
+    ) -> Dict[str, Any]:
+        """
+        Trigger immediate health check for one or all providers.
+
+        v0.23: Forces an immediate health check instead of waiting for the next scheduled check.
+        """
+        health_checker = getattr(app.state, 'health_checker', None)
+        if not health_checker:
+            raise_health_checker_unavailable()
+
+        results = await health_checker.check_now(provider)
+        return {
+            "checked": len(results),
+            "results": {p: h.to_dict() for p, h in results.items() if h},
+        }
+
+    @app.get("/api/health-checker/healthy")
+    async def get_healthy_providers() -> Dict[str, Any]:
+        """
+        Get list of healthy providers.
+
+        v0.23: Returns only providers that are currently healthy.
+        """
+        health_checker = getattr(app.state, 'health_checker', None)
+        if not health_checker:
+            # Fallback: assume all configured providers are healthy
+            return {
+                "healthy": list(config.providers.keys()),
+                "total": len(config.providers),
+                "source": "config_fallback",
+            }
+
+        healthy = health_checker.get_healthy_providers()
+        available = health_checker.get_available_providers()
+
+        return {
+            "healthy": healthy,
+            "available": available,
+            "total": len(config.providers),
+            "source": "health_checker",
+        }
+
+    @app.post("/api/health-checker/providers/{provider_name}/enable")
+    async def force_enable_provider(provider_name: str) -> Dict[str, Any]:
+        """
+        Force enable a provider that was auto-disabled.
+
+        v0.23: Resets health status and re-enables the provider.
+        """
+        health_checker = getattr(app.state, 'health_checker', None)
+        if not health_checker:
+            raise_health_checker_unavailable()
+
+        success = health_checker.force_enable(provider_name)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Provider {provider_name} not found in health checker")
+
+        return {
+            "provider": provider_name,
+            "action": "force_enabled",
+            "success": True,
+        }
+
+    @app.post("/api/health-checker/providers/{provider_name}/disable")
+    async def force_disable_provider(provider_name: str) -> Dict[str, Any]:
+        """
+        Force disable a provider.
+
+        v0.23: Marks provider as unavailable regardless of actual health.
+        """
+        health_checker = getattr(app.state, 'health_checker', None)
+        if not health_checker:
+            raise_health_checker_unavailable()
+
+        success = health_checker.force_disable(provider_name)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Provider {provider_name} not found in health checker")
+
+        return {
+            "provider": provider_name,
+            "action": "force_disabled",
+            "success": True,
+        }
+
+    # ==================== Backpressure Controller Endpoints (v0.23) ====================
+
+    @app.get("/api/backpressure/status")
+    async def get_backpressure_status() -> Dict[str, Any]:
+        """
+        Get backpressure controller status and metrics.
+
+        v0.23: Returns current load level, metrics, and configuration.
+        """
+        backpressure = getattr(app.state, 'backpressure', None)
+        if not backpressure:
+            return {
+                "enabled": False,
+                "message": "Backpressure controller not available",
+            }
+
+        return backpressure.get_stats()
+
+    @app.get("/api/backpressure/should-accept")
+    async def should_accept_request() -> Dict[str, Any]:
+        """
+        Check if new requests should be accepted.
+
+        v0.23: Returns whether the system can accept more requests.
+        """
+        backpressure = getattr(app.state, 'backpressure', None)
+        if not backpressure:
+            return {
+                "should_accept": True,
+                "reason": "Backpressure controller not available - accepting all",
+            }
+
+        should_accept = backpressure.should_accept_request()
+        rejection_reason = backpressure.get_rejection_reason() if not should_accept else None
+
+        return {
+            "should_accept": should_accept,
+            "load_level": backpressure.get_load_level().value,
+            "current_max_concurrent": backpressure.get_max_concurrent(),
+            "rejection_reason": rejection_reason,
+        }
+
+    @app.post("/api/backpressure/reset")
+    async def reset_backpressure() -> Dict[str, Any]:
+        """
+        Reset backpressure controller to initial state.
+
+        v0.23: Clears all metrics and resets concurrency to initial value.
+        """
+        backpressure = getattr(app.state, 'backpressure', None)
+        if not backpressure:
+            raise HTTPException(status_code=503, detail="Backpressure controller not available")
+
+        backpressure.reset()
+        return {
+            "action": "reset",
+            "success": True,
+            "new_max_concurrent": backpressure.get_max_concurrent(),
+        }
+
     # ==================== Stream Output Endpoints ====================
 
     @app.get("/api/stream/{request_id}")
@@ -779,7 +1216,7 @@ def create_api(
 
         status = stream_manager.get_stream_status(request_id)
         if not status.get("exists"):
-            raise HTTPException(status_code=404, detail="Stream not found")
+            raise_stream_not_found()
 
         entries = stream_manager.read_stream(request_id, from_line)
         return {
@@ -804,7 +1241,7 @@ def create_api(
 
         status = stream_manager.get_stream_status(request_id)
         if not status.get("exists"):
-            raise HTTPException(status_code=404, detail="Stream not found")
+            raise_stream_not_found()
 
         all_entries = stream_manager.read_stream(request_id)
         tail_entries = all_entries[-lines:] if len(all_entries) > lines else all_entries
@@ -852,7 +1289,7 @@ def create_api(
     async def get_cache_stats() -> CacheStatsResponse:
         """Get cache statistics."""
         if not cache_manager:
-            raise HTTPException(status_code=400, detail="Cache not enabled")
+            raise_cache_not_enabled()
 
         stats = cache_manager.get_stats()
         return CacheStatsResponse(
@@ -868,7 +1305,7 @@ def create_api(
     async def get_cache_stats_detailed() -> Dict[str, Any]:
         """Get detailed cache statistics including per-provider breakdown."""
         if not cache_manager:
-            raise HTTPException(status_code=400, detail="Cache not enabled")
+            raise_cache_not_enabled()
 
         stats = cache_manager.get_stats()
         provider_stats = cache_manager.get_provider_stats()
@@ -894,7 +1331,7 @@ def create_api(
     ) -> Dict[str, Any]:
         """Clear cache entries."""
         if not cache_manager:
-            raise HTTPException(status_code=400, detail="Cache not enabled")
+            raise_cache_not_enabled()
 
         cleared = cache_manager.clear(provider)
         return {"cleared": cleared, "provider": provider}
@@ -903,7 +1340,7 @@ def create_api(
     async def cleanup_cache() -> Dict[str, Any]:
         """Remove expired cache entries and enforce max entries limit."""
         if not cache_manager:
-            raise HTTPException(status_code=400, detail="Cache not enabled")
+            raise_cache_not_enabled()
 
         expired_removed = cache_manager.cleanup_expired()
         excess_removed = cache_manager.enforce_max_entries()
@@ -932,7 +1369,7 @@ def create_api(
         # Check if request exists
         request = store.get_request(request_id)
         if not request:
-            raise HTTPException(status_code=404, detail="Request not found")
+            raise_request_not_found()
 
         # Delete from database
         with store._get_connection() as conn:
@@ -1035,7 +1472,7 @@ def create_api(
 
         deleted = api_key_store.delete_key(key_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise_api_key_not_found()
 
         return {"deleted": True, "key_id": key_id}
 
@@ -1050,7 +1487,7 @@ def create_api(
 
         disabled = api_key_store.disable_key(key_id)
         if not disabled:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise_api_key_not_found()
 
         return {"disabled": True, "key_id": key_id}
 
@@ -1065,7 +1502,7 @@ def create_api(
 
         enabled = api_key_store.enable_key(key_id)
         if not enabled:
-            raise HTTPException(status_code=404, detail="API key not found")
+            raise_api_key_not_found()
 
         return {"enabled": True, "key_id": key_id}
 
@@ -1436,7 +1873,7 @@ def create_api(
         """Get discussion session status and details."""
         session = store.get_discussion_session(session_id)
         if not session:
-            raise HTTPException(status_code=404, detail="Discussion not found")
+            raise_discussion_not_found()
 
         return DiscussionResponse(
             session_id=session.id,
@@ -1457,7 +1894,7 @@ def create_api(
         """Get messages from a discussion session."""
         session = store.get_discussion_session(session_id)
         if not session:
-            raise HTTPException(status_code=404, detail="Discussion not found")
+            raise_discussion_not_found()
 
         message_type = None
         messages = store.get_discussion_messages(
@@ -1804,7 +2241,7 @@ def create_api(
     ):
         """Get discussions saved to memory (Phase 6)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             discussions = memory_middleware.memory.v2.get_discussion_memory(limit=limit)
@@ -1906,13 +2343,17 @@ def create_api(
     # Store ws_manager on app for external access
     app.state.ws_manager = ws_manager
 
+    # Store health_checker and backpressure on app for API access (v0.23)
+    app.state.health_checker = health_checker
+    app.state.backpressure = backpressure
+
     # ==================== Memory v2.0 API ====================
 
     @app.get("/api/memory/sessions")
     async def get_memory_sessions(limit: int = Query(20, ge=1, le=100)):
         """Get recent memory sessions."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             sessions = memory_middleware.memory.v2.list_sessions(limit=limit)
@@ -1924,7 +2365,7 @@ def create_api(
     async def get_session_context(session_id: str, window_size: int = Query(20, ge=1, le=100)):
         """Get conversation context for a specific session."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             messages = memory_middleware.memory.v2.get_session_context(
@@ -1943,7 +2384,7 @@ def create_api(
     ):
         """Search memory messages using FTS5."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             results = memory_middleware.memory.v2.search_messages(
@@ -1959,7 +2400,7 @@ def create_api(
     async def get_memory_stats():
         """Get memory system statistics."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             stats = memory_middleware.memory.v2.get_stats()
@@ -1973,7 +2414,7 @@ def create_api(
     async def get_request_memory(request_id: str):
         """Get injection details for a specific request (Phase 1: Transparency)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             injection = memory_middleware.memory.v2.get_request_injection(request_id)
@@ -2000,7 +2441,7 @@ def create_api(
     ):
         """Get recent memory injections for debugging (Phase 1: Transparency)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             injections = memory_middleware.memory.v2.get_request_injections(
@@ -2020,7 +2461,7 @@ def create_api(
     async def create_observation(request: CreateObservationRequest):
         """Create a new observation (Phase 2: Write APIs)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             observation_id = memory_middleware.memory.v2.create_observation(
@@ -2045,7 +2486,7 @@ def create_api(
     ):
         """List observations with optional filtering."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             observations = memory_middleware.memory.v2.search_observations(
@@ -2064,7 +2505,7 @@ def create_api(
     async def get_observation(observation_id: str):
         """Get a specific observation."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             observation = memory_middleware.memory.v2.get_observation(observation_id)
@@ -2080,7 +2521,7 @@ def create_api(
     async def update_observation(observation_id: str, request: UpdateObservationRequest):
         """Update an existing observation (Phase 2: Write APIs)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             success = memory_middleware.memory.v2.update_observation(
@@ -2105,7 +2546,7 @@ def create_api(
     async def delete_observation(observation_id: str):
         """Delete an observation (Phase 2: Write APIs)."""
         if not memory_middleware or not hasattr(memory_middleware, 'memory'):
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
 
         try:
             success = memory_middleware.memory.v2.delete_observation(observation_id)
@@ -2224,7 +2665,7 @@ def create_api(
                 "days": days
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get consolidated memories: {str(e)}")
 
@@ -2258,7 +2699,7 @@ def create_api(
                 "hours_processed": hours
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Consolidation failed: {str(e)}")
 
@@ -2277,7 +2718,7 @@ def create_api(
                 "stats": stats
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Decay application failed: {str(e)}")
 
@@ -2299,7 +2740,7 @@ def create_api(
                 "threshold": similarity_threshold
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Merge failed: {str(e)}")
 
@@ -2319,7 +2760,7 @@ def create_api(
                 "max_age_days": max_age_days
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Forget operation failed: {str(e)}")
 
@@ -2335,7 +2776,7 @@ def create_api(
             stats = consolidator.get_consolidation_stats()
             return JSONResponse(content=stats)
         except ImportError:
-            raise HTTPException(status_code=503, detail="Consolidator module not available")
+            raise_consolidator_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
@@ -2460,7 +2901,7 @@ def create_api(
                     "heuristic": None,
                     "retrieval": None
                 })
-            raise HTTPException(status_code=503, detail="Memory system not available")
+            raise_memory_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
@@ -2551,7 +2992,7 @@ def create_api(
                 "source": "database"
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stream entries: {str(e)}")
 
@@ -2578,7 +3019,7 @@ def create_api(
                 "length": len(thinking)
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get thinking chain: {str(e)}")
 
@@ -2595,7 +3036,7 @@ def create_api(
                 "count": len(results)
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
@@ -2615,7 +3056,7 @@ def create_api(
                 "entry_count": len(timeline)
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get timeline: {str(e)}")
 
@@ -2628,7 +3069,7 @@ def create_api(
             stats = memory.get_stream_stats()
             return JSONResponse(content=stats)
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get stream stats: {str(e)}")
 
@@ -2648,7 +3089,7 @@ def create_api(
                 "stats": stats
             })
         except ImportError:
-            raise HTTPException(status_code=503, detail="Memory module not available")
+            raise_memory_module_unavailable()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
@@ -2658,7 +3099,7 @@ def create_api(
     async def get_skill_recommendations(query: str = Query(..., min_length=1)):
         """Get skill recommendations for a task."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             recommendations = memory_middleware.skills_discovery.get_recommendations(query)
@@ -2670,7 +3111,7 @@ def create_api(
     async def get_skills_stats():
         """Get skills usage statistics."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             stats = memory_middleware.skills_discovery.get_usage_stats()
@@ -2682,7 +3123,7 @@ def create_api(
     async def list_skills(installed_only: bool = Query(False)):
         """List all available skills."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             skills = memory_middleware.skills_discovery.list_all_skills()
@@ -2698,7 +3139,7 @@ def create_api(
     async def submit_skill_feedback(skill_name: str, request: SkillFeedbackRequest):
         """Submit feedback for a skill (Phase 5: Feedback Loop)."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             # Extract keywords from task description
@@ -2732,7 +3173,7 @@ def create_api(
     async def get_skill_feedback(skill_name: str):
         """Get feedback statistics for a skill (Phase 5)."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             stats = memory_middleware.skills_discovery.get_skill_feedback_stats(skill_name)
@@ -2744,13 +3185,486 @@ def create_api(
     async def get_all_skill_feedback():
         """Get feedback statistics for all skills (Phase 5)."""
         if not memory_middleware or not hasattr(memory_middleware, 'skills_discovery'):
-            raise HTTPException(status_code=503, detail="Skills Discovery not available")
+            raise_skills_unavailable()
 
         try:
             stats = memory_middleware.skills_discovery.get_all_feedback_stats()
             return JSONResponse(content={"skills_feedback": stats})
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get feedback: {str(e)}")
+
+    # ==================== Batch Operations Endpoints ====================
+
+    if HAS_FASTAPI:
+        class BatchAskRequest(BaseModel):
+            """Request body for batch ask operation."""
+            requests: List[AskRequest] = Field(..., min_length=1, max_length=50, description="List of requests to submit")
+
+        class BatchCancelRequest(BaseModel):
+            """Request body for batch cancel operation."""
+            request_ids: List[str] = Field(..., min_length=1, max_length=100, description="List of request IDs to cancel")
+
+        class BatchStatusRequest(BaseModel):
+            """Request body for batch status query."""
+            request_ids: List[str] = Field(..., min_length=1, max_length=100, description="List of request IDs to query")
+
+    @app.post("/api/batch/ask")
+    async def batch_ask(batch_request: "BatchAskRequest") -> Dict[str, Any]:
+        """
+        Submit multiple requests in a single API call.
+
+        Returns request IDs for all submitted requests.
+        More efficient than multiple individual /api/ask calls.
+        """
+        results = []
+        errors = []
+
+        for i, req in enumerate(batch_request.requests):
+            try:
+                # Determine provider
+                provider_spec = req.provider
+                if not provider_spec:
+                    if router_func:
+                        decision = router_func(req.message)
+                        provider_spec = decision.provider
+                    else:
+                        provider_spec = config.default_provider
+
+                # Parse provider spec
+                providers, is_parallel = parse_provider_spec(provider_spec)
+
+                if not providers:
+                    errors.append({
+                        "index": i,
+                        "error": f"Unknown provider: {provider_spec}",
+                    })
+                    continue
+
+                # Validate providers
+                invalid_providers = [p for p in providers if p not in config.providers]
+                if invalid_providers:
+                    errors.append({
+                        "index": i,
+                        "error": f"Unknown providers: {invalid_providers}",
+                    })
+                    continue
+
+                # Create request
+                gw_request = GatewayRequest.create(
+                    provider=providers[0] if not is_parallel else provider_spec,
+                    message=req.message,
+                    priority=req.priority,
+                    timeout_s=req.timeout_s,
+                    metadata={
+                        "parallel": is_parallel,
+                        "providers": providers if is_parallel else None,
+                        "aggregation_strategy": req.aggregation_strategy,
+                        "agent": req.agent,
+                        "batch_index": i,
+                    },
+                )
+
+                # Enqueue
+                if queue.enqueue(gw_request):
+                    results.append({
+                        "index": i,
+                        "request_id": gw_request.id,
+                        "provider": provider_spec,
+                        "status": "queued",
+                    })
+                else:
+                    errors.append({
+                        "index": i,
+                        "error": "Queue is full",
+                    })
+
+            except Exception as e:
+                errors.append({
+                    "index": i,
+                    "error": str(e),
+                })
+
+        return {
+            "submitted": len(results),
+            "failed": len(errors),
+            "total": len(batch_request.requests),
+            "results": results,
+            "errors": errors,
+        }
+
+    @app.post("/api/batch/cancel")
+    async def batch_cancel(batch_request: "BatchCancelRequest") -> Dict[str, Any]:
+        """
+        Cancel multiple requests in a single API call.
+
+        Returns status for each cancellation attempt.
+        """
+        results = []
+
+        for request_id in batch_request.request_ids:
+            success = queue.cancel(request_id)
+            results.append({
+                "request_id": request_id,
+                "cancelled": success,
+                "error": None if success else "Not found or already completed",
+            })
+
+        cancelled_count = sum(1 for r in results if r["cancelled"])
+
+        return {
+            "cancelled": cancelled_count,
+            "failed": len(results) - cancelled_count,
+            "total": len(results),
+            "results": results,
+        }
+
+    @app.post("/api/batch/status")
+    async def batch_status(batch_request: "BatchStatusRequest") -> Dict[str, Any]:
+        """
+        Query status of multiple requests in a single API call.
+
+        More efficient than multiple individual /api/reply calls.
+        """
+        results = []
+
+        for request_id in batch_request.request_ids:
+            request = store.get_request(request_id)
+
+            if not request:
+                results.append({
+                    "request_id": request_id,
+                    "found": False,
+                    "status": None,
+                    "response": None,
+                    "error": "Request not found",
+                })
+                continue
+
+            response = store.get_response(request_id)
+
+            results.append({
+                "request_id": request_id,
+                "found": True,
+                "status": request.status.value,
+                "provider": request.provider,
+                "response": response.response if response else None,
+                "error": response.error if response else None,
+                "latency_ms": response.latency_ms if response else None,
+                "created_at": request.created_at,
+                "completed_at": request.completed_at,
+            })
+
+        found_count = sum(1 for r in results if r["found"])
+        completed_count = sum(
+            1 for r in results
+            if r["found"] and r["status"] in ("completed", "failed", "timeout")
+        )
+
+        return {
+            "found": found_count,
+            "not_found": len(results) - found_count,
+            "completed": completed_count,
+            "pending": found_count - completed_count,
+            "total": len(results),
+            "results": results,
+        }
+
+    @app.get("/api/batch/pending")
+    async def get_batch_pending(
+        batch_id: Optional[str] = Query(None, description="Filter by batch metadata"),
+        limit: int = Query(100, le=500),
+    ) -> Dict[str, Any]:
+        """
+        Get all pending requests, optionally filtered by batch metadata.
+        """
+        pending = store.list_requests(
+            status=RequestStatus.QUEUED,
+            limit=limit,
+        )
+        processing = store.list_requests(
+            status=RequestStatus.PROCESSING,
+            limit=limit,
+        )
+
+        all_pending = pending + processing
+
+        # Filter by batch_id if specified
+        if batch_id:
+            all_pending = [
+                r for r in all_pending
+                if r.metadata and r.metadata.get("batch_id") == batch_id
+            ]
+
+        return {
+            "count": len(all_pending),
+            "requests": [
+                {
+                    "request_id": r.id,
+                    "provider": r.provider,
+                    "status": r.status.value,
+                    "created_at": r.created_at,
+                    "priority": r.priority,
+                }
+                for r in all_pending
+            ],
+        }
+
+    # ==================== Data Export Endpoints ====================
+
+    @app.get("/api/export/requests")
+    async def export_requests(
+        format: str = Query("json", description="Export format: json or csv"),
+        status: Optional[str] = Query(None, description="Filter by status"),
+        provider: Optional[str] = Query(None, description="Filter by provider"),
+        days: int = Query(7, ge=1, le=90, description="Number of days to export"),
+    ):
+        """
+        Export requests to JSON or CSV format.
+
+        Useful for analytics, backup, and external processing.
+        """
+        import csv
+        from io import StringIO
+        from datetime import datetime, timedelta
+
+        # Calculate date range
+        since = time.time() - (days * 86400)
+
+        # Get requests
+        status_enum = RequestStatus(status) if status else None
+        all_requests = store.list_requests(
+            status=status_enum,
+            provider=provider,
+            limit=10000,
+            order_by="created_at",
+            order_desc=True,
+        )
+
+        # Filter by date
+        requests = [r for r in all_requests if r.created_at >= since]
+
+        if format == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow([
+                "id", "provider", "status", "created_at", "updated_at",
+                "priority", "timeout_s", "started_at", "completed_at", "message_preview"
+            ])
+
+            # Write data
+            for r in requests:
+                writer.writerow([
+                    r.id,
+                    r.provider,
+                    r.status.value,
+                    datetime.fromtimestamp(r.created_at).isoformat(),
+                    datetime.fromtimestamp(r.updated_at).isoformat() if r.updated_at else "",
+                    r.priority,
+                    r.timeout_s,
+                    datetime.fromtimestamp(r.started_at).isoformat() if r.started_at else "",
+                    datetime.fromtimestamp(r.completed_at).isoformat() if r.completed_at else "",
+                    r.message[:100] if r.message else "",
+                ])
+
+            return Response(
+                content=output.getvalue(),
+                media_type="text/csv",
+                headers={
+                    "Content-Disposition": f'attachment; filename="requests_export_{datetime.now().strftime("%Y%m%d")}.csv"',
+                },
+            )
+        else:
+            # JSON format
+            data = [
+                {
+                    **r.to_dict(),
+                    "created_at_iso": datetime.fromtimestamp(r.created_at).isoformat(),
+                }
+                for r in requests
+            ]
+
+            return JSONResponse(
+                content={
+                    "export_time": datetime.now().isoformat(),
+                    "total_count": len(data),
+                    "days": days,
+                    "filters": {"status": status, "provider": provider},
+                    "requests": data,
+                },
+            )
+
+    @app.get("/api/export/metrics")
+    async def export_metrics(
+        format: str = Query("json", description="Export format: json or csv"),
+        days: int = Query(7, ge=1, le=90, description="Number of days to export"),
+    ):
+        """
+        Export metrics to JSON or CSV format.
+
+        Exports provider performance metrics and cost data.
+        """
+        import csv
+        from io import StringIO
+        from datetime import datetime
+
+        # Get cost data
+        cost_by_provider = store.get_cost_by_provider(days=days)
+        cost_by_day = store.get_cost_by_day(days=days)
+        summary = store.get_cost_summary(days=days)
+
+        if format == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+
+            # Write summary section
+            writer.writerow(["# Summary"])
+            writer.writerow(["Metric", "Value"])
+            writer.writerow(["Total Input Tokens", summary.get("total_input_tokens", 0)])
+            writer.writerow(["Total Output Tokens", summary.get("total_output_tokens", 0)])
+            writer.writerow(["Total Cost USD", summary.get("total_cost_usd", 0)])
+            writer.writerow(["Total Requests", summary.get("total_requests", 0)])
+            writer.writerow([])
+
+            # Write by provider section
+            writer.writerow(["# By Provider"])
+            writer.writerow(["Provider", "Input Tokens", "Output Tokens", "Cost USD", "Requests"])
+            for p in cost_by_provider:
+                writer.writerow([
+                    p.get("provider"),
+                    p.get("total_input_tokens", 0),
+                    p.get("total_output_tokens", 0),
+                    p.get("total_cost_usd", 0),
+                    p.get("request_count", 0),
+                ])
+            writer.writerow([])
+
+            # Write by day section
+            writer.writerow(["# By Day"])
+            writer.writerow(["Date", "Input Tokens", "Output Tokens", "Cost USD", "Requests"])
+            for d in cost_by_day:
+                writer.writerow([
+                    d.get("date"),
+                    d.get("total_input_tokens", 0),
+                    d.get("total_output_tokens", 0),
+                    d.get("total_cost_usd", 0),
+                    d.get("request_count", 0),
+                ])
+
+            return Response(
+                content=output.getvalue(),
+                media_type="text/csv",
+                headers={
+                    "Content-Disposition": f'attachment; filename="metrics_export_{datetime.now().strftime("%Y%m%d")}.csv"',
+                },
+            )
+        else:
+            return JSONResponse(
+                content={
+                    "export_time": datetime.now().isoformat(),
+                    "days": days,
+                    "summary": summary,
+                    "by_provider": cost_by_provider,
+                    "by_day": cost_by_day,
+                },
+            )
+
+    @app.get("/api/export/discussions")
+    async def export_discussions(
+        format: str = Query("json", description="Export format: json or md"),
+        status: Optional[str] = Query(None, description="Filter by status"),
+        days: int = Query(30, ge=1, le=365, description="Number of days to export"),
+    ):
+        """
+        Export discussions to JSON or Markdown format.
+
+        Exports all discussion sessions with their messages.
+        """
+        from datetime import datetime
+
+        # Calculate date range
+        since = time.time() - (days * 86400)
+
+        # Get sessions
+        status_enum = DiscussionStatus(status) if status else None
+        sessions = store.list_discussion_sessions(
+            status=status_enum,
+            limit=1000,
+        )
+
+        # Filter by date
+        sessions = [s for s in sessions if s.created_at >= since]
+
+        if format == "md":
+            # Markdown format
+            lines = [
+                f"# CCB Discussion Export",
+                f"",
+                f"Export Date: {datetime.now().isoformat()}",
+                f"Total Discussions: {len(sessions)}",
+                f"",
+                "---",
+                "",
+            ]
+
+            for session in sessions:
+                lines.append(f"## {session.topic}")
+                lines.append(f"")
+                lines.append(f"- **ID**: {session.id}")
+                lines.append(f"- **Status**: {session.status.value}")
+                lines.append(f"- **Providers**: {', '.join(session.providers)}")
+                lines.append(f"- **Created**: {datetime.fromtimestamp(session.created_at).isoformat()}")
+                lines.append(f"")
+
+                if session.summary:
+                    lines.append(f"### Summary")
+                    lines.append(f"")
+                    lines.append(session.summary)
+                    lines.append(f"")
+
+                # Get messages
+                messages = store.get_discussion_messages(session.id)
+                if messages:
+                    lines.append(f"### Messages")
+                    lines.append(f"")
+                    for msg in messages:
+                        lines.append(f"**{msg.provider}** ({msg.message_type.value}, Round {msg.round_number}):")
+                        lines.append(f"")
+                        if msg.content:
+                            lines.append(msg.content)
+                        lines.append(f"")
+
+                lines.append("---")
+                lines.append("")
+
+            return Response(
+                content="\n".join(lines),
+                media_type="text/markdown",
+                headers={
+                    "Content-Disposition": f'attachment; filename="discussions_export_{datetime.now().strftime("%Y%m%d")}.md"',
+                },
+            )
+        else:
+            # JSON format
+            data = []
+            for session in sessions:
+                messages = store.get_discussion_messages(session.id)
+                data.append({
+                    **session.to_dict(),
+                    "created_at_iso": datetime.fromtimestamp(session.created_at).isoformat(),
+                    "messages": [m.to_dict() for m in messages],
+                })
+
+            return JSONResponse(
+                content={
+                    "export_time": datetime.now().isoformat(),
+                    "total_count": len(data),
+                    "days": days,
+                    "filters": {"status": status},
+                    "discussions": data,
+                },
+            )
 
     # ==================== Web UI Static Files ====================
 

@@ -128,6 +128,44 @@ class RequestQueue:
 
         return None
 
+    def batch_dequeue(self, max_batch: int = 5) -> List[GatewayRequest]:
+        """
+        Get multiple requests from the queue in a single operation.
+
+        This reduces lock contention when processing multiple requests.
+
+        Args:
+            max_batch: Maximum number of requests to dequeue at once
+
+        Returns:
+            List of requests (may be fewer than max_batch if queue is low or at capacity)
+        """
+        result = []
+
+        with self._processing_lock:
+            available_slots = self.max_concurrent - len(self._processing)
+            if available_slots <= 0:
+                return result
+            max_to_dequeue = min(max_batch, available_slots)
+
+        with self._lock:
+            while self._queue and len(result) < max_to_dequeue:
+                item = heapq.heappop(self._queue)
+                request = item.request
+
+                # Verify still queued in store
+                stored = self.store.get_request(request.id)
+                if stored and stored.status == RequestStatus.QUEUED:
+                    result.append(request)
+
+            # Add all successfully dequeued requests to processing
+            if result:
+                with self._processing_lock:
+                    for request in result:
+                        self._processing[request.id] = request
+
+        return result
+
     def mark_processing(self, request_id: str) -> bool:
         """Mark a request as processing."""
         return self.store.update_request_status(request_id, RequestStatus.PROCESSING)
@@ -288,7 +326,7 @@ class AsyncRequestQueue:
         self,
         handler: Callable[[GatewayRequest], Awaitable[None]],
     ) -> None:
-        """Main processing loop with true concurrent execution."""
+        """Main processing loop with true concurrent execution and batch dequeue support."""
         while self._running:
             # Check for timeouts
             self.queue.check_timeouts()
@@ -296,18 +334,19 @@ class AsyncRequestQueue:
             # Clean up completed tasks
             await self._cleanup_completed_tasks()
 
-            # Try to dequeue and process (up to max_concurrent)
-            request = self.queue.dequeue()
-            if request:
-                self.queue.mark_processing(request.id)
-                # Spawn task for concurrent execution (don't await!)
-                task = asyncio.create_task(
-                    self._handle_request(handler, request)
-                )
-                async with self._tasks_lock:
-                    self._active_tasks[request.id] = task
+            # Try batch dequeue for better efficiency
+            requests = self.queue.batch_dequeue(max_batch=5)
+            if requests:
+                for request in requests:
+                    self.queue.mark_processing(request.id)
+                    # Spawn task for concurrent execution (don't await!)
+                    task = asyncio.create_task(
+                        self._handle_request(handler, request)
+                    )
+                    async with self._tasks_lock:
+                        self._active_tasks[request.id] = task
             else:
-                # Wait for notification or timeout
+                # No requests available, wait for notification or timeout
                 self._event.clear()
                 try:
                     await asyncio.wait_for(self._event.wait(), timeout=0.5)

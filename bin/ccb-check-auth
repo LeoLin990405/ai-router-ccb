@@ -1,0 +1,64 @@
+#!/bin/bash
+# CCB CLI 登录状态检查脚本
+# 检查所有 AI CLI 的认证状态
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo "CCB CLI 认证状态检查"
+echo "===================="
+echo ""
+
+check_cli() {
+    local name="$1"
+    local cmd="$2"
+    local test_prompt="$3"
+    local timeout_sec="${4:-15}"
+
+    printf "%-12s " "$name:"
+
+    if ! command -v "$cmd" &>/dev/null; then
+        echo -e "${RED}未安装${NC}"
+        return 1
+    fi
+
+    # 运行测试
+    local result
+    result=$(timeout "$timeout_sec" $test_prompt 2>&1) || true
+
+    if [[ -z "$result" ]]; then
+        echo -e "${YELLOW}超时/无响应${NC}"
+        return 1
+    elif echo "$result" | grep -qi "error\|failed\|unauthorized\|auth\|login\|token"; then
+        echo -e "${RED}认证失败${NC}"
+        echo "  详情: $(echo "$result" | head -1)"
+        return 1
+    else
+        echo -e "${GREEN}正常${NC}"
+        return 0
+    fi
+}
+
+# 检查各个 CLI
+echo "快速 Provider:"
+check_cli "Kimi" "kimi" "kimi --quiet -p 'pong'" 10
+check_cli "Qwen" "qwen" "qwen --auth-type qwen-oauth 'pong'" 15
+check_cli "DeepSeek" "deepseek" "deepseek -q '回复pong'" 15
+
+echo ""
+echo "中速 Provider:"
+check_cli "iFlow" "iflow" "iflow -p 'pong'" 15
+check_cli "OpenCode" "opencode" "opencode run -m opencode/minimax-m2.1-free 'pong'" 20
+
+echo ""
+echo "慢速 Provider:"
+check_cli "Codex" "codex" "codex exec -m o4-mini 'pong'" 30
+check_cli "Gemini" "gemini" "gemini -m gemini-3-flash-preview -p 'pong'" 30
+
+echo ""
+echo "===================="
+echo "检查完成"

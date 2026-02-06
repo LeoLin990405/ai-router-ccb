@@ -10,14 +10,12 @@ Purpose:
 """
 
 import os
-import os
 import json
 import subprocess
 import sqlite3
 import re
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
-import re
 
 
 class SkillsDiscoveryService:
@@ -711,6 +709,97 @@ class SkillsDiscoveryService:
         finally:
             conn.close()
 
+    def get_stats(self) -> Dict:
+        """Get comprehensive statistics for skills discovery
+
+        Returns:
+            Dictionary with skills cache, usage, and feedback statistics
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            stats = {
+                'cache': {},
+                'usage': {},
+                'feedback': {},
+                'top_skills': []
+            }
+
+            # Cache statistics
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total,
+                    SUM(CASE WHEN installed = 1 THEN 1 ELSE 0 END) as installed,
+                    SUM(CASE WHEN source = 'local' THEN 1 ELSE 0 END) as local,
+                    SUM(CASE WHEN source = 'remote' THEN 1 ELSE 0 END) as remote
+                FROM skills_cache
+            """)
+            row = cursor.fetchone()
+            stats['cache'] = {
+                'total': row[0] or 0,
+                'installed': row[1] or 0,
+                'local': row[2] or 0,
+                'remote': row[3] or 0
+            }
+
+            # Usage statistics
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_uses,
+                    COUNT(DISTINCT skill_name) as unique_skills,
+                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
+                    COUNT(DISTINCT DATE(timestamp)) as active_days
+                FROM skills_usage
+            """)
+            row = cursor.fetchone()
+            stats['usage'] = {
+                'total_uses': row[0] or 0,
+                'unique_skills': row[1] or 0,
+                'successful': row[2] or 0,
+                'success_rate': round((row[2] or 0) / row[0] * 100, 1) if row[0] else 0,
+                'active_days': row[3] or 0
+            }
+
+            # Feedback statistics (check if table exists)
+            cursor.execute("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='skills_feedback'
+            """)
+            if cursor.fetchone():
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) as total,
+                        AVG(rating) as avg_rating,
+                        SUM(CASE WHEN helpful = 1 THEN 1 ELSE 0 END) as helpful
+                    FROM skills_feedback
+                """)
+                row = cursor.fetchone()
+                stats['feedback'] = {
+                    'total': row[0] or 0,
+                    'avg_rating': round(row[1], 2) if row[1] else None,
+                    'helpful_rate': round((row[2] or 0) / row[0] * 100, 1) if row[0] else 0
+                }
+            else:
+                stats['feedback'] = {'total': 0, 'avg_rating': None, 'helpful_rate': 0}
+
+            # Top skills by usage
+            cursor.execute("""
+                SELECT skill_name, COUNT(*) as uses
+                FROM skills_usage
+                GROUP BY skill_name
+                ORDER BY uses DESC
+                LIMIT 5
+            """)
+            stats['top_skills'] = [
+                {'name': row[0], 'uses': row[1]}
+                for row in cursor.fetchall()
+            ]
+
+            return stats
+        finally:
+            conn.close()
+
     def get_recommendations(self, task_description: str, auto_install: bool = False) -> Dict:
         """Get skill recommendations with installation instructions
 
@@ -854,8 +943,42 @@ if __name__ == "__main__":
             print()
 
     elif command == "stats":
-        # TODO: Implement stats display
-        print("Stats not yet implemented")
+        stats = service.get_stats()
+
+        print("\n📊 Skills Discovery Statistics\n")
+        print("=" * 40)
+
+        # Cache stats
+        cache = stats['cache']
+        print(f"\n📦 Skills Cache:")
+        print(f"   Total cached:  {cache['total']}")
+        print(f"   Installed:     {cache['installed']}")
+        print(f"   Local:         {cache['local']}")
+        print(f"   Remote:        {cache['remote']}")
+
+        # Usage stats
+        usage = stats['usage']
+        print(f"\n📈 Usage Statistics:")
+        print(f"   Total uses:    {usage['total_uses']}")
+        print(f"   Unique skills: {usage['unique_skills']}")
+        print(f"   Success rate:  {usage['success_rate']}%")
+        print(f"   Active days:   {usage['active_days']}")
+
+        # Feedback stats
+        feedback = stats['feedback']
+        print(f"\n⭐ Feedback Statistics:")
+        print(f"   Total feedback: {feedback['total']}")
+        if feedback['avg_rating']:
+            print(f"   Avg rating:     {feedback['avg_rating']}/5")
+        print(f"   Helpful rate:   {feedback['helpful_rate']}%")
+
+        # Top skills
+        if stats['top_skills']:
+            print(f"\n🏆 Top Skills by Usage:")
+            for i, skill in enumerate(stats['top_skills'], 1):
+                print(f"   {i}. {skill['name']} ({skill['uses']} uses)")
+
+        print("\n" + "=" * 40)
 
     else:
         print(f"Unknown command: {command}")

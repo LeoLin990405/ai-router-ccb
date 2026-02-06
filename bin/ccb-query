@@ -50,13 +50,39 @@ def query_db(sql: str, params: tuple = ()) -> list:
 
 def cmd_status(args) -> int:
     """Check status of a specific request."""
+    request_id = args.request_id
+
+    # Try exact match first
     results = query_db(
         "SELECT id, provider, status, created_at, started_at, completed_at FROM requests WHERE id = ?",
-        (args.request_id,)
+        (request_id,)
     )
 
+    # If not found, try prefix match (for truncated IDs)
+    if not results and len(request_id) >= 8:
+        results = query_db(
+            "SELECT id, provider, status, created_at, started_at, completed_at FROM requests WHERE id LIKE ? ORDER BY created_at DESC LIMIT 5",
+            (request_id + "%",)
+        )
+        if results:
+            if len(results) == 1:
+                print(f"(Matched by prefix: {results[0]['id']})")
+            else:
+                print(f"Multiple matches for prefix '{request_id}':")
+                for r in results:
+                    print(f"  {r['id'][:12]}... [{r['provider']}] {r['status']}")
+                return 1
+
     if not results:
-        print(f"Request not found: {args.request_id}")
+        print(f"Request not found: {request_id}")
+        # Show recent requests as hint
+        recent = query_db(
+            "SELECT id, provider, status FROM requests ORDER BY created_at DESC LIMIT 3"
+        )
+        if recent:
+            print("\nRecent requests:")
+            for r in recent:
+                print(f"  {r['id'][:12]}... [{r['provider']}] {r['status']}")
         return 1
 
     req = results[0]
@@ -76,17 +102,30 @@ def cmd_status(args) -> int:
 
 def cmd_get(args) -> int:
     """Get response for a completed request."""
-    # First check request status
+    request_id = args.request_id
+
+    # Try exact match first
     req_results = query_db(
-        "SELECT status, provider FROM requests WHERE id = ?",
-        (args.request_id,)
+        "SELECT id, status, provider FROM requests WHERE id = ?",
+        (request_id,)
     )
+
+    # If not found, try prefix match
+    if not req_results and len(request_id) >= 8:
+        req_results = query_db(
+            "SELECT id, status, provider FROM requests WHERE id LIKE ? ORDER BY created_at DESC LIMIT 1",
+            (request_id + "%",)
+        )
+        if req_results:
+            request_id = req_results[0]['id']
+            print(f"(Matched: {request_id})", file=sys.stderr)
 
     if not req_results:
         print(f"Request not found: {args.request_id}")
         return 1
 
     req = req_results[0]
+    request_id = req['id']  # Use full ID
 
     if req['status'] not in ('completed', 'failed', 'timeout'):
         print(f"Request still {req['status']}. Not ready yet.")
@@ -95,7 +134,7 @@ def cmd_get(args) -> int:
     # Get response
     resp_results = query_db(
         "SELECT response, error, thinking, latency_ms FROM responses WHERE request_id = ?",
-        (args.request_id,)
+        (request_id,)
     )
 
     if not resp_results:

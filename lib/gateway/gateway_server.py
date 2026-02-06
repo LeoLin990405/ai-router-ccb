@@ -37,6 +37,19 @@ from .rate_limiter import RateLimiter, RateLimitMiddleware
 from .metrics import GatewayMetrics
 from .discussion import DiscussionExecutor
 
+# Import new v0.23 modules
+try:
+    from .health_checker import HealthChecker
+    HEALTH_CHECKER_AVAILABLE = True
+except ImportError:
+    HEALTH_CHECKER_AVAILABLE = False
+
+try:
+    from .backpressure import BackpressureController, BackpressureConfig
+    BACKPRESSURE_AVAILABLE = True
+except ImportError:
+    BACKPRESSURE_AVAILABLE = False
+
 # Import Memory Middleware
 try:
     from .middleware.memory_middleware import MemoryMiddleware
@@ -97,9 +110,16 @@ class GatewayServer:
         # Memory Middleware
         self.memory_middleware: Optional[MemoryMiddleware] = None
 
+        # Health Checker (v0.23)
+        self.health_checker: Optional["HealthChecker"] = None
+
+        # Backpressure Controller (v0.23)
+        self.backpressure: Optional["BackpressureController"] = None
+
         self._init_advanced_features()
         self._init_security_features()
         self._init_memory_features()  # 新增
+        self._init_health_and_backpressure()  # v0.23
 
         # Router (lazy import to avoid circular deps)
         self._router = None
@@ -200,6 +220,56 @@ class GatewayServer:
         # Rate limiter
         if self.config.rate_limit:
             self.rate_limiter = RateLimiter(self.config.rate_limit)
+
+    def _init_health_and_backpressure(self) -> None:
+        """Initialize health checker and backpressure controller (v0.23)."""
+        # Health Checker
+        if HEALTH_CHECKER_AVAILABLE:
+            try:
+                self.health_checker = HealthChecker(
+                    check_interval_s=30.0,
+                    failure_threshold=3,
+                    recovery_threshold=2,
+                )
+                # Register all backends
+                for name, backend in self.backends.items():
+                    self.health_checker.register_provider(name, backend)
+                print("[GatewayServer] Health Checker initialized successfully")
+            except Exception as e:
+                print(f"[GatewayServer] Failed to initialize Health Checker: {e}")
+                self.health_checker = None
+        else:
+            print("[GatewayServer] Health Checker not available")
+
+        # Backpressure Controller
+        if BACKPRESSURE_AVAILABLE:
+            try:
+                bp_config = BackpressureConfig(
+                    min_concurrent=2,
+                    max_concurrent=self.config.max_concurrent_requests * 2,
+                    initial_concurrent=self.config.max_concurrent_requests,
+                    queue_depth_low=10,
+                    queue_depth_high=50,
+                    queue_depth_critical=100,
+                )
+                self.backpressure = BackpressureController(
+                    config=bp_config,
+                    queue_getter=lambda: self.queue.get_queue_depth(),
+                    processing_getter=lambda: self.queue.get_processing_count(),
+                )
+
+                # Set callback to adjust queue max_concurrent
+                def on_limit_change(old_limit: int, new_limit: int):
+                    self.queue.max_concurrent = new_limit
+                    print(f"[Backpressure] Adjusted max_concurrent: {old_limit} -> {new_limit}")
+
+                self.backpressure.set_limit_change_callback(on_limit_change)
+                print("[GatewayServer] Backpressure Controller initialized successfully")
+            except Exception as e:
+                print(f"[GatewayServer] Failed to initialize Backpressure Controller: {e}")
+                self.backpressure = None
+        else:
+            print("[GatewayServer] Backpressure Controller not available")
 
     def _get_router(self):
         """Get or create the router instance."""
@@ -640,6 +710,8 @@ class GatewayServer:
             api_key_store=self.api_key_store,
             discussion_executor=self.discussion_executor,
             memory_middleware=self.memory_middleware,
+            health_checker=self.health_checker,
+            backpressure=self.backpressure,
         )
         # Store backends on app for streaming access
         self._app.state.backends = self.backends
@@ -663,6 +735,14 @@ class GatewayServer:
         asyncio.create_task(self.health_check_loop())
         asyncio.create_task(self.cleanup_loop())
 
+        # Start health checker (v0.23)
+        if self.health_checker:
+            await self.health_checker.start()
+
+        # Start backpressure controller (v0.23)
+        if self.backpressure:
+            await self.backpressure.start()
+
         print(f"Gateway server started")
         print(f"  Retry: {'enabled' if self.config.retry.enabled else 'disabled'}")
         print(f"  Cache: {'enabled' if self.config.cache.enabled else 'disabled'}")
@@ -671,6 +751,8 @@ class GatewayServer:
         print(f"  Discussion: {'enabled' if self.discussion_executor else 'disabled'}")
         print(f"  Auth: {'enabled' if self.config.auth and self.config.auth.enabled else 'disabled'}")
         print(f"  Rate Limit: {'enabled' if self.config.rate_limit and self.config.rate_limit.enabled else 'disabled'}")
+        print(f"  Health Checker: {'enabled' if self.health_checker else 'disabled'}")
+        print(f"  Backpressure: {'enabled' if self.backpressure else 'disabled'}")
         print(f"  Metrics: enabled")
 
     async def stop(self) -> None:
@@ -680,6 +762,14 @@ class GatewayServer:
         # Stop queue processor
         if self.async_queue:
             await self.async_queue.stop()
+
+        # Stop health checker (v0.23)
+        if self.health_checker:
+            await self.health_checker.stop()
+
+        # Stop backpressure controller (v0.23)
+        if self.backpressure:
+            await self.backpressure.stop()
 
         # Shutdown backends
         for backend in self.backends.values():

@@ -53,7 +53,6 @@ def test_heuristic_retriever():
     print(f"  ✓ Statistics: {stats.get('tracked_memories', 0)} tracked memories")
 
     print()
-    return True
 
 
 def test_memory_v2():
@@ -98,7 +97,6 @@ def test_memory_v2():
     print(f"  ✓ get_memory_stats_v2: {heuristic.get('tracked_memories', 0)} tracked")
 
     print()
-    return True
 
 
 def test_consolidator():
@@ -125,7 +123,6 @@ def test_consolidator():
     print(f"  ✓ get_consolidation_stats: {stats.get('total_consolidations', 0)} total")
 
     print()
-    return True
 
 
 def test_config():
@@ -153,10 +150,9 @@ def test_config():
         print(f"  ✓ System2: merge_threshold={system2.get('merge_similarity_threshold')}")
     else:
         print(f"  ✗ Config file not found at {config_path}")
-        return False
+        assert False, f"Config file not found at {config_path}"
 
     print()
-    return True
 
 
 def test_database_schema():
@@ -185,11 +181,10 @@ def test_database_schema():
             print(f"  ✓ {table}")
         else:
             print(f"  ✗ {table} (MISSING)")
-            return False
+            assert False, f"Required table {table} is missing"
 
     conn.close()
     print()
-    return True
 
 
 def main():
@@ -214,8 +209,8 @@ def main():
 
     for name, test_func in tests:
         try:
-            success = test_func()
-            results.append((name, success))
+            test_func()
+            results.append((name, True))
         except Exception as e:
             print(f"  ✗ Error: {e}")
             results.append((name, False))

@@ -98,7 +98,7 @@ class RateLimiter:
 
         # In-memory state for token buckets
         self._buckets: Dict[str, TokenBucketState] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # Use RLock to allow reentrant locking
 
         # Initialize database
         self._init_db()

@@ -66,6 +66,9 @@ class PerformanceTracker:
         else:
             self.db_path = Path.home() / ".ccb_config" / "performance.db"
 
+        # Gateway database as fallback data source
+        self.gateway_db_path = Path.home() / ".ccb_config" / "gateway.db"
+
         # Ensure directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
@@ -247,13 +250,82 @@ class PerformanceTracker:
             providers = [row["provider"] for row in cursor.fetchall()]
 
         stats = []
+        stats_providers = set()
         for provider in providers:
             provider_stats = self.get_provider_stats(provider, hours)
             if provider_stats:
                 stats.append(provider_stats)
+                stats_providers.add(provider)
+
+        # Also get stats from gateway.db and merge (for providers not in performance.db)
+        if self.gateway_db_path.exists():
+            gateway_stats = self._get_stats_from_gateway(hours)
+            for gs in gateway_stats:
+                if gs.provider not in stats_providers:
+                    stats.append(gs)
+                    stats_providers.add(gs.provider)
 
         # Sort by total requests descending
         stats.sort(key=lambda s: s.total_requests, reverse=True)
+        return stats
+
+    def _get_stats_from_gateway(self, hours: int = 24) -> List[ProviderStats]:
+        """
+        Get statistics from gateway.db as fallback.
+
+        Args:
+            hours: Time window in hours
+
+        Returns:
+            List of ProviderStats from gateway database
+        """
+        cutoff = time.time() - (hours * 3600)
+        stats = []
+
+        try:
+            conn = sqlite3.connect(str(self.gateway_db_path))
+            conn.row_factory = sqlite3.Row
+
+            # Get stats from requests table
+            # Calculate latency from completed_at - created_at
+            cursor = conn.execute("""
+                SELECT
+                    provider,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                    AVG(CASE WHEN completed_at IS NOT NULL THEN (completed_at - created_at) * 1000 END) as avg_latency,
+                    MIN(CASE WHEN completed_at IS NOT NULL THEN (completed_at - created_at) * 1000 END) as min_latency,
+                    MAX(CASE WHEN completed_at IS NOT NULL THEN (completed_at - created_at) * 1000 END) as max_latency
+                FROM requests
+                WHERE created_at >= ?
+                GROUP BY provider
+            """, (cutoff,))
+
+            for row in cursor.fetchall():
+                total = row["total"]
+                successful = row["successful"] or 0
+                failed = row["failed"] or 0
+
+                stats.append(ProviderStats(
+                    provider=row["provider"],
+                    total_requests=total,
+                    successful_requests=successful,
+                    failed_requests=failed,
+                    success_rate=successful / total if total > 0 else 0.0,
+                    avg_latency_ms=row["avg_latency"] or 0.0,
+                    min_latency_ms=row["min_latency"] or 0.0,
+                    max_latency_ms=row["max_latency"] or 0.0,
+                    p50_latency_ms=row["avg_latency"] or 0.0,  # Approximate
+                    p95_latency_ms=row["max_latency"] or 0.0,  # Approximate
+                    total_tokens=0,  # Not tracked in gateway.db
+                    period_hours=hours,
+                ))
+
+            conn.close()
+        except Exception:
+            pass  # Silently fail if gateway.db is not accessible
+
         return stats
 
     def get_best_provider(

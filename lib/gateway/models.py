@@ -89,7 +89,7 @@ class GatewayRequest:
         """Create a new request with generated ID."""
         now = time.time()
         return cls(
-            id=str(uuid.uuid4())[:12],
+            id=str(uuid.uuid4()),
             provider=provider,
             message=message,
             status=RequestStatus.QUEUED,
@@ -331,7 +331,7 @@ class DiscussionMessage:
     ) -> "DiscussionMessage":
         """Create a new discussion message."""
         return cls(
-            id=str(uuid.uuid4())[:12],
+            id=str(uuid.uuid4()),
             session_id=session_id,
             round_number=round_number,
             provider=provider,
@@ -388,7 +388,7 @@ class DiscussionSession:
         """Create a new discussion session."""
         now = time.time()
         return cls(
-            id=str(uuid.uuid4())[:12],
+            id=str(uuid.uuid4()),
             topic=topic,
             status=DiscussionStatus.PENDING,
             current_round=0,

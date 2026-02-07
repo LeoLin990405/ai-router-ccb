@@ -60,6 +60,7 @@ from .error_handlers import (
     raise_discussion_not_found,
     raise_cache_not_enabled,
 )
+from .cc_switch import CCSwitch, CCParallelResult
 
 
 # Pydantic models for API
@@ -3664,6 +3665,104 @@ def create_api(
                     "filters": {"status": status},
                     "discussions": data,
                 },
+            )
+
+    # ==================== CC Switch Integration Endpoints ====================
+
+    # Pydantic models for CC Switch endpoints
+    class CCParallelTestRequest(BaseModel):
+        """Request body for CC Switch parallel test."""
+        message: str = Field(..., description="Test message to send to providers")
+        providers: Optional[List[str]] = Field(None, description="List of provider names (default: all active)")
+        timeout_s: float = Field(60.0, description="Timeout in seconds", ge=1.0, le=300.0)
+
+    @app.get("/api/cc-switch/status")
+    async def get_cc_switch_status() -> Dict[str, Any]:
+        """
+        Get CC Switch provider status and failover queue.
+
+        Returns information about all providers, active status, and failover order.
+        """
+        try:
+            cc_switch = CCSwitch()
+            return cc_switch.get_status()
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get CC Switch status: {str(e)}"
+            )
+
+    @app.post("/api/cc-switch/reload")
+    async def reload_cc_switch() -> Dict[str, Any]:
+        """
+        Reload CC Switch providers from database.
+
+        Useful after updating provider configurations.
+        """
+        try:
+            cc_switch = CCSwitch()
+            cc_switch.reload()
+            status = cc_switch.get_status()
+            return {
+                "reloaded": True,
+                "total_providers": status["total_providers"],
+                "active_providers": status["active_providers"],
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to reload CC Switch: {str(e)}"
+            )
+
+    @app.post("/api/cc-switch/parallel-test")
+    async def cc_switch_parallel_test(request: CCParallelTestRequest) -> Dict[str, Any]:
+        """
+        Test multiple CC Switch providers in parallel.
+
+        Sends the same message to multiple providers and returns all responses
+        with timing information.
+
+        Useful for:
+        - Testing provider availability
+        - Comparing response quality across providers
+        - Finding the fastest provider
+        """
+        try:
+            cc_switch = CCSwitch()
+
+            # Run parallel test
+            result = await cc_switch.parallel_test(
+                message=request.message,
+                providers=request.providers,
+                timeout_s=request.timeout_s,
+            )
+
+            return result.to_dict()
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Parallel test failed: {str(e)}"
+            )
+
+    @app.get("/api/cc-switch/failover-queue")
+    async def get_failover_queue() -> Dict[str, Any]:
+        """
+        Get the current failover queue.
+
+        Returns providers in priority order for failover scenarios.
+        """
+        try:
+            cc_switch = CCSwitch()
+            queue = cc_switch.get_failover_queue()
+            return {
+                "failover_queue": queue,
+                "count": len(queue),
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get failover queue: {str(e)}"
             )
 
     # ==================== Web UI Static Files ====================

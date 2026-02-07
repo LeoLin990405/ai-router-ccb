@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""
+CCB CC Switch Integration CLI.
+
+Provides command-line access to CC Switch functionality.
+"""
+import argparse
+import json
+import sys
+import requests
+from typing import Optional, List
+
+
+GATEWAY_URL = "http://localhost:8765"
+
+
+def get_status():
+    """Get CC Switch provider status."""
+    try:
+        resp = requests.get(f"{GATEWAY_URL}/api/cc-switch/status", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        print(f"📊 CC Switch Status")
+        print(f"   Total Providers: {data['total_providers']}")
+        print(f"   Active Providers: {data['active_providers']}")
+        print()
+
+        print("🔄 Failover Queue:")
+        for i, name in enumerate(data['failover_queue'], 1):
+            print(f"   {i}. {name}")
+        print()
+
+        print("📋 Provider Details:")
+        for p in data['providers']:
+            status_icon = "✓" if p['status'] == 'active' else "✗"
+            print(f"   {status_icon} {p['name']}")
+            print(f"      Priority: {p['priority']}, Failures: {p['fail_count']}")
+            if p['last_success']:
+                print(f"      Last Success: {p['last_success']}")
+
+        return 0
+
+    except requests.RequestException as e:
+        print(f"✖ Failed to get status: {e}", file=sys.stderr)
+        return 1
+
+
+def reload_providers():
+    """Reload CC Switch providers from database."""
+    try:
+        resp = requests.post(f"{GATEWAY_URL}/api/cc-switch/reload", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        print(f"✓ Reloaded CC Switch providers")
+        print(f"  Total: {data['total_providers']}")
+        print(f"  Active: {data['active_providers']}")
+
+        return 0
+
+    except requests.RequestException as e:
+        print(f"✖ Failed to reload: {e}", file=sys.stderr)
+        return 1
+
+
+def get_failover_queue():
+    """Get failover queue."""
+    try:
+        resp = requests.get(f"{GATEWAY_URL}/api/cc-switch/failover-queue", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        print(f"🔄 Failover Queue ({data['count']} providers):")
+        for i, name in enumerate(data['failover_queue'], 1):
+            print(f"   {i}. {name}")
+
+        return 0
+
+    except requests.RequestException as e:
+        print(f"✖ Failed to get queue: {e}", file=sys.stderr)
+        return 1
+
+
+def parallel_test(message: str, providers: Optional[List[str]] = None, timeout_s: float = 60.0):
+    """Run parallel test across providers."""
+    try:
+        payload = {
+            "message": message,
+            "timeout_s": timeout_s,
+        }
+        if providers:
+            payload["providers"] = providers
+
+        print(f"🧪 Testing providers in parallel...")
+        print(f"   Message: {message[:50]}{'...' if len(message) > 50 else ''}")
+        print()
+
+        resp = requests.post(
+            f"{GATEWAY_URL}/api/cc-switch/parallel-test",
+            json=payload,
+            timeout=timeout_s + 10
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        print(f"📊 Test Results (ID: {data['request_id']})")
+        print(f"   Total Time: {data['total_latency_ms']:.0f}ms")
+        print(f"   Success: {data['success_count']}, Failed: {data['failure_count']}")
+        print()
+
+        if data.get('fastest_provider'):
+            print(f"🏆 Fastest: {data['fastest_provider']} ({data['fastest_latency_ms']:.0f}ms)")
+            print()
+
+        print("📋 Provider Results:")
+        for name, result in data['results'].items():
+            if result['success']:
+                print(f"   ✓ {name} ({result['latency_ms']:.0f}ms)")
+                if result.get('tokens_used'):
+                    print(f"      Tokens: {result['tokens_used']}")
+                # Show first 100 chars of response
+                if result.get('response'):
+                    preview = result['response'][:100]
+                    if len(result['response']) > 100:
+                        preview += "..."
+                    print(f"      Response: {preview}")
+            else:
+                print(f"   ✗ {name} ({result['latency_ms']:.0f}ms)")
+                print(f"      Error: {result['error']}")
+            print()
+
+        return 0
+
+    except requests.RequestException as e:
+        print(f"✖ Parallel test failed: {e}", file=sys.stderr)
+        return 1
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="CCB CC Switch Integration CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Get provider status
+  ccb-cc-switch status
+
+  # Reload providers from database
+  ccb-cc-switch reload
+
+  # Get failover queue
+  ccb-cc-switch queue
+
+  # Test all providers
+  ccb-cc-switch test "用一句话解释递归"
+
+  # Test specific providers
+  ccb-cc-switch test "Explain recursion" -p "反重力" -p "AiGoCode-优质逆向"
+
+  # Test with custom timeout
+  ccb-cc-switch test "Complex question..." -t 120
+        """
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+
+    # Status command
+    subparsers.add_parser('status', help='Get CC Switch provider status')
+
+    # Reload command
+    subparsers.add_parser('reload', help='Reload providers from database')
+
+    # Queue command
+    subparsers.add_parser('queue', help='Get failover queue')
+
+    # Test command
+    test_parser = subparsers.add_parser('test', help='Run parallel test')
+    test_parser.add_argument('message', help='Test message to send')
+    test_parser.add_argument('-p', '--provider', dest='providers', action='append',
+                            help='Provider to test (can be specified multiple times)')
+    test_parser.add_argument('-t', '--timeout', type=float, default=60.0,
+                            help='Timeout in seconds (default: 60)')
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return 1
+
+    if args.command == 'status':
+        return get_status()
+    elif args.command == 'reload':
+        return reload_providers()
+    elif args.command == 'queue':
+        return get_failover_queue()
+    elif args.command == 'test':
+        return parallel_test(args.message, args.providers, args.timeout)
+    else:
+        parser.print_help()
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

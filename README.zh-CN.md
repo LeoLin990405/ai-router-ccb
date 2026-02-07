@@ -722,6 +722,110 @@ ccb-submit discuss \
 
 ---
 
+### 🔄 CC Switch 集成
+
+**Provider 管理 & 并行测试** - 与 [CC Switch](https://github.com/your-repo/cc-switch) 集成，提供高级 Provider 管理和测试功能。
+
+**CC Switch 提供：**
+- 🔀 **故障转移队列** - 基于优先级的自动 Provider 切换
+- 📊 **Provider 状态** - 实时监控 Provider 健康状况
+- ⚡ **并行测试** - 同时测试多个 Provider
+- 🎯 **智能路由** - 基于优先级的 Provider 选择
+
+**安装：**
+
+```bash
+# CC Switch 已集成到 CCB Gateway
+# 数据库位置：~/.cc-switch/cc-switch.db
+```
+
+**命令：**
+
+```bash
+# 获取 Provider 状态和故障转移队列
+ccb-cc-switch status
+
+# 从数据库重新加载 Provider
+ccb-cc-switch reload
+
+# 仅获取故障转移队列
+ccb-cc-switch queue
+
+# 并行测试所有活跃 Provider
+ccb-cc-switch test "用一句话解释递归"
+
+# 测试指定 Provider
+ccb-cc-switch test "解释递归" \
+  -p "反重力" \
+  -p "AiGoCode-优质逆向" \
+  -p "Claude Official"
+
+# 使用自定义超时测试
+ccb-cc-switch test "复杂问题..." -t 120
+```
+
+**API 端点：**
+
+```
+GET  /api/cc-switch/status            # Provider 状态和故障转移队列
+POST /api/cc-switch/reload            # 从数据库重新加载 Provider
+POST /api/cc-switch/parallel-test     # 运行并行 Provider 测试
+GET  /api/cc-switch/failover-queue    # 仅获取故障转移队列
+```
+
+**API 使用示例：**
+
+```bash
+# 获取 Provider 状态
+curl http://localhost:8765/api/cc-switch/status | jq .
+
+# 并行测试
+curl -X POST http://localhost:8765/api/cc-switch/parallel-test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "用一句话解释递归",
+    "providers": ["反重力", "AiGoCode-优质逆向"],
+    "timeout_s": 60
+  }' | jq .
+```
+
+**响应格式：**
+
+```json
+{
+  "request_id": "cc-parallel-1738906789000",
+  "message": "用一句话解释递归",
+  "providers": ["反重力", "AiGoCode-优质逆向"],
+  "results": {
+    "反重力": {
+      "success": true,
+      "response": "递归是函数调用自身的编程技术...",
+      "latency_ms": 1234.56,
+      "tokens_used": 128
+    },
+    "AiGoCode-优质逆向": {
+      "success": true,
+      "response": "递归就是函数自己调用自己...",
+      "latency_ms": 2345.67,
+      "tokens_used": 95
+    }
+  },
+  "success_count": 2,
+  "failure_count": 0,
+  "fastest_provider": "反重力",
+  "fastest_latency_ms": 1234.56,
+  "total_latency_ms": 2345.67
+}
+```
+
+**主要优势：**
+- ⚡ **快速 Provider 发现** - 识别最快的 Provider
+- 🔍 **质量对比** - 跨 Provider 比较响应
+- 🛡️ **可靠性测试** - 验证 Provider 可用性
+- 📊 **性能指标** - 跟踪延迟和 Token 使用
+
+---
+
 ### 📊 实时监控
 
 **基于 WebSocket 的仪表盘**，实时更新：http://localhost:8765/web

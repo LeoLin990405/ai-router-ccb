@@ -790,6 +790,110 @@ ccb-submit discuss \
 
 ---
 
+### 🔄 CC Switch Integration
+
+**Provider Management & Parallel Testing** - Integrate with [CC Switch](https://github.com/your-repo/cc-switch) for advanced provider management and testing.
+
+**CC Switch** provides:
+- 🔀 **Failover Queue** - Automatic provider switching based on priority
+- 📊 **Provider Status** - Real-time monitoring of provider health
+- ⚡ **Parallel Testing** - Test multiple providers simultaneously
+- 🎯 **Intelligent Routing** - Priority-based provider selection
+
+**Installation:**
+
+```bash
+# CC Switch is integrated into CCB Gateway
+# Database location: ~/.cc-switch/cc-switch.db
+```
+
+**Commands:**
+
+```bash
+# Get provider status and failover queue
+ccb-cc-switch status
+
+# Reload providers from database
+ccb-cc-switch reload
+
+# Get failover queue only
+ccb-cc-switch queue
+
+# Test all active providers in parallel
+ccb-cc-switch test "用一句话解释递归"
+
+# Test specific providers
+ccb-cc-switch test "Explain recursion" \
+  -p "反重力" \
+  -p "AiGoCode-优质逆向" \
+  -p "Claude Official"
+
+# Test with custom timeout
+ccb-cc-switch test "Complex question..." -t 120
+```
+
+**API Endpoints:**
+
+```
+GET  /api/cc-switch/status            # Provider status and failover queue
+POST /api/cc-switch/reload            # Reload providers from database
+POST /api/cc-switch/parallel-test     # Run parallel provider test
+GET  /api/cc-switch/failover-queue    # Get failover queue only
+```
+
+**Example API Usage:**
+
+```bash
+# Get provider status
+curl http://localhost:8765/api/cc-switch/status | jq .
+
+# Parallel test
+curl -X POST http://localhost:8765/api/cc-switch/parallel-test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "用一句话解释递归",
+    "providers": ["反重力", "AiGoCode-优质逆向"],
+    "timeout_s": 60
+  }' | jq .
+```
+
+**Response Format:**
+
+```json
+{
+  "request_id": "cc-parallel-1738906789000",
+  "message": "用一句话解释递归",
+  "providers": ["反重力", "AiGoCode-优质逆向"],
+  "results": {
+    "反重力": {
+      "success": true,
+      "response": "递归是函数调用自身的编程技术...",
+      "latency_ms": 1234.56,
+      "tokens_used": 128
+    },
+    "AiGoCode-优质逆向": {
+      "success": true,
+      "response": "递归就是函数自己调用自己...",
+      "latency_ms": 2345.67,
+      "tokens_used": 95
+    }
+  },
+  "success_count": 2,
+  "failure_count": 0,
+  "fastest_provider": "反重力",
+  "fastest_latency_ms": 1234.56,
+  "total_latency_ms": 2345.67
+}
+```
+
+**Key Benefits:**
+- ⚡ **Fast Provider Discovery** - Identify fastest providers
+- 🔍 **Quality Comparison** - Compare responses across providers
+- 🛡️ **Reliability Testing** - Verify provider availability
+- 📊 **Performance Metrics** - Track latency and token usage
+
+---
+
 ### 📊 Real-time Monitoring
 
 **WebSocket-based dashboard** with live updates at http://localhost:8765/web

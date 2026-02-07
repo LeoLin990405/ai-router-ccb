@@ -1903,244 +1903,22 @@
                 </div>
             </div>
 
-            <!-- B1: Cost Analysis Tab -->
-            <div v-show="activeTab === 'costs'" class="space-y-6">
-                <div class="glass-card p-6">
-                    <h2 class="text-lg font-semibold flex items-center mb-6">
-                        <i class="fas fa-dollar-sign text-emerald-400 mr-3"></i>{{ t('costAnalysis') }}
-                    </h2>
+            <!-- Costs Tab merged into Dashboard -->
 
-                    <!-- Cost Summary Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <div class="glass-card p-4 border-l-4 border-emerald-500">
-                            <div class="text-sm text-gray-400 mb-1">{{ t('today') }}</div>
-                            <div class="text-2xl font-bold text-emerald-400">${{ formatCost(costSummary.today?.total_cost || 0) }}</div>
-                            <div class="text-xs text-gray-500 mt-1">{{ (costSummary.today?.total_tokens || 0).toLocaleString() }} tokens</div>
-                        </div>
-                        <div class="glass-card p-4 border-l-4 border-cyan-500">
-                            <div class="text-sm text-gray-400 mb-1">{{ t('thisWeek') }}</div>
-                            <div class="text-2xl font-bold text-cyan-400">${{ formatCost(costSummary.week?.total_cost || 0) }}</div>
-                            <div class="text-xs text-gray-500 mt-1">{{ (costSummary.week?.total_tokens || 0).toLocaleString() }} tokens</div>
-                        </div>
-                        <div class="glass-card p-4 border-l-4 border-purple-500">
-                            <div class="text-sm text-gray-400 mb-1">{{ t('thisMonth') }}</div>
-                            <div class="text-2xl font-bold text-purple-400">${{ formatCost(costSummary.month?.total_cost || 0) }}</div>
-                            <div class="text-xs text-gray-500 mt-1">{{ (costSummary.month?.total_tokens || 0).toLocaleString() }} tokens</div>
-                        </div>
-                    </div>
-
-                    <!-- Cost Trend Chart -->
-                    <div class="glass-card p-4 mb-6">
-                        <h3 class="text-sm font-semibold text-gray-300 mb-4">{{ t('dailyCostTrend') }}</h3>
-                        <div style="height: 200px;">
-                            <canvas ref="costChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Provider Cost Breakdown -->
-                    <div class="glass-card p-4">
-                        <h3 class="text-sm font-semibold text-gray-300 mb-4">{{ t('costByProvider') }}</h3>
-                        <div class="overflow-x-auto">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ t('provider') }}</th>
-                                        <th>{{ t('requests') }}</th>
-                                        <th>{{ t('tokens') }}</th>
-                                        <th>{{ t('cost') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="p in costByProvider" :key="p.provider">
-                                        <td>
-                                            <span class="flex items-center">
-                                                <span class="mr-2">{{ getProviderTierIcon(p.provider) }}</span>
-                                                <span class="font-medium capitalize">{{ p.provider }}</span>
-                                            </span>
-                                        </td>
-                                        <td>{{ p.request_count }}</td>
-                                        <td>{{ ((p.total_input_tokens || 0) + (p.total_output_tokens || 0)).toLocaleString() }}</td>
-                                        <td class="font-mono text-emerald-400">${{ (p.total_cost_usd || 0).toFixed(4) }}</td>
-                                    </tr>
-                                    <tr v-if="costByProvider.length === 0">
-                                        <td colspan="4" class="text-center text-gray-500">{{ t('noCostData') }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            <!-- Settings Tab (merged Config + API Keys) -->
+            <div v-show="activeTab === 'settings'" class="space-y-6">
+                <!-- Sub-tabs for Settings -->
+                <div class="flex space-x-2 mb-6">
+                    <button @click="settingsSubTab = 'config'" :class="['px-4 py-2 rounded-lg transition-colors', settingsSubTab === 'config' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-400 hover:text-white']">
+                        <i class="fas fa-cog mr-2"></i>{{ t('systemConfig') }}
+                    </button>
+                    <button @click="settingsSubTab = 'keys'" :class="['px-4 py-2 rounded-lg transition-colors', settingsSubTab === 'keys' ? 'bg-amber-500/20 text-amber-400' : 'text-gray-400 hover:text-white']">
+                        <i class="fas fa-key mr-2"></i>{{ t('apiKeys') }}
+                    </button>
                 </div>
-            </div>
 
-            <!-- Test Tab -->
-            <div v-show="activeTab === 'test'" class="space-y-6">
-                <!-- Gateway Mode Banner -->
-                <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 rounded-xl p-4 border border-indigo-500/30">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-rocket text-indigo-400 text-xl"></i>
-                            <div>
-                                <h3 class="font-semibold text-white">{{ t('gatewayModeActive') }}</h3>
-                                <p class="text-sm text-gray-400">{{ t('gatewayModeDesc') }}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <div class="text-right">
-                                <div class="text-xs text-gray-400">{{ t('syncApi') }}</div>
-                                <code class="text-xs text-cyan-400">/api/ask?wait=true</code>
-                            </div>
-                            <label class="flex items-center space-x-2 cursor-pointer">
-                                <span class="text-sm text-gray-400">{{ t('waitMode') }}</span>
-                                <div @click="testForm.waitMode = !testForm.waitMode" :class="['toggle-switch', testForm.waitMode ? 'active' : '']"></div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="glass-card p-6">
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-lg font-semibold flex items-center"><i class="fas fa-flask text-purple-400 mr-3"></i>{{ t('quickTest') }}</h2>
-                            <div class="flex items-center space-x-2">
-                                <select v-model="selectedTemplate" @change="loadTemplate" class="input-field w-40 text-sm cursor-pointer">
-                                    <option value="">{{ t('selectTemplate') }}</option>
-                                    <option v-for="(tpl, i) in testTemplates" :key="i" :value="String(i)">{{ tpl.name }}</option>
-                                </select>
-                                <button @click="showSaveTemplateModal = true" class="btn-secondary py-1 px-2" :title="t('saveTemplate')"><i class="fas fa-save"></i></button>
-                            </div>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm text-gray-400 mb-2">{{ t('provider') }}</label>
-                                    <select v-model="testForm.provider" class="input-field">
-                                        <option value="">{{ t('autoDefault') }}</option>
-                                        <optgroup label="🚀 Fast (5-15s)">
-                                            <option value="kimi">🚀 kimi</option>
-                                            <option value="qwen">🚀 qwen</option>
-                                        </optgroup>
-                                        <optgroup label="⚡ Medium (15-60s)">
-                                            <option value="deepseek">⚡ deepseek</option>
-                                            <option value="iflow">⚡ iflow</option>
-                                            <option value="opencode">⚡ opencode</option>
-                                        </optgroup>
-                                        <optgroup label="🐢 Slow (60-120s)">
-                                            <option value="codex">🐢 codex</option>
-                                            <option value="gemini">🐢 gemini</option>
-                                        </optgroup>
-                                        <optgroup label="📦 Groups">
-                                            <option value="@all">@all - {{ t('allProvidersGroup') }}</option>
-                                            <option value="@fast">@fast - {{ t('fastProviders') }}</option>
-                                            <option value="@chinese">@chinese - {{ t('chineseProviders') }}</option>
-                                            <option value="@coding">@coding - {{ t('codingProviders') }}</option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-                                <div v-if="testForm.waitMode">
-                                    <label class="block text-sm text-gray-400 mb-2">{{ t('timeoutSeconds') }}</label>
-                                    <input type="number" v-model.number="testForm.timeout" class="input-field" min="10" max="300" placeholder="120">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm text-gray-400 mb-2">{{ t('message') }}</label>
-                                <textarea v-model="testForm.message" rows="4" class="input-field font-mono text-sm" :placeholder="t('enterMessage')"></textarea>
-                            </div>
-                            <div class="flex items-center space-x-6">
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" v-model="testForm.stream" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-500 focus:ring-indigo-500" :disabled="testForm.waitMode">
-                                    <span class="text-sm" :class="testForm.waitMode ? 'text-gray-600' : ''">{{ t('stream') }}</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer">
-                                    <input type="checkbox" v-model="testForm.cacheBypass" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-500 focus:ring-indigo-500">
-                                    <span class="text-sm">{{ t('bypassCache') }}</span>
-                                </label>
-                                <label class="flex items-center space-x-2 cursor-pointer" v-if="testForm.waitMode">
-                                    <span class="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full">{{ t('syncMode') }}</span>
-                                </label>
-                            </div>
-                            <button @click="sendTestRequest" :disabled="testSending" class="w-full btn-primary py-3 text-base">
-                                <i v-if="testSending" class="fas fa-spinner fa-spin mr-2"></i>
-                                {{ testSending ? (testForm.waitMode ? t('waitingForResponse') : t('sending')) : (testForm.waitMode ? t('sendSync') : t('sendTest')) }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="glass-card p-6">
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-lg font-semibold flex items-center"><i class="fas fa-terminal text-emerald-400 mr-3"></i>{{ t('result') }}</h2>
-                            <span v-if="testResult" class="badge" :class="testResult.success ? 'badge-success' : 'badge-error'">{{ testResult.latency }}ms</span>
-                        </div>
-                        <div v-if="testResult" class="space-y-4">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-gray-400">{{ t('status') }}:</span>
-                                <span :class="testResult.success ? 'text-emerald-400' : 'text-rose-400'" class="font-medium">{{ testResult.success ? t('completed') : t('failed') }}</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <span class="text-gray-400">{{ t('requestId') }}:</span>
-                                <span class="font-mono text-indigo-400">{{ testResult.requestId }}</span>
-                            </div>
-                            <div v-if="testResult.cached" class="badge badge-success">{{ t('cached') }}</div>
-                            <div>
-                                <span class="text-gray-400 block mb-2">{{ t('response') }}:</span>
-                                <pre class="bg-gray-900/50 rounded-xl p-4 text-sm overflow-auto max-h-64 font-mono" :class="testResult.success ? 'text-emerald-300' : 'text-rose-300'">{{ testResult.response || testResult.error }}</pre>
-                            </div>
-                        </div>
-                        <div v-else class="text-center py-16 text-gray-500"><i class="fas fa-paper-plane text-4xl mb-3"></i><p>{{ t('sendToSee') }}</p></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- API Keys Tab -->
-            <div v-show="activeTab === 'keys'" class="space-y-6">
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-lg font-semibold flex items-center"><i class="fas fa-key text-amber-400 mr-3"></i>{{ t('apiKeys') }}</h2>
-                        <button @click="showCreateKeyModal = true" class="btn-primary"><i class="fas fa-plus mr-2"></i>{{ t('createKey') }}</button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ t('keyId') }}</th>
-                                    <th>{{ t('name') }}</th>
-                                    <th>{{ t('createdAt') }}</th>
-                                    <th>{{ t('lastUsed') }}</th>
-                                    <th>{{ t('rateLimit') }}</th>
-                                    <th>{{ t('status') }}</th>
-                                    <th>{{ t('actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="key in apiKeys" :key="key.key_id">
-                                    <td class="font-mono text-sm">{{ key.key_id }}</td>
-                                    <td class="font-medium">{{ key.name }}</td>
-                                    <td class="text-sm text-gray-400">{{ formatTime(key.created_at) }}</td>
-                                    <td class="text-sm text-gray-400">{{ key.last_used_at ? formatTime(key.last_used_at) : t('never') }}</td>
-                                    <td>{{ key.rate_limit_rpm || t('default') }}</td>
-                                    <td><span :class="key.enabled ? 'badge-success' : 'badge-error'" class="badge">{{ key.enabled ? t('activeStatus') : t('disabled') }}</span></td>
-                                    <td>
-                                        <div class="flex space-x-2">
-                                            <button @click="toggleKey(key)" :class="key.enabled ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'" class="text-xs py-1 px-2 rounded-lg">{{ key.enabled ? t('disable') : t('enable') }}</button>
-                                            <button @click="showConfirmDialog(t('deleteKey'), t('confirmDeleteKey'), () => deleteKey(key.key_id))" class="text-xs py-1 px-2 bg-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/30">{{ t('delete') }}</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div v-if="newApiKey" class="glass-card p-6 border-emerald-500/30 bg-emerald-500/5">
-                    <div class="font-semibold text-emerald-400 mb-2 flex items-center"><i class="fas fa-check-circle mr-2"></i>{{ t('newKeyCreated') }}</div>
-                    <div class="text-sm text-gray-300 mb-3">{{ t('saveKeyNow') }}</div>
-                    <div class="flex items-center space-x-3">
-                        <div class="flex-1 bg-gray-900/50 p-4 rounded-xl font-mono text-sm break-all select-all border border-gray-700">{{ newApiKey }}</div>
-                        <button @click="copyToClipboard(newApiKey)" class="btn-primary py-3 px-4"><i class="fas fa-copy mr-2"></i>{{ t('copy') }}</button>
-                    </div>
-                    <button @click="newApiKey = null" class="mt-4 btn-secondary text-sm">{{ t('dismiss') }}</button>
-                </div>
-            </div>
-
-            <!-- Config Tab -->
-            <div v-show="activeTab === 'config'" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- System Config Section -->
+                <div v-show="settingsSubTab === 'config'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div class="glass-card p-6">
                         <h2 class="text-lg font-semibold flex items-center mb-6"><i class="fas fa-shield-alt text-indigo-400 mr-3"></i>{{ t('authentication') }}</h2>
                         <div class="space-y-3">
@@ -2361,68 +2139,59 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Compare Tab -->
-            <div v-show="activeTab === 'compare'" class="space-y-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- API Keys Section -->
+                <div v-show="settingsSubTab === 'keys'" class="space-y-6">
                     <div class="glass-card p-6">
-                        <h2 class="text-lg font-semibold flex items-center mb-6"><i class="fas fa-chart-radar text-indigo-400 mr-3"></i>{{ t('providerComparison') }}</h2>
-                        <div class="flex justify-center"><canvas ref="radarChart" height="300" style="max-width: 350px;"></canvas></div>
-                    </div>
-                    <div class="glass-card p-6">
-                        <h2 class="text-lg font-semibold flex items-center mb-6"><i class="fas fa-table text-purple-400 mr-3"></i>{{ t('performanceMetrics') }}</h2>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ t('provider') }}</th>
-                                    <th>{{ t('avgLatency') }}</th>
-                                    <th>{{ t('successRate') }}</th>
-                                    <th>{{ t('score') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="p in sortedProviders" :key="p.name">
-                                    <td class="font-medium">{{ p.name }}</td>
-                                    <td>{{ formatLatency(p.avg_latency_ms) }}</td>
-                                    <td :class="p.success_rate >= 0.9 ? 'text-emerald-400' : 'text-amber-400'">{{ formatPercent(p.success_rate) }}</td>
-                                    <td>
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-16 bg-gray-700 rounded-full h-2"><div class="h-2 rounded-full" :class="getScoreColor(p.score)" :style="{width: (p.score || 0) + '%'}"></div></div>
-                                            <span class="text-xs">{{ Math.round(p.score || 0) }}</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-lg font-semibold flex items-center"><i class="fas fa-clock text-cyan-400 mr-3"></i>{{ t('requestTimeline') }}</h2>
-                        <select v-model="timelineRange" class="input-field w-32">
-                            <option value="1h">{{ t('last1h') }}</option>
-                            <option value="6h">{{ t('last6h') }}</option>
-                            <option value="24h">{{ t('last24h') }}</option>
-                        </select>
-                    </div>
-                    <div class="chart-container" style="height: 120px;"><canvas ref="timelineChart" height="100"></canvas></div>
-                </div>
-                <div class="glass-card p-6">
-                    <h2 class="text-lg font-semibold flex items-center mb-6"><i class="fas fa-stopwatch text-amber-400 mr-3"></i>{{ t('quickBenchmark') }}</h2>
-                    <div class="flex items-center space-x-4 mb-6">
-                        <input v-model="benchmarkMessage" type="text" class="input-field flex-1" :placeholder="t('enterBenchmark')">
-                        <button @click="runBenchmark" :disabled="benchmarkRunning" class="btn-primary">{{ benchmarkRunning ? t('running') : t('runBenchmark') }}</button>
-                    </div>
-                    <div v-if="benchmarkResults.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div v-for="result in benchmarkResults" :key="result.provider" class="provider-card text-center">
-                            <div class="font-medium mb-2">{{ result.provider }}</div>
-                            <div class="text-2xl font-bold" :class="result.success ? 'text-emerald-400' : 'text-rose-400'">{{ result.success ? formatLatency(result.latency) : t('failed') }}</div>
-                            <div class="text-xs text-gray-400 mt-1">{{ result.success ? t('completed') : result.error }}</div>
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-semibold flex items-center"><i class="fas fa-key text-amber-400 mr-3"></i>{{ t('apiKeys') }}</h2>
+                            <button @click="showCreateKeyModal = true" class="btn-primary"><i class="fas fa-plus mr-2"></i>{{ t('createKey') }}</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ t('keyId') }}</th>
+                                        <th>{{ t('name') }}</th>
+                                        <th>{{ t('createdAt') }}</th>
+                                        <th>{{ t('lastUsed') }}</th>
+                                        <th>{{ t('rateLimit') }}</th>
+                                        <th>{{ t('status') }}</th>
+                                        <th>{{ t('actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="key in apiKeys" :key="key.key_id">
+                                        <td class="font-mono text-sm">{{ key.key_id }}</td>
+                                        <td class="font-medium">{{ key.name }}</td>
+                                        <td class="text-sm text-gray-400">{{ formatTime(key.created_at) }}</td>
+                                        <td class="text-sm text-gray-400">{{ key.last_used_at ? formatTime(key.last_used_at) : t('never') }}</td>
+                                        <td>{{ key.rate_limit_rpm || t('default') }}</td>
+                                        <td><span :class="key.enabled ? 'badge-success' : 'badge-error'" class="badge">{{ key.enabled ? t('activeStatus') : t('disabled') }}</span></td>
+                                        <td>
+                                            <div class="flex space-x-2">
+                                                <button @click="toggleKey(key)" :class="key.enabled ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'" class="text-xs py-1 px-2 rounded-lg">{{ key.enabled ? t('disable') : t('enable') }}</button>
+                                                <button @click="showConfirmDialog(t('deleteKey'), t('confirmDeleteKey'), () => deleteKey(key.key_id))" class="text-xs py-1 px-2 bg-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/30">{{ t('delete') }}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                    <div v-if="newApiKey" class="glass-card p-6 border-emerald-500/30 bg-emerald-500/5">
+                        <div class="font-semibold text-emerald-400 mb-2 flex items-center"><i class="fas fa-check-circle mr-2"></i>{{ t('newKeyCreated') }}</div>
+                        <div class="text-sm text-gray-300 mb-3">{{ t('saveKeyNow') }}</div>
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-1 bg-gray-900/50 p-4 rounded-xl font-mono text-sm break-all select-all border border-gray-700">{{ newApiKey }}</div>
+                            <button @click="copyToClipboard(newApiKey)" class="btn-primary py-3 px-4"><i class="fas fa-copy mr-2"></i>{{ t('copy') }}</button>
+                        </div>
+                        <button @click="newApiKey = null" class="mt-4 btn-secondary text-sm">{{ t('dismiss') }}</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Compare Tab merged into Dashboard -->
         </main>
 
         <!-- Modals -->
@@ -2935,6 +2704,8 @@
                 const showMemoryConfigModal = ref(false);
                 // v0.21: Memory sub-tabs
                 const memorySubTab = ref('sessions');  // 'sessions', 'observations', 'injections', 'discussions', 'system2', 'heuristic'
+                // Settings sub-tab state (NEW)
+                const settingsSubTab = ref('config');  // 'config', 'keys'
                 // v0.21: Discussion memories
                 const discussionMemories = ref([]);
 
@@ -3464,6 +3235,7 @@
                 const latencyData = ref([]);
                 const statusCounts = ref({ completed: 0, failed: 0, queued: 0, processing: 0 });
 
+                // Optimized tabs: 11 → 7 (removed Test, merged Costs/Compare to Dashboard, merged Keys to Settings)
                 const tabs = [
                     { id: 'dashboard', name: 'Dashboard', icon: '<i class="fas fa-chart-line"></i>', shortcut: '1' },
                     { id: 'monitor', name: 'Monitor', icon: '<i class="fas fa-desktop"></i>', shortcut: '2' },
@@ -3471,11 +3243,7 @@
                     { id: 'skills', name: 'Skills', icon: '<i class="fas fa-tools"></i>', shortcut: '4' },
                     { id: 'discussions', name: 'Discussions', icon: '<i class="fas fa-comments"></i>', shortcut: '5' },
                     { id: 'requests', name: 'Requests', icon: '<i class="fas fa-list"></i>', shortcut: '6' },
-                    { id: 'costs', name: 'Costs', icon: '<i class="fas fa-dollar-sign"></i>', shortcut: '7' },
-                    { id: 'test', name: 'Test', icon: '<i class="fas fa-flask"></i>', shortcut: '8' },
-                    { id: 'compare', name: 'Compare', icon: '<i class="fas fa-balance-scale"></i>', shortcut: '9' },
-                    { id: 'keys', name: 'API Keys', icon: '<i class="fas fa-key"></i>', shortcut: '0' },
-                    { id: 'config', name: 'Config', icon: '<i class="fas fa-cog"></i>', shortcut: '-' },
+                    { id: 'settings', name: 'Settings', icon: '<i class="fas fa-cog"></i>', shortcut: '7' },
                 ];
 
                 // Computed

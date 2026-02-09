@@ -1,0 +1,427 @@
+#!/usr/bin/env python3
+"""pdf-to-notebook - Automated PDF to NotebookLM pipeline.
+
+Fully automated: analyze → split → convert → upload.
+No GUI operations required.
+
+Usage:
+    pdf-to-notebook /path/to/book.pdf "《书名》"
+    pdf-to-notebook /path/to/book.pdf "《书名》" --max-pages 500
+    pdf-to-notebook /path/to/book.pdf "《书名》" --method mineru
+"""
+from __future__ import annotations
+
+import argparse
+import http.client
+import io
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import zipfile
+from pathlib import Path
+from typing import List, Optional, Tuple
+from urllib import request as urllib_request
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    print("Error: PyMuPDF required. Install: pip3 install pymupdf", file=sys.stderr)
+    sys.exit(1)
+
+NOTEBOOKLM_BIN = os.environ.get("NOTEBOOKLM_BIN", shutil.which("notebooklm") or "/Users/leo/.local/bin/notebooklm")
+MAX_PAGES_PER_CHUNK = 500
+MAX_UPLOAD_PAGES = 600
+
+# MinerU Cloud API
+MINERU_API_BASE = "https://mineru.net/api/v4"
+MINERU_TOKEN_FILE = os.path.expanduser("~/.config/mineru/token")
+
+
+def _get_mineru_token() -> str:
+    """Read MinerU API token from file or env."""
+    token = os.environ.get("MINERU_API_TOKEN", "")
+    if token:
+        return token.strip()
+    if os.path.exists(MINERU_TOKEN_FILE):
+        return Path(MINERU_TOKEN_FILE).read_text().strip()
+    raise RuntimeError(
+        f"MinerU API token not found. Set MINERU_API_TOKEN env or create {MINERU_TOKEN_FILE}"
+    )
+
+
+def _mineru_request(endpoint: str, data: Optional[dict] = None, method: str = "GET") -> dict:
+    """Make authenticated request to MinerU API."""
+    token = _get_mineru_token()
+    url = f"{MINERU_API_BASE}/{endpoint}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    if data is not None:
+        body = json.dumps(data).encode("utf-8")
+        req = urllib_request.Request(url, data=body, headers=headers, method=method or "POST")
+    else:
+        req = urllib_request.Request(url, headers=headers, method=method)
+
+    try:
+        with urllib_request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"MinerU API error {e.code}: {body[:500]}")
+    except URLError as e:
+        raise RuntimeError(f"MinerU API connection error: {e.reason}")
+
+
+# ── Step 1: Analyze PDF ──────────────────────────────────────────────
+
+def analyze_pdf(pdf_path: str) -> dict:
+    """Analyze PDF: page count, TOC, text detection."""
+    doc = fitz.open(pdf_path)
+    total_pages = len(doc)
+    toc = doc.get_toc()
+
+    # Sample pages to detect if text-based or scanned
+    text_pages = 0
+    sample_count = min(10, total_pages)
+    for i in range(0, total_pages, max(1, total_pages // sample_count)):
+        if doc[i].get_text("text").strip():
+            text_pages += 1
+
+    is_text_pdf = text_pages >= sample_count * 0.7
+    doc.close()
+
+    return {
+        "path": pdf_path,
+        "total_pages": total_pages,
+        "toc": toc,
+        "is_text_pdf": is_text_pdf,
+        "needs_split": total_pages > MAX_UPLOAD_PAGES,
+        "text_pages_sampled": text_pages,
+        "sample_count": sample_count,
+    }
+
+
+# ── Step 2: Plan split ──────────────────────────────────────────────
+
+def plan_split(info: dict, max_pages: int = MAX_PAGES_PER_CHUNK) -> List[Tuple[int, int]]:
+    """Plan split ranges, preferring chapter boundaries."""
+    total = info["total_pages"]
+    if total <= MAX_UPLOAD_PAGES:
+        return [(0, total - 1)]
+
+    toc = info["toc"]
+    # Extract top-level chapter start pages
+    chapter_starts = sorted(set(page - 1 for level, _, page in toc if level <= 2 and page > 0))
+
+    ranges = []
+    start = 0
+    while start < total:
+        end = min(start + max_pages - 1, total - 1)
+
+        # Try to align to chapter boundary
+        if end < total - 1 and chapter_starts:
+            best = None
+            for cs in chapter_starts:
+                if start < cs <= end + 50:  # allow small overflow
+                    best = cs
+            if best and best > start + max_pages * 0.5:  # at least half full
+                end = best - 1
+
+        ranges.append((start, end))
+        start = end + 1
+
+    return ranges
+
+
+# ── Step 3: Split PDF ───────────────────────────────────────────────
+
+def split_pdf(pdf_path: str, ranges: List[Tuple[int, int]], output_dir: str) -> List[str]:
+    """Split PDF into chunks using PyMuPDF."""
+    if len(ranges) == 1 and ranges[0][0] == 0:
+        return [pdf_path]
+
+    doc = fitz.open(pdf_path)
+    parts = []
+    for i, (start, end) in enumerate(ranges):
+        part_path = os.path.join(output_dir, f"part{i+1}_{start+1}-{end+1}.pdf")
+        part_doc = fitz.open()
+        part_doc.insert_pdf(doc, from_page=start, to_page=end)
+        part_doc.save(part_path)
+        part_doc.close()
+        parts.append(part_path)
+        print(f"  Split part {i+1}: pages {start+1}-{end+1} ({end-start+1} pages) → {part_path}")
+
+    doc.close()
+    return parts
+
+
+# ── Step 4: Convert PDF → Markdown ──────────────────────────────────
+
+def convert_pymupdf(pdf_path: str, output_path: str) -> str:
+    """Convert text-based PDF to Markdown using PyMuPDF."""
+    doc = fitz.open(pdf_path)
+    md_parts = []
+    for i, page in enumerate(doc):
+        text = page.get_text("text")
+        if text.strip():
+            md_parts.append(text.strip())
+    doc.close()
+
+    content = "\n\n---\n\n".join(md_parts)
+    Path(output_path).write_text(content, encoding="utf-8")
+    return output_path
+
+
+def convert_mineru(pdf_path: str, output_dir: str) -> str:
+    """Convert PDF to Markdown using MinerU cloud API.
+
+    Flow:
+    1. POST /file-urls/batch → get presigned upload URLs + batch_id
+    2. PUT file content to presigned URL
+    3. Poll /extract-results/batch/{batch_id} until done
+    4. Download full_zip_url → unzip → markdown
+    """
+    filename = Path(pdf_path).name
+    file_size = os.path.getsize(pdf_path)
+    print(f"  Uploading {filename} ({file_size // 1024}KB) to MinerU API...")
+
+    # Step 1: Get presigned upload URLs
+    resp = _mineru_request("file-urls/batch", data={
+        "enable_formula": True,
+        "language": "auto",
+        "layout_model": "doclayout_yolo",
+        "enable_table": True,
+        "files": [{"name": filename, "is_ocr": True, "data_id": filename}],
+    }, method="POST")
+
+    if resp.get("code") != 0:
+        raise RuntimeError(f"MinerU file-urls/batch failed: {resp}")
+
+    batch_data = resp.get("data", {})
+    batch_id = batch_data.get("batch_id", "")
+    file_urls = batch_data.get("file_urls", [])
+
+    if not batch_id or not file_urls:
+        raise RuntimeError(f"MinerU returned no batch_id or file_urls: {resp}")
+
+    # file_urls can be a list of strings or a list of dicts with "url" key
+    first_url = file_urls[0]
+    presigned_url = first_url if isinstance(first_url, str) else first_url.get("url", "")
+    if not presigned_url:
+        raise RuntimeError(f"MinerU returned no presigned URL: {file_urls[0]}")
+
+    print(f"  Batch ID: {batch_id}")
+
+    # Step 2: Upload file content via PUT (use http.client to avoid urllib adding headers
+    # that break OSS presigned URL signatures)
+    print(f"  Uploading file to presigned URL...")
+    file_data = Path(pdf_path).read_bytes()
+    parsed = urlparse(presigned_url)
+    conn = http.client.HTTPSConnection(parsed.hostname, timeout=300)
+    path_with_query = parsed.path + "?" + parsed.query
+    conn.request("PUT", path_with_query, body=file_data)
+    put_resp = conn.getresponse()
+    if put_resp.status not in (200, 201):
+        body = put_resp.read().decode("utf-8", errors="replace")
+        conn.close()
+        raise RuntimeError(f"File upload failed with status {put_resp.status}: {body[:300]}")
+    put_resp.read()  # drain response
+    conn.close()
+    print(f"  Upload complete.")
+
+    # Step 3: Poll for results
+    print(f"  Waiting for extraction (polling every 5s)...")
+    max_wait = 600  # 10 minutes max
+    poll_interval = 5
+    elapsed = 0
+
+    while elapsed < max_wait:
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+
+        status_resp = _mineru_request(f"extract-results/batch/{batch_id}", method="GET")
+        if status_resp.get("code") != 0:
+            raise RuntimeError(f"MinerU status check failed: {status_resp}")
+
+        extract_data = status_resp.get("data", {})
+        state = extract_data.get("extract_result", [{}])[0].get("state", "")
+
+        if state == "done":
+            full_zip_url = extract_data.get("extract_result", [{}])[0].get("full_zip_url", "")
+            if not full_zip_url:
+                raise RuntimeError(f"MinerU done but no full_zip_url: {extract_data}")
+            print(f"  Extraction complete ({elapsed}s)")
+            break
+        elif state == "failed":
+            err_msg = extract_data.get("extract_result", [{}])[0].get("err_msg", "unknown")
+            raise RuntimeError(f"MinerU extraction failed: {err_msg}")
+        else:
+            mins = elapsed // 60
+            secs = elapsed % 60
+            print(f"  ... {state or 'processing'} ({mins}m{secs}s)", end="\r")
+    else:
+        raise RuntimeError(f"MinerU extraction timed out after {max_wait}s")
+
+    # Step 4: Download and unzip
+    print(f"  Downloading results...")
+    zip_req = urllib_request.Request(full_zip_url)
+    with urllib_request.urlopen(zip_req, timeout=120) as zip_resp:
+        zip_data = zip_resp.read()
+
+    extract_dir = os.path.join(output_dir, "mineru_output")
+    os.makedirs(extract_dir, exist_ok=True)
+
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+        zf.extractall(extract_dir)
+
+    # Find markdown file in extracted content
+    md_candidates = list(Path(extract_dir).rglob("*.md"))
+    if not md_candidates:
+        raise FileNotFoundError(f"No markdown found in MinerU output. Files: {list(Path(extract_dir).rglob('*'))}")
+
+    # Prefer full.md or the largest .md file
+    best_md = None
+    for md in md_candidates:
+        if "full" in md.stem.lower():
+            best_md = md
+            break
+    if not best_md:
+        best_md = max(md_candidates, key=lambda p: p.stat().st_size)
+
+    print(f"  → {best_md.name} ({best_md.stat().st_size // 1024}KB)")
+    return str(best_md)
+
+
+def convert_pdf(pdf_path: str, output_dir: str, method: str = "auto", is_text: bool = True) -> str:
+    """Convert PDF to Markdown, choosing best method."""
+    md_path = os.path.join(output_dir, Path(pdf_path).stem + ".md")
+
+    if method == "auto":
+        method = "pymupdf" if is_text else "mineru"
+
+    if method == "pymupdf":
+        print(f"  Converting with PyMuPDF (text extraction)...")
+        return convert_pymupdf(pdf_path, md_path)
+    elif method == "mineru":
+        print(f"  Converting with MinerU cloud API (OCR/layout)...")
+        return convert_mineru(pdf_path, output_dir)
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+
+# ── Step 5: Upload to NotebookLM ────────────────────────────────────
+
+def run_notebooklm(args: List[str], timeout: int = 120) -> dict:
+    """Run notebooklm CLI command and parse JSON output."""
+    cmd = [NOTEBOOKLM_BIN] + args + ["--json"]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0:
+        raise RuntimeError(f"notebooklm {' '.join(args)} failed: {result.stderr[-300:]}")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {"raw": result.stdout.strip()}
+
+
+def upload_to_notebooklm(title: str, md_files: List[str], notebook_id: Optional[str] = None) -> dict:
+    """Create notebook and upload markdown files."""
+    if not notebook_id:
+        print(f"\n  Creating notebook: {title}")
+        result = run_notebooklm(["create", title])
+        notebook_id = result.get("id", "")
+        print(f"  Notebook ID: {notebook_id}")
+
+    source_ids = []
+    for md_file in md_files:
+        print(f"  Uploading: {Path(md_file).name} ({Path(md_file).stat().st_size // 1024}KB)")
+        result = run_notebooklm(["source", "add", md_file, "--notebook", notebook_id], timeout=180)
+        sid = result.get("source_id", "unknown")
+        source_ids.append(sid)
+        print(f"  Source ID: {sid}")
+
+    return {"notebook_id": notebook_id, "source_ids": source_ids}
+
+
+# ── Main pipeline ───────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="pdf-to-notebook",
+        description="Automated PDF → NotebookLM pipeline (split + convert + upload)",
+    )
+    parser.add_argument("pdf", help="Path to PDF file")
+    parser.add_argument("title", help="Notebook title")
+    parser.add_argument("--max-pages", type=int, default=MAX_PAGES_PER_CHUNK, help="Max pages per chunk")
+    parser.add_argument("--method", choices=["auto", "pymupdf", "mineru"], default="auto",
+                        help="Conversion method (default: auto-detect)")
+    parser.add_argument("--notebook-id", help="Upload to existing notebook instead of creating new one")
+    parser.add_argument("--dry-run", action="store_true", help="Analyze and plan only, don't execute")
+    parser.add_argument("--keep-temp", action="store_true", help="Keep temporary files")
+    args = parser.parse_args()
+
+    pdf_path = os.path.expanduser(args.pdf)
+    if not os.path.exists(pdf_path):
+        print(f"Error: {pdf_path} not found", file=sys.stderr)
+        return 1
+
+    # Step 1: Analyze
+    print(f"[1/5] Analyzing PDF...")
+    info = analyze_pdf(pdf_path)
+    print(f"  Pages: {info['total_pages']}")
+    print(f"  TOC entries: {len(info['toc'])}")
+    print(f"  Type: {'text-based' if info['is_text_pdf'] else 'scanned/image'}")
+    print(f"  Needs split: {'yes' if info['needs_split'] else 'no'}")
+
+    if not info["is_text_pdf"] and args.method == "auto":
+        print(f"  Note: scanned PDF detected, will use MinerU cloud API")
+
+    # Step 2: Plan split
+    print(f"\n[2/5] Planning split...")
+    ranges = plan_split(info, args.max_pages)
+    for i, (s, e) in enumerate(ranges):
+        print(f"  Chunk {i+1}: pages {s+1}-{e+1} ({e-s+1} pages)")
+
+    if args.dry_run:
+        print(f"\n[dry-run] Would create {len(ranges)} chunk(s), convert, and upload to '{args.title}'")
+        return 0
+
+    # Step 3: Split
+    tmpdir = tempfile.mkdtemp(prefix="pdf2nb_")
+    try:
+        print(f"\n[3/5] Splitting PDF...")
+        parts = split_pdf(pdf_path, ranges, tmpdir)
+        if len(parts) == 1 and parts[0] == pdf_path:
+            print(f"  No split needed (single chunk)")
+
+        # Step 4: Convert
+        print(f"\n[4/5] Converting to Markdown...")
+        md_files = []
+        for part in parts:
+            md_path = convert_pdf(part, tmpdir, args.method, info["is_text_pdf"])
+            size_kb = Path(md_path).stat().st_size // 1024
+            print(f"  → {Path(md_path).name} ({size_kb}KB)")
+            md_files.append(md_path)
+
+        # Step 5: Upload
+        print(f"\n[5/5] Uploading to NotebookLM...")
+        result = upload_to_notebooklm(args.title, md_files, args.notebook_id)
+        print(f"\n  Done! Notebook: {result['notebook_id']}")
+        print(f"  Sources: {len(result['source_ids'])}")
+
+    finally:
+        if not args.keep_temp:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

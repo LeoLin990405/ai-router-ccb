@@ -8,10 +8,18 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import traceback
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Callable, Union
+
+
+def _warn(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
+
+
+HANDLED_EXCEPTIONS = (Exception,)
 
 
 class HookEvent(Enum):
@@ -201,7 +209,7 @@ class HooksManager:
                         hook_name=hook.name,
                     ))
 
-            except Exception as e:
+            except HANDLED_EXCEPTIONS as e:
                 results.append(HookResult(
                     success=False,
                     error=str(e),
@@ -251,7 +259,7 @@ class HooksManager:
                         hook_name=hook.name,
                     ))
 
-            except Exception as e:
+            except HANDLED_EXCEPTIONS as e:
                 results.append(HookResult(
                     success=False,
                     error=str(e),
@@ -307,8 +315,8 @@ class HooksManager:
                         after = sum(len(h) for h in self._hooks.values())
                         count += after - before
 
-            except Exception as e:
-                print(f"Failed to load hook {hook_file}: {e}")
+            except HANDLED_EXCEPTIONS as e:
+                _warn(f"Failed to load hook {hook_file}: {e}")
 
         return count
 
@@ -361,7 +369,7 @@ def hook(
     Usage:
         @hook(HookEvent.PRE_REQUEST)
         def my_hook(context: HookContext):
-            print(f"Request: {context.data}")
+            _warn(f"Request: {context.data}")
     """
     def decorator(func: Callable):
         manager = get_hooks_manager()

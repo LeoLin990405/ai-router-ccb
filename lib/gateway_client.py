@@ -14,6 +14,9 @@ import urllib.error
 from typing import Optional, Tuple
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def get_gateway_url() -> str:
     """Get the gateway URL from environment or default."""
     return os.environ.get("CCB_GATEWAY_URL", "http://localhost:8765")
@@ -98,7 +101,7 @@ def gateway_ask(
 
     except urllib.error.URLError as e:
         return f"Error: Cannot connect to gateway at {gateway_url}: {e}", 1
-    except Exception as e:
+    except HANDLED_EXCEPTIONS as e:
         return f"Error: {e}", 1
 
 
@@ -118,7 +121,7 @@ def gateway_status() -> Tuple[Optional[dict], int]:
         return data, 0
     except urllib.error.URLError as e:
         return None, 1
-    except Exception as e:
+    except HANDLED_EXCEPTIONS as e:
         return None, 1
 
 
@@ -131,7 +134,7 @@ def gateway_health() -> bool:
         with urllib.request.urlopen(url, timeout=2) as response:
             data = json.loads(response.read().decode())
         return data.get("status") == "ok"
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return False
 
 

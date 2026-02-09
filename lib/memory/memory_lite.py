@@ -6,9 +6,14 @@ Uses the claude-mem SQLite database for memory, plus a simple registry system.
 """
 import sqlite3
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+
+
+def _emit(message: str = "") -> None:
+    sys.stdout.write(f"{message}\n")
 
 
 class CCBLightMemory:
@@ -289,14 +294,14 @@ def main():
     memory = CCBLightMemory()
 
     if len(sys.argv) < 2:
-        print("Usage: memory_lite.py [record|search|context|stats|recent] [args...]")
+        _emit("Usage: memory_lite.py [record|search|context|stats|recent] [args...]")
         sys.exit(1)
 
     command = sys.argv[1]
 
     if command == "record":
         if len(sys.argv) < 5:
-            print("Usage: memory_lite.py record <provider> <question> <answer>")
+            _emit("Usage: memory_lite.py record <provider> <question> <answer>")
             sys.exit(1)
 
         provider = sys.argv[2]
@@ -304,60 +309,60 @@ def main():
         answer = " ".join(sys.argv[4:])
 
         record_id = memory.record_conversation(provider, question, answer)
-        print(f"✓ Recorded conversation #{record_id}")
+        _emit(f"✓ Recorded conversation #{record_id}")
 
     elif command == "search":
         if len(sys.argv) < 3:
-            print("Usage: memory_lite.py search <query>")
+            _emit("Usage: memory_lite.py search <query>")
             sys.exit(1)
 
         query = " ".join(sys.argv[2:])
         results = memory.search_conversations(query)
 
         if results:
-            print(f"Found {len(results)} results for: {query}\n")
+            _emit(f"Found {len(results)} results for: {query}\n")
             for i, result in enumerate(results, 1):
-                print(f"{i}. [{result['provider']}] {result['timestamp'][:19]}")
-                print(f"   Q: {result['question'][:100]}")
-                print(f"   A: {result['answer'][:200]}")
-                print()
+                _emit(f"{i}. [{result['provider']}] {result['timestamp'][:19]}")
+                _emit(f"   Q: {result['question'][:100]}")
+                _emit(f"   A: {result['answer'][:200]}")
+                _emit()
         else:
-            print("No results found.")
+            _emit("No results found.")
 
     elif command == "context":
         if len(sys.argv) < 3:
-            print("Usage: memory_lite.py context <task_keywords...>")
+            _emit("Usage: memory_lite.py context <task_keywords...>")
             sys.exit(1)
 
         keywords = sys.argv[2:]
         context = memory.get_task_context(keywords)
 
-        print(memory.format_context_for_prompt(context))
+        _emit(memory.format_context_for_prompt(context))
 
     elif command == "recent":
         limit = int(sys.argv[2]) if len(sys.argv) > 2 else 10
         conversations = memory.get_recent_conversations(limit)
 
-        print(f"Recent {len(conversations)} conversations:\n")
+        _emit(f"Recent {len(conversations)} conversations:\n")
         for conv in conversations:
-            print(f"[{conv['provider']}] {conv['timestamp'][:19]}")
-            print(f"Q: {conv['question'][:80]}")
-            print(f"A: {conv['answer'][:150]}")
-            print()
+            _emit(f"[{conv['provider']}] {conv['timestamp'][:19]}")
+            _emit(f"Q: {conv['question'][:80]}")
+            _emit(f"A: {conv['answer'][:150]}")
+            _emit()
 
     elif command == "stats":
         stats = memory.get_stats()
-        print("CCB Memory Statistics")
-        print("=" * 40)
-        print(f"Total conversations: {stats['total_conversations']}")
-        print(f"Total learnings: {stats['total_learnings']}")
-        print(f"Total tokens: {stats['total_tokens']:,}")
-        print("\nProvider Usage:")
+        _emit("CCB Memory Statistics")
+        _emit("=" * 40)
+        _emit(f"Total conversations: {stats['total_conversations']}")
+        _emit(f"Total learnings: {stats['total_learnings']}")
+        _emit(f"Total tokens: {stats['total_tokens']:,}")
+        _emit("\nProvider Usage:")
         for p in stats['provider_stats']:
-            print(f"  {p['provider']}: {p['count']} conversations")
+            _emit(f"  {p['provider']}: {p['count']} conversations")
 
     else:
-        print(f"Unknown command: {command}")
+        _emit(f"Unknown command: {command}")
         sys.exit(1)
 
 

@@ -62,14 +62,14 @@ class NotebookLMClient:
                 checks = result.get("checks", {})
                 return all(checks.values()) if checks else False
             return False
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
     def list_notebooks(self) -> List[Dict[str, Any]]:
         """列出所有 notebooks。"""
         try:
             data = self._run_json(["list"])
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return []
         if isinstance(data, dict):
             return data.get("notebooks", [])
@@ -84,7 +84,7 @@ class NotebookLMClient:
                 ["ask", question, "--notebook", notebook_id],
                 timeout=120,
             )
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return {
                 "answer": None,
                 "error": str(exc),
@@ -129,7 +129,7 @@ class NotebookLMClient:
         try:
             self._run(["use", notebook_id])
             result = self._run_json(["source", "list"])
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return []
         if isinstance(result, dict):
             return result.get("sources", [])

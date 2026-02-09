@@ -72,7 +72,7 @@ class NotificationManager:
             )
             return True
 
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
     def _escape(self, text: str) -> str:

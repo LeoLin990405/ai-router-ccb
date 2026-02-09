@@ -361,7 +361,7 @@ class AsyncRequestQueue:
         """Handle a single request and clean up when done."""
         try:
             await handler(request)
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             self.queue.mark_completed(request.id, error=str(e))
         finally:
             # Remove from active tasks

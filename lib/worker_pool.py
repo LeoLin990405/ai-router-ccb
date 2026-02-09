@@ -8,6 +8,9 @@ from typing import Callable, Generic, Optional, Protocol, TypeVar
 ResultT = TypeVar("ResultT")
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 class QueuedTaskLike(Protocol[ResultT]):
     req_id: str
     done_event: threading.Event
@@ -38,7 +41,7 @@ class BaseSessionWorker(threading.Thread, Generic[TaskT, ResultT]):
                 continue
             try:
                 task.result = self._handle_task(task)
-            except Exception as exc:
+            except HANDLED_EXCEPTIONS as exc:
                 task.result = self._handle_exception(exc, task)
             finally:
                 task.done_event.set()

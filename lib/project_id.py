@@ -12,6 +12,9 @@ _MNT_DRIVE_RE = re.compile(r"^/mnt/([A-Za-z])/(.*)$")
 _MSYS_DRIVE_RE = re.compile(r"^/([A-Za-z])/(.*)$")
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def normalize_work_dir(value: str | Path) -> str:
     """
     Normalize a work_dir into a stable string for hashing and matching.
@@ -29,7 +32,7 @@ def normalize_work_dir(value: str | Path) -> str:
     if raw.startswith("~"):
         try:
             raw = os.path.expanduser(raw)
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
 
     # Absolutize when relative (best-effort).
@@ -43,7 +46,7 @@ def normalize_work_dir(value: str | Path) -> str:
         )
         if not is_abs:
             raw = str((Path.cwd() / Path(raw)).absolute())
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         pass
 
     s = raw.replace("\\", "/")
@@ -85,13 +88,13 @@ def _find_ccb_config_root(start_dir: Path) -> Path | None:
     """
     try:
         current = Path(start_dir).expanduser().absolute()
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         current = Path.cwd()
     try:
         cfg = current / ".ccb_config"
         if cfg.is_dir():
             return current
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return None
     return None
 
@@ -106,7 +109,7 @@ def compute_ccb_project_id(work_dir: Path) -> str:
     """
     try:
         wd = Path(work_dir).expanduser().absolute()
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         wd = Path.cwd()
 
     # Priority 1: Current directory `.ccb_config/` only

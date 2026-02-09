@@ -35,12 +35,15 @@ class ClaudeSessionResolution:
     source: str
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def _read_json(path: Path) -> dict:
     try:
         raw = path.read_text(encoding="utf-8-sig", errors="replace")
         obj = json.loads(raw)
         return obj if isinstance(obj, dict) else {}
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return {}
 
 
@@ -68,7 +71,7 @@ def _session_file_from_record(record: dict) -> Optional[Path]:
         return None
     try:
         return Path(str(path_str)).expanduser()
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return None
 
 
@@ -117,7 +120,7 @@ def _select_resolution(data: dict, session_file: Optional[Path], record: Optiona
 def _candidate_default_session_file(work_dir: Path) -> Optional[Path]:
     try:
         cfg = project_config_dir(work_dir)
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return None
     return cfg / ".claude-session"
 
@@ -133,11 +136,11 @@ def _registry_updated_at(data: dict, path: Path) -> int:
     if isinstance(value, str) and value.strip().isdigit():
         try:
             return int(value.strip())
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
     try:
         return int(path.stat().st_mtime)
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return 0
 
 
@@ -151,12 +154,12 @@ def _candidate_project_dirs(root: Path, work_dir: Path) -> list[Path]:
     if env_pwd:
         try:
             candidates.append(Path(env_pwd))
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
     candidates.append(work_dir)
     try:
         candidates.append(work_dir.resolve())
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         pass
 
     out: list[Path] = []
@@ -190,7 +193,7 @@ def _normalize_session_binding(data: dict, work_dir: Path) -> None:
     if path_value:
         try:
             path = Path(path_value).expanduser()
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             path = None
     if path and path.exists():
         if sid and path.stem != sid:
@@ -219,7 +222,7 @@ def _load_registry_by_project_id_unfiltered(ccb_project_id: str, work_dir: Path)
     for path in sorted(run_dir.glob("ccb-session-*.json")):
         try:
             data = _read_json(path)
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             continue
         if not data:
             continue
@@ -229,7 +232,7 @@ def _load_registry_by_project_id_unfiltered(ccb_project_id: str, work_dir: Path)
             if wd:
                 try:
                     pid = compute_ccb_project_id(Path(wd))
-                except Exception:
+                except HANDLED_EXCEPTIONS:
                     pid = ""
         if pid != ccb_project_id:
             continue
@@ -244,7 +247,7 @@ def resolve_claude_session(work_dir: Path) -> Optional[ClaudeSessionResolution]:
     best_fallback: Optional[ClaudeSessionResolution] = None
     try:
         current_pid = compute_ccb_project_id(work_dir)
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         current_pid = ""
     strict_project = (Path(work_dir) / ".ccb_config").is_dir()
     allow_cross = os.environ.get("CCB_ALLOW_CROSS_PROJECT_SESSION") in ("1", "true", "yes")
@@ -262,7 +265,7 @@ def resolve_claude_session(work_dir: Path) -> Optional[ClaudeSessionResolution]:
             return ""
         try:
             return compute_ccb_project_id(Path(wd))
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             return ""
 
     def consider(candidate: Optional[ClaudeSessionResolution]) -> Optional[ClaudeSessionResolution]:
@@ -299,7 +302,7 @@ def resolve_claude_session(work_dir: Path) -> Optional[ClaudeSessionResolution]:
     # 2) Registry via ccb_project_id
     try:
         pid = compute_ccb_project_id(work_dir)
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         pid = ""
     if pid:
         record = load_registry_by_project_id(pid, "claude")

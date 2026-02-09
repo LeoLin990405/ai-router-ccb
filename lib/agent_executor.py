@@ -42,6 +42,9 @@ class AgentResult:
     delegations: List["AgentResult"] = field(default_factory=list)
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 class AgentExecutor:
     """
     Executes tasks using specialized agents.
@@ -242,7 +245,7 @@ class AgentExecutor:
                 "success": False,
                 "error": "Timeout",
             }
-        except Exception as e:
+        except HANDLED_EXCEPTIONS as e:
             return {
                 "success": False,
                 "error": str(e),

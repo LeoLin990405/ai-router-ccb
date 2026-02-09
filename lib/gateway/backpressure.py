@@ -258,7 +258,7 @@ class BackpressureController:
             if self._on_load_change:
                 try:
                     self._on_load_change(old_load, new_load)
-                except Exception:
+                except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                     pass
 
         # Adjust concurrency based on load
@@ -292,7 +292,7 @@ class BackpressureController:
             if self._on_limit_change:
                 try:
                     self._on_limit_change(old_limit, new_limit)
-                except Exception:
+                except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                     pass
 
     def get_max_concurrent(self) -> int:

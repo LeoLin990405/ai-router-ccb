@@ -34,7 +34,7 @@ class ObsidianSearch:
         for md_file in self._iter_markdown_files():
             try:
                 content = md_file.read_text(encoding="utf-8")
-            except Exception:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
             content_lower = content.lower()
@@ -77,7 +77,7 @@ class ObsidianSearch:
         for md_file in self._iter_markdown_files():
             try:
                 content = md_file.read_text(encoding="utf-8")
-            except Exception:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
             if not pattern.search(content):
@@ -118,7 +118,7 @@ class ObsidianSearch:
 
         try:
             content = full_path.read_text(encoding="utf-8")
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return None
 
         metadata = self._extract_metadata(content)
@@ -161,7 +161,7 @@ class ObsidianSearch:
             parsed = yaml.safe_load(frontmatter)
             if isinstance(parsed, dict):
                 return parsed
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return {}
         return {}
 

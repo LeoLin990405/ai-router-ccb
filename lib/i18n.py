@@ -166,6 +166,9 @@ MESSAGES = {
 }
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def detect_language() -> str:
     """Detect language from environment.
 
@@ -191,7 +194,7 @@ def detect_language() -> str:
         lang = lang.lower()
         if lang.startswith("zh") or "chinese" in lang:
             return "zh"
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         pass
 
     return "en"

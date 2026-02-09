@@ -12,9 +12,14 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
+from lib.common.logging import get_logger
+
 from .models import RequestStatus, WebSocketEvent
 from .state_store import StateStore
 from .request_queue import RequestQueue
+
+
+logger = get_logger("gateway.monitor")
 
 
 class MonitorService:
@@ -154,8 +159,7 @@ class MonitorService:
         try:
             while self._running:
                 # Clear screen and print dashboard
-                print("\033[2J\033[H", end="")  # ANSI clear screen
-                print(self.format_terminal_display())
+                logger.info("\033[2J\033[H%s", self.format_terminal_display())
 
                 await asyncio.sleep(self.refresh_interval)
 
@@ -190,7 +194,7 @@ class WebSocketMonitor:
         try:
             import websockets
         except ImportError:
-            print("Error: websockets is required. Install with: pip install websockets")
+            logger.error("websockets is required. Install with: pip install websockets")
             return
 
         self._running = True
@@ -209,8 +213,8 @@ class WebSocketMonitor:
                 except asyncio.TimeoutError:
                     # Send ping to keep connection alive
                     await ws.send('{"type": "ping"}')
-                except Exception as e:
-                    print(f"WebSocket error: {e}")
+                except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+                    logger.error("WebSocket error: %s", e)
                     break
 
     def _on_event(self, event: Dict[str, Any]) -> None:
@@ -219,7 +223,7 @@ class WebSocketMonitor:
         data = event.get("data", {})
         timestamp = datetime.fromtimestamp(event.get("timestamp", time.time()))
 
-        print(f"[{timestamp.strftime('%H:%M:%S')}] {event_type}: {data}")
+        logger.info("[%s] %s: %s", timestamp.strftime('%H:%M:%S'), event_type, data)
 
     def stop(self) -> None:
         """Stop the monitor."""
@@ -243,7 +247,7 @@ async def run_monitor(
     else:
         # For terminal mode, we need direct access to store/queue
         # This would typically be run in the same process as the gateway
-        print("Terminal mode requires running in the gateway process")
+        logger.info("Terminal mode requires running in the gateway process")
 
 
 if __name__ == "__main__":

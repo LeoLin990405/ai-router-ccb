@@ -12,9 +12,14 @@ Migrate CCB Memory from v1 to v2
 import sqlite3
 import json
 import uuid
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List
+
+
+def _emit(message: str = "") -> None:
+    sys.stdout.write(f"{message}\n")
 
 
 def migrate_v1_to_v2(
@@ -34,8 +39,8 @@ def migrate_v1_to_v2(
     if v2_db_path is None:
         v2_db_path = Path.home() / ".ccb" / "ccb_memory_v2.db"
 
-    print(f"Migrating {v1_db_path} -> {v2_db_path}")
-    print(f"User ID: {user_id}\n")
+    _emit(f"Migrating {v1_db_path} -> {v2_db_path}")
+    _emit(f"User ID: {user_id}\n")
 
     # Connect to v1
     v1_conn = sqlite3.connect(v1_db_path)
@@ -53,7 +58,7 @@ def migrate_v1_to_v2(
     """)
 
     conversations = v1_cursor.fetchall()
-    print(f"Found {len(conversations)} conversations in v1 database\n")
+    _emit(f"Found {len(conversations)} conversations in v1 database\n")
 
     # Migration strategy: Group conversations into sessions
     # Rule: New session if gap > 30 minutes or provider changes significantly
@@ -71,13 +76,13 @@ def migrate_v1_to_v2(
         # Parse metadata
         try:
             metadata = json.loads(metadata_str) if metadata_str else {}
-        except:
+        except (json.JSONDecodeError, TypeError):
             metadata = {}
 
         # Parse timestamp
         try:
             ts = datetime.fromisoformat(timestamp)
-        except:
+        except (ValueError, TypeError):
             ts = datetime.now()
 
         # Decide if we need a new session
@@ -102,7 +107,7 @@ def migrate_v1_to_v2(
                 "first_provider": provider
             })
             session_count += 1
-            print(f"Created session {session_count}: {current_session_id}")
+            _emit(f"Created session {session_count}: {current_session_id}")
 
         # Record conversation in v2
         result = v2_memory.record_conversation(
@@ -126,7 +131,7 @@ def migrate_v1_to_v2(
 
         # Progress
         if migrated_count % 10 == 0:
-            print(f"  Migrated {migrated_count}/{len(conversations)}...")
+            _emit(f"  Migrated {migrated_count}/{len(conversations)}...")
 
     # Migrate skills_cache (if exists)
     try:
@@ -134,7 +139,7 @@ def migrate_v1_to_v2(
         skills_count = v1_cursor.fetchone()[0]
 
         if skills_count > 0:
-            print(f"\nMigrating {skills_count} skills...")
+            _emit(f"\nMigrating {skills_count} skills...")
 
             v2_conn = sqlite3.connect(v2_db_path)
             v2_cursor = v2_conn.cursor()
@@ -149,10 +154,10 @@ def migrate_v1_to_v2(
 
             v2_conn.commit()
             v2_conn.close()
-            print(f"  ✓ Migrated {skills_count} skills")
+            _emit(f"  ✓ Migrated {skills_count} skills")
 
     except sqlite3.OperationalError:
-        print("  No skills_cache table in v1 (skipping)")
+        _emit("  No skills_cache table in v1 (skipping)")
 
     # Migrate skills_usage (if exists)
     try:
@@ -160,7 +165,7 @@ def migrate_v1_to_v2(
         usage_count = v1_cursor.fetchone()[0]
 
         if usage_count > 0:
-            print(f"\nMigrating {usage_count} skills usage records...")
+            _emit(f"\nMigrating {usage_count} skills usage records...")
 
             v2_conn = sqlite3.connect(v2_db_path)
             v2_cursor = v2_conn.cursor()
@@ -176,34 +181,34 @@ def migrate_v1_to_v2(
 
             v2_conn.commit()
             v2_conn.close()
-            print(f"  ✓ Migrated {usage_count} usage records")
+            _emit(f"  ✓ Migrated {usage_count} usage records")
 
     except sqlite3.OperationalError:
-        print("  No skills_usage table in v1 (skipping)")
+        _emit("  No skills_usage table in v1 (skipping)")
 
     v1_conn.close()
 
     # Print summary
-    print("\n" + "=" * 60)
-    print("Migration Summary")
-    print("=" * 60)
-    print(f"Conversations migrated: {migrated_count}")
-    print(f"Sessions created: {session_count}")
-    print(f"V1 database: {v1_db_path}")
-    print(f"V2 database: {v2_db_path}")
-    print("\nV1 database preserved as backup")
-    print("\nTo use v2:")
-    print("  1. Update gateway_server.py to import CCBMemoryV2")
-    print("  2. Or: rename ccb_memory_v2.db -> ccb_memory.db")
-    print("=" * 60)
+    _emit("\n" + "=" * 60)
+    _emit("Migration Summary")
+    _emit("=" * 60)
+    _emit(f"Conversations migrated: {migrated_count}")
+    _emit(f"Sessions created: {session_count}")
+    _emit(f"V1 database: {v1_db_path}")
+    _emit(f"V2 database: {v2_db_path}")
+    _emit("\nV1 database preserved as backup")
+    _emit("\nTo use v2:")
+    _emit("  1. Update gateway_server.py to import CCBMemoryV2")
+    _emit("  2. Or: rename ccb_memory_v2.db -> ccb_memory.db")
+    _emit("=" * 60)
 
     # Get v2 stats
     stats = v2_memory.get_stats()
-    print("\nV2 Statistics:")
-    print(f"  Total sessions: {stats['total_sessions']}")
-    print(f"  Total messages: {stats['total_messages']}")
-    print(f"  Total tokens: {stats['total_tokens']:,}")
-    print()
+    _emit("\nV2 Statistics:")
+    _emit(f"  Total sessions: {stats['total_sessions']}")
+    _emit(f"  Total messages: {stats['total_messages']}")
+    _emit(f"  Total tokens: {stats['total_tokens']:,}")
+    _emit()
 
 
 def main():
@@ -214,14 +219,14 @@ def main():
         user_id = sys.argv[2] if len(sys.argv) > 2 else "leo"
         migrate_v1_to_v2(user_id=user_id)
     else:
-        print("Usage: python3 migrate_v1_to_v2.py migrate [user_id]")
-        print("\nThis will:")
-        print("  1. Read ccb_memory.db (v1)")
-        print("  2. Create ccb_memory_v2.db (v2)")
-        print("  3. Convert and import all data")
-        print("  4. Group conversations into sessions")
-        print("  5. Keep v1 as backup")
-        print("\nV1 database will NOT be modified.")
+        _emit("Usage: python3 migrate_v1_to_v2.py migrate [user_id]")
+        _emit("\nThis will:")
+        _emit("  1. Read ccb_memory.db (v1)")
+        _emit("  2. Create ccb_memory_v2.db (v2)")
+        _emit("  3. Convert and import all data")
+        _emit("  4. Group conversations into sessions")
+        _emit("  5. Keep v1 as backup")
+        _emit("\nV1 database will NOT be modified.")
 
 
 if __name__ == "__main__":

@@ -8,13 +8,33 @@ Maintains real-time inventory of:
 - CCB providers
 - Available models
 """
+
 import json
-import os
 import subprocess
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+
 import psutil
+
+try:
+    from lib.common.logging import get_logger
+except ImportError:  # pragma: no cover - script mode
+    try:
+        from common.logging import get_logger  # type: ignore
+    except ImportError:  # pragma: no cover - fallback
+        import logging
+
+        def get_logger(name: str):
+            return logging.getLogger(name)
+
+
+logger = get_logger("memory.registry")
+
+
+def _emit(message: str = "") -> None:
+    sys.stdout.write(f"{message}\n")
 
 
 class CCBRegistry:
@@ -47,8 +67,8 @@ class CCBRegistry:
                 skill_info = self._parse_skill_md(skill_md)
                 skill_info["location"] = str(skill_dir)
                 skills.append(skill_info)
-            except Exception as e:
-                print(f"Warning: Failed to parse {skill_dir.name}: {e}")
+            except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
+                logger.warning("Failed to parse %s: %s", skill_dir.name, e)
 
         return skills
 
@@ -58,11 +78,7 @@ class CCBRegistry:
             content = f.read()
 
         # Simple frontmatter parser
-        info = {
-            "name": skill_md.parent.name,
-            "description": "",
-            "triggers": []
-        }
+        info = {"name": skill_md.parent.name, "description": "", "triggers": []}
 
         if content.startswith("---"):
             parts = content.split("---", 2)
@@ -92,21 +108,21 @@ class CCBRegistry:
         """Scan running MCP servers from processes."""
         mcp_servers = []
 
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
             try:
-                cmdline = proc.info.get('cmdline', [])
+                cmdline = proc.info.get("cmdline", [])
                 if not cmdline:
                     continue
 
-                cmdline_str = ' '.join(cmdline)
+                cmdline_str = " ".join(cmdline)
 
                 # Detect MCP servers
-                if 'mcp' in cmdline_str.lower():
+                if "mcp" in cmdline_str.lower():
                     server_info = {
-                        "pid": proc.info['pid'],
+                        "pid": proc.info["pid"],
                         "name": self._extract_mcp_name(cmdline),
                         "cmdline": cmdline_str,
-                        "status": "running"
+                        "status": "running",
                     }
                     mcp_servers.append(server_info)
 
@@ -118,9 +134,9 @@ class CCBRegistry:
     def _extract_mcp_name(self, cmdline: List[str]) -> str:
         """Extract MCP server name from command line."""
         for part in cmdline:
-            if 'mcp' in part.lower():
+            if "mcp" in part.lower():
                 # Extract from paths like /path/to/chroma-mcp
-                if '/' in part:
+                if "/" in part:
                     return Path(part).name
                 return part
         return "unknown-mcp"
@@ -133,57 +149,57 @@ class CCBRegistry:
                 "command": "claude",
                 "models": ["sonnet-4.5", "opus-4.5", "haiku-4"],
                 "strengths": ["code", "reasoning", "analysis"],
-                "speed": "medium"
+                "speed": "medium",
             },
             {
                 "name": "codex",
                 "command": "ccb-cli codex",
                 "models": ["o3", "o4-mini", "gpt-4o", "o1-pro"],
                 "strengths": ["algorithm", "math", "code-review"],
-                "speed": "slow"
+                "speed": "slow",
             },
             {
                 "name": "gemini",
                 "command": "ccb-cli gemini",
                 "models": ["3f", "3p", "2.5f", "2.5p"],
                 "strengths": ["frontend", "ui", "multimodal"],
-                "speed": "slow"
+                "speed": "slow",
             },
             {
                 "name": "kimi",
                 "command": "ccb-cli kimi",
                 "models": ["thinking", "normal"],
                 "strengths": ["chinese", "long-context", "fast"],
-                "speed": "fast"
+                "speed": "fast",
             },
             {
                 "name": "qwen",
                 "command": "ccb-cli qwen",
                 "models": ["coder"],
                 "strengths": ["code", "data", "multilingual"],
-                "speed": "fast"
+                "speed": "fast",
             },
             {
                 "name": "deepseek",
                 "command": "ccb-cli deepseek",
                 "models": ["reasoner", "chat"],
                 "strengths": ["reasoning", "algorithm", "code"],
-                "speed": "medium"
+                "speed": "medium",
             },
             {
                 "name": "iflow",
                 "command": "ccb-cli iflow",
                 "models": ["thinking", "normal"],
                 "strengths": ["workflow", "automation"],
-                "speed": "medium"
+                "speed": "medium",
             },
             {
                 "name": "opencode",
                 "command": "ccb-cli opencode",
                 "models": ["mm", "kimi", "ds", "glm"],
                 "strengths": ["multi-model", "flexibility"],
-                "speed": "medium"
-            }
+                "speed": "medium",
+            },
         ]
 
         # Check which providers are actually available
@@ -199,10 +215,10 @@ class CCBRegistry:
             result = subprocess.run(
                 [cmd_parts[0], "--version"] if len(cmd_parts) == 1 else [cmd_parts[0], "--help"],
                 capture_output=True,
-                timeout=2
+                timeout=2,
             )
             return result.returncode == 0
-        except:
+        except (OSError, ValueError, subprocess.SubprocessError):
             return False
 
     def generate_registry(self) -> Dict[str, Any]:
@@ -215,21 +231,19 @@ class CCBRegistry:
             "stats": {
                 "total_skills": 0,
                 "total_mcp_servers": 0,
-                "available_providers": 0
-            }
+                "available_providers": 0,
+            },
         }
 
         registry["stats"]["total_skills"] = len(registry["skills"])
         registry["stats"]["total_mcp_servers"] = len(registry["mcp_servers"])
-        registry["stats"]["available_providers"] = sum(
-            1 for p in registry["providers"] if p["available"]
-        )
+        registry["stats"]["available_providers"] = sum(1 for p in registry["providers"] if p["available"])
 
         return registry
 
     def save_cache(self, registry: Dict[str, Any]):
         """Save registry to cache file."""
-        with open(self.cache_path, 'w') as f:
+        with open(self.cache_path, "w") as f:
             json.dump(registry, f, indent=2)
 
     def load_cache(self) -> Optional[Dict[str, Any]]:
@@ -240,7 +254,7 @@ class CCBRegistry:
         try:
             with open(self.cache_path) as f:
                 return json.load(f)
-        except:
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return None
 
     def get_skill_by_name(self, name: str) -> Optional[Dict[str, Any]]:
@@ -268,12 +282,14 @@ class CCBRegistry:
                         score += 1
 
             if score > 0:
-                matches.append({
-                    "provider": provider["name"],
-                    "score": score,
-                    "command": provider["command"],
-                    "recommended_model": provider["models"][0] if provider["models"] else None
-                })
+                matches.append(
+                    {
+                        "provider": provider["name"],
+                        "score": score,
+                        "command": provider["command"],
+                        "recommended_model": provider["models"][0] if provider["models"] else None,
+                    }
+                )
 
         matches.sort(key=lambda x: x["score"], reverse=True)
         return matches
@@ -286,57 +302,57 @@ def main():
     registry_sys = CCBRegistry()
 
     if len(sys.argv) < 2:
-        print("Usage: registry.py [scan|list|find] [args...]")
+        _emit("Usage: registry.py [scan|list|find] [args...]")
         sys.exit(1)
 
     command = sys.argv[1]
 
     if command == "scan":
-        print("Scanning capabilities...")
+        _emit("Scanning capabilities...")
         registry = registry_sys.generate_registry()
         registry_sys.save_cache(registry)
-        print(f"✓ Found {registry['stats']['total_skills']} skills")
-        print(f"✓ Found {registry['stats']['total_mcp_servers']} MCP servers")
-        print(f"✓ Found {registry['stats']['available_providers']} available providers")
+        _emit(f"✓ Found {registry['stats']['total_skills']} skills")
+        _emit(f"✓ Found {registry['stats']['total_mcp_servers']} MCP servers")
+        _emit(f"✓ Found {registry['stats']['available_providers']} available providers")
 
     elif command == "list":
         registry = registry_sys.load_cache()
         if not registry:
-            print("No cache found. Run 'scan' first.")
+            _emit("No cache found. Run 'scan' first.")
             sys.exit(1)
 
         if len(sys.argv) > 2:
             list_type = sys.argv[2]
             if list_type == "skills":
                 for skill in registry.get("skills", []):
-                    print(f"- {skill['name']}: {skill['description'][:80]}")
+                    _emit(f"- {skill['name']}: {skill['description'][:80]}")
             elif list_type == "providers":
                 for provider in registry.get("providers", []):
                     status = "✓" if provider["available"] else "✗"
-                    print(f"{status} {provider['name']}: {', '.join(provider['strengths'])}")
+                    _emit(f"{status} {provider['name']}: {', '.join(provider['strengths'])}")
             elif list_type == "mcp":
                 for mcp in registry.get("mcp_servers", []):
-                    print(f"- {mcp['name']} (PID: {mcp['pid']})")
+                    _emit(f"- {mcp['name']} (PID: {mcp['pid']})")
         else:
-            print(json.dumps(registry, indent=2))
+            _emit(json.dumps(registry, indent=2))
 
     elif command == "find":
         if len(sys.argv) < 3:
-            print("Usage: registry.py find <task_keywords...>")
+            _emit("Usage: registry.py find <task_keywords...>")
             sys.exit(1)
 
         keywords = sys.argv[2:]
         matches = registry_sys.find_provider_for_task(keywords)
 
         if matches:
-            print(f"Recommended providers for: {' '.join(keywords)}")
+            _emit(f"Recommended providers for: {' '.join(keywords)}")
             for match in matches[:3]:
-                print(f"  {match['score']}★ {match['provider']}: {match['command']}")
+                _emit(f"  {match['score']}★ {match['provider']}: {match['command']}")
         else:
-            print("No matching providers found.")
+            _emit("No matching providers found.")
 
     else:
-        print(f"Unknown command: {command}")
+        _emit(f"Unknown command: {command}")
         sys.exit(1)
 
 

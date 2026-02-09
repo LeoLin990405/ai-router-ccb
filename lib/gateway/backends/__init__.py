@@ -8,12 +8,13 @@ Provides different backend types for communicating with AI providers:
 - Terminal (legacy WezTerm integration)
 """
 from .base_backend import BaseBackend, BackendResult
-from .http_backend import HTTPBackend
-from .cli_backend import CLIBackend
+from .http import HTTPBackend
+from .cli import CLIBackend, InteractiveCLIBackend
 
 __all__ = [
     "BaseBackend",
     "BackendResult",
     "HTTPBackend",
     "CLIBackend",
+    "InteractiveCLIBackend",
 ]

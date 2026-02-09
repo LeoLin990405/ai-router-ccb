@@ -27,7 +27,7 @@ def _is_pid_alive(pid: int) -> bool:
                 kernel32.CloseHandle(handle)
                 return True
             return False
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             return True  # Assume alive if we can't check
     else:
         try:
@@ -35,6 +35,9 @@ def _is_pid_alive(pid: int) -> bool:
             return True
         except OSError:
             return False
+
+
+HANDLED_EXCEPTIONS = (Exception,)
 
 
 class ProviderLock:
@@ -74,7 +77,7 @@ class ProviderLock:
                     if getattr(st, "st_size", 0) < 1:
                         os.lseek(self._fd, 0, os.SEEK_SET)
                         os.write(self._fd, b"\0")
-                except Exception:
+                except HANDLED_EXCEPTIONS:
                     pass
                 msvcrt.locking(self._fd, msvcrt.LK_NBLCK, 1)
             else:
@@ -89,7 +92,7 @@ class ProviderLock:
             if os.name == "nt":
                 try:
                     os.ftruncate(self._fd, max(1, len(pid_bytes)))
-                except Exception:
+                except HANDLED_EXCEPTIONS:
                     pass
             else:
                 os.ftruncate(self._fd, len(pid_bytes))

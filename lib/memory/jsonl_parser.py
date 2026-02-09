@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
+def _emit(message: str = "") -> None:
+    sys.stdout.write(f"{message}\n")
+
+
 @dataclass
 class Message:
     """A single message in the conversation."""
@@ -350,7 +354,7 @@ class ClaudeJsonlParser:
                 hours = minutes // 60
                 mins = minutes % 60
                 return f"{hours}h {mins}m"
-        except Exception:
+        except (ValueError, TypeError, OSError):
             return None
 
 
@@ -359,7 +363,7 @@ def main():
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: jsonl_parser.py <session.jsonl>")
+        _emit("Usage: jsonl_parser.py <session.jsonl>")
         sys.exit(1)
 
     path = Path(sys.argv[1])
@@ -368,29 +372,29 @@ def main():
     try:
         session = parser.parse(path)
 
-        print(f"Session ID: {session.session_id}")
-        print(f"Project: {session.project_path}")
-        print(f"Model: {session.model}")
-        print(f"Duration: {parser.get_session_duration(session)}")
-        print(f"Messages: {len(session.messages)}")
-        print(f"Tool Calls: {len(session.tool_calls)}")
-        print(f"Files Changed: {len(session.file_changes)}")
+        _emit(f"Session ID: {session.session_id}")
+        _emit(f"Project: {session.project_path}")
+        _emit(f"Model: {session.model}")
+        _emit(f"Duration: {parser.get_session_duration(session)}")
+        _emit(f"Messages: {len(session.messages)}")
+        _emit(f"Tool Calls: {len(session.tool_calls)}")
+        _emit(f"Files Changed: {len(session.file_changes)}")
 
-        print("\nTool Summary:")
+        _emit("\nTool Summary:")
         for tool, count in parser.get_tool_summary(session.tool_calls).items():
-            print(f"  - {tool}: {count}")
+            _emit(f"  - {tool}: {count}")
 
-        print("\nFile Changes:")
+        _emit("\nFile Changes:")
         for fc in session.file_changes[:10]:
-            print(f"  - [{fc.action}] {fc.file_path}")
+            _emit(f"  - [{fc.action}] {fc.file_path}")
 
-        print("\nSample Messages:")
+        _emit("\nSample Messages:")
         for msg in session.messages[:3]:
             preview = msg.content[:100].replace('\n', ' ')
-            print(f"  [{msg.role}] {preview}...")
+            _emit(f"  [{msg.role}] {preview}...")
 
-    except Exception as e:
-        print(f"Error parsing session: {e}")
+    except (RuntimeError, ValueError, TypeError, OSError, json.JSONDecodeError) as e:
+        _emit(f"Error parsing session: {e}")
         sys.exit(1)
 
 

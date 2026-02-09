@@ -201,11 +201,11 @@ retriever = HeuristicRetriever()
 results = retriever.retrieve("python error handling", limit=5)
 
 for mem in results:
-    print(f"Score: {mem.final_score:.3f}")
-    print(f"  R={mem.relevance_score:.2f}")
-    print(f"  I={mem.importance_score:.2f}")
-    print(f"  T={mem.recency_score:.2f}")
-    print(f"  Content: {mem.content[:50]}...")
+    _emit(f"Score: {mem.final_score:.3f}")
+    _emit(f"  R={mem.relevance_score:.2f}")
+    _emit(f"  I={mem.importance_score:.2f}")
+    _emit(f"  T={mem.recency_score:.2f}")
+    _emit(f"  Content: {mem.content[:50]}...")
 
 # Set importance manually
 retriever.set_importance("memory-id", "message", 0.9, source="user")

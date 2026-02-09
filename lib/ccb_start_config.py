@@ -20,6 +20,9 @@ class StartConfig:
 _ALLOWED_PROVIDERS = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen", "deepseek"}
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def _parse_tokens(raw: str) -> list[str]:
     if not raw:
         return []
@@ -98,13 +101,13 @@ def _parse_config_obj(obj: object) -> dict:
 def _read_config(path: Path) -> dict:
     try:
         raw = path.read_text(encoding="utf-8-sig")
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return {}
     if not raw.strip():
         return {}
     try:
         obj = json.loads(raw)
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         obj = None
     if obj is None:
         tokens = _parse_tokens(raw)
@@ -140,5 +143,5 @@ def ensure_default_start_config(work_dir: Path) -> Tuple[Optional[Path], bool]:
         payload = ",".join(DEFAULT_PROVIDERS) + "\n"
         project.write_text(payload, encoding="utf-8")
         return project, True
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return None, False

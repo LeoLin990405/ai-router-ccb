@@ -13,6 +13,9 @@ import subprocess
 import time
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 class AggregationStrategy(Enum):
     """Strategy for aggregating multi-provider results."""
     FIRST_SUCCESS = "first_success"  # Return first successful response
@@ -127,7 +130,7 @@ class MultiProviderExecutor:
                 error="Timeout",
                 latency_ms=latency_ms,
             )
-        except Exception as e:
+        except HANDLED_EXCEPTIONS as e:
             latency_ms = (time.time() - start_time) * 1000
             return ProviderResult(
                 provider=provider,
@@ -177,7 +180,7 @@ class MultiProviderExecutor:
                             f.cancel()
                         break
 
-                except Exception as e:
+                except HANDLED_EXCEPTIONS as e:
                     results[provider] = ProviderResult(
                         provider=provider,
                         success=False,

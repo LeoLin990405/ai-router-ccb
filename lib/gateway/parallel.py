@@ -1,3 +1,4 @@
+
 """
 Parallel Execution for CCB Gateway.
 
@@ -10,6 +11,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
+
+from .parallel_utils import compare_responses, parse_provider_spec
 
 if TYPE_CHECKING:
     from .backends.base_backend import BackendResult
@@ -83,25 +86,6 @@ class ParallelResult:
             "success": self.success,
             "error": self.error,
         }
-
-
-def parse_provider_spec(spec: str, provider_groups: Dict[str, List[str]]) -> tuple[List[str], bool]:
-    """
-    Parse a provider specification.
-
-    Args:
-        spec: Provider spec (e.g., "claude", "@all", "@fast")
-        provider_groups: Dict of group name -> provider list
-
-    Returns:
-        Tuple of (provider_list, is_parallel)
-    """
-    if spec.startswith("@"):
-        group_name = spec[1:]
-        providers = provider_groups.get(group_name, [])
-        return providers, len(providers) > 1
-    else:
-        return [spec], False
 
 
 class ParallelExecutor:
@@ -234,7 +218,7 @@ class ParallelExecutor:
                 error=f"Timeout after {self.config.timeout_s}s",
                 latency_ms=(time.time() - start_time) * 1000,
             )
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return ProviderResponse(
                 provider=provider,
                 success=False,
@@ -480,32 +464,3 @@ class ParallelExecutor:
         from .gateway_config import DEFAULT_PROVIDER_GROUPS
         return DEFAULT_PROVIDER_GROUPS.copy()
 
-
-def compare_responses(responses: List[str]) -> Dict[str, Any]:
-    """
-    Compare multiple responses for similarity analysis.
-
-    Args:
-        responses: List of response strings
-
-    Returns:
-        Dict with comparison metrics
-    """
-    if not responses:
-        return {"count": 0, "avg_length": 0, "length_variance": 0}
-
-    lengths = [len(r) for r in responses]
-    avg_length = sum(lengths) / len(lengths)
-    variance = sum((l - avg_length) ** 2 for l in lengths) / len(lengths)
-
-    return {
-        "count": len(responses),
-        "avg_length": avg_length,
-        "length_variance": variance,
-        "min_length": min(lengths),
-        "max_length": max(lengths),
-    }
-
-
-# Import GatewayRequest for type checking
-from .models import GatewayRequest

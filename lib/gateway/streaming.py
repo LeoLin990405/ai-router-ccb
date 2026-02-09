@@ -14,7 +14,6 @@ from typing import Optional, Dict, Any, AsyncIterator, List, TYPE_CHECKING
 if TYPE_CHECKING:
     from .models import GatewayRequest
 
-
 @dataclass
 class StreamChunk:
     """A chunk of streamed response."""
@@ -55,7 +54,6 @@ class StreamChunk:
             "metadata": self.metadata,
         }
 
-
 @dataclass
 class StreamError:
     """An error during streaming."""
@@ -77,7 +75,6 @@ class StreamError:
             data["metadata"] = self.metadata
         return f"data: {json.dumps(data)}\n\n"
 
-
 @dataclass
 class StreamConfig:
     """Configuration for streaming."""
@@ -86,7 +83,6 @@ class StreamConfig:
     chunk_delay_ms: float = 50.0  # Delay between chunks for simulated streaming
     heartbeat_interval_s: float = 15.0  # SSE heartbeat interval
     timeout_s: float = 300.0  # Stream timeout
-
 
 class StreamBuffer:
     """
@@ -150,7 +146,6 @@ class StreamBuffer:
         self.buffer = ""
         return chunk
 
-
 async def simulate_streaming(
     request_id: str,
     content: str,
@@ -194,7 +189,6 @@ async def simulate_streaming(
 
         if not is_final:
             await asyncio.sleep(delay_s)
-
 
 async def stream_anthropic_response(
     session,
@@ -294,7 +288,6 @@ async def stream_anthropic_response(
         is_final=True,
     )
 
-
 async def stream_openai_response(
     session,
     url: str,
@@ -391,7 +384,6 @@ async def stream_openai_response(
         is_final=True,
     )
 
-
 async def heartbeat_generator(
     interval_s: float = 15.0,
 ) -> AsyncIterator[str]:
@@ -407,7 +399,6 @@ async def heartbeat_generator(
     while True:
         await asyncio.sleep(interval_s)
         yield ": heartbeat\n\n"
-
 
 class StreamManager:
     """
@@ -476,7 +467,7 @@ class StreamManager:
                 error="Stream cancelled",
                 error_type="cancelled",
             ).to_sse()
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             yield StreamError(
                 request_id=request_id,
                 error=str(e),

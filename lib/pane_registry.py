@@ -16,6 +16,9 @@ REGISTRY_SUFFIX = ".json"
 REGISTRY_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def _debug_enabled() -> bool:
     return os.environ.get("CCB_DEBUG") in ("1", "true", "yes")
 
@@ -23,7 +26,7 @@ def _debug_enabled() -> bool:
 def _debug(message: str) -> None:
     if not _debug_enabled():
         return
-    print(f"[DEBUG] {message}", file=sys.stderr)
+    sys.stderr.write(f"[DEBUG] {message}\n")
 
 
 def _registry_dir() -> Path:
@@ -72,7 +75,7 @@ def _load_registry_file(path: Path) -> Optional[Dict[str, Any]]:
             data = json.load(handle)
         if isinstance(data, dict):
             return data
-    except Exception as exc:
+    except HANDLED_EXCEPTIONS as exc:
         _debug(f"Failed to read registry {path}: {exc}")
     return None
 
@@ -150,7 +153,7 @@ def _provider_pane_alive(record: Dict[str, Any], provider: str) -> bool:
     backend = None
     try:
         backend = get_backend_for_session({"terminal": record.get("terminal", "tmux")})
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         backend = None
     if not backend:
         return False
@@ -161,7 +164,7 @@ def _provider_pane_alive(record: Dict[str, Any], provider: str) -> bool:
         if callable(resolver):
             try:
                 pane_id = str(resolver(marker) or "").strip()
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pane_id = ""
 
     if not pane_id:
@@ -169,7 +172,7 @@ def _provider_pane_alive(record: Dict[str, Any], provider: str) -> bool:
 
     try:
         return bool(backend.is_alive(pane_id))
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         return False
 
 
@@ -244,7 +247,7 @@ def load_registry_by_project_id(ccb_project_id: str, provider: str) -> Optional[
             if wd:
                 try:
                     inferred = compute_ccb_project_id(Path(wd))
-                except Exception:
+                except HANDLED_EXCEPTIONS:
                     inferred = ""
         effective = existing or inferred
 
@@ -268,7 +271,7 @@ def load_registry_by_project_id(ccb_project_id: str, provider: str) -> Optional[
                 if wd:
                     best["ccb_project_id"] = compute_ccb_project_id(Path(wd))
                     upsert_registry(best)
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
 
     return best
@@ -341,7 +344,7 @@ def upsert_registry(record: Dict[str, Any]) -> bool:
         if wd:
             try:
                 data["ccb_project_id"] = compute_ccb_project_id(Path(wd))
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
 
     data["updated_at"] = int(time.time())
@@ -349,6 +352,6 @@ def upsert_registry(record: Dict[str, Any]) -> bool:
     try:
         atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
         return True
-    except Exception as exc:
+    except HANDLED_EXCEPTIONS as exc:
         _debug(f"Failed to write registry {path}: {exc}")
         return False

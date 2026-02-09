@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 from contextlib import contextmanager
 
+from lib.common.paths import default_gateway_db_path, default_performance_db_path
+
 
 @dataclass
 class PerformanceMetric:
@@ -47,6 +49,9 @@ class ProviderStats:
     period_hours: int
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 class PerformanceTracker:
     """
     SQLite-backed performance tracker for CCB providers.
@@ -59,15 +64,15 @@ class PerformanceTracker:
         Initialize the performance tracker.
 
         Args:
-            db_path: Path to SQLite database. Defaults to ~/.ccb_config/performance.db
+            db_path: Path to SQLite database. Defaults to data/performance.db
         """
         if db_path:
             self.db_path = Path(db_path)
         else:
-            self.db_path = Path.home() / ".ccb_config" / "performance.db"
+            self.db_path = default_performance_db_path()
 
         # Gateway database as fallback data source
-        self.gateway_db_path = Path.home() / ".ccb_config" / "gateway.db"
+        self.gateway_db_path = default_gateway_db_path()
 
         # Ensure directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -323,7 +328,7 @@ class PerformanceTracker:
                 ))
 
             conn.close()
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass  # Silently fail if gateway.db is not accessible
 
         return stats

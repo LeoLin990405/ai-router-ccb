@@ -331,7 +331,7 @@ sessions = memory.list_sessions(limit=20)
 
 # 获取会话详情
 for session in sessions:
-    print(f"{session['session_id']}: {session['message_count']} messages")
+    _emit(f"{session['session_id']}: {session['message_count']} messages")
 
 # 删除会话
 memory.archive_session(session_id)  # 压缩归档
@@ -347,7 +347,7 @@ messages = memory.search_messages(
 
 # 追踪请求链路
 for msg in messages:
-    print(f"{msg['role']}: {msg['content'][:50]}...")
+    _emit(f"{msg['role']}: {msg['content'][:50]}...")
 ```
 
 ### 3. 上下文分析
@@ -366,7 +366,7 @@ stats = memory.get_stats()
 
 # Provider 排行
 for p in stats['provider_stats']:
-    print(f"{p['provider']}: {p['total_requests']} requests, "
+    _emit(f"{p['provider']}: {p['total_requests']} requests, "
           f"{p['avg_latency_ms']:.0f}ms avg")
 ```
 

@@ -321,7 +321,7 @@ class SmartRouter:
                 try:
                     metrics = self._metrics_getter(rule.provider)
                     perf_score = max(0.5, metrics.get("success_rate", 1.0))
-                except Exception:
+                except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                     perf_score = 0.8  # Neutral if metrics unavailable
             else:
                 perf_score = 0.8  # Neutral default

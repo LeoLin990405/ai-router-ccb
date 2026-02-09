@@ -4,18 +4,40 @@ CCB Memory Backend using Mem0
 
 Provides persistent memory across all CCB providers.
 """
+
 import json
 import os
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+
+try:
+    from lib.common.logging import get_logger
+except ImportError:  # pragma: no cover - script mode
+    try:
+        from common.logging import get_logger  # type: ignore
+    except ImportError:  # pragma: no cover - fallback
+        import logging
+
+        def get_logger(name: str):
+            return logging.getLogger(name)
+
+
+logger = get_logger("memory.backend")
+
+
+def _emit(message: str = "") -> None:
+    sys.stdout.write(f"{message}\n")
+
 
 try:
     from mem0 import Memory
+
     HAS_MEM0 = True
 except ImportError:
     HAS_MEM0 = False
-    print("Warning: mem0ai not installed. Install with: pip install mem0ai")
+    logger.warning("mem0ai not installed. Install with: pip install mem0ai")
 
 
 class CCBMemory:
@@ -49,11 +71,11 @@ class CCBMemory:
             "max_context_tokens": 2000,
             "privacy": {
                 "exclude_patterns": ["password", "api_key", "secret", "token"]
-            }
+            },
         }
 
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             json.dump(default_config, f, indent=2)
 
         return default_config
@@ -63,7 +85,7 @@ class CCBMemory:
         provider: str,
         question: str,
         answer: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Record a conversation to memory."""
         if not self.config.get("auto_record", True):
@@ -77,38 +99,36 @@ class CCBMemory:
         content = f"[{provider}] Q: {question}\nA: {answer[:500]}"  # Limit answer length
 
         meta = metadata or {}
-        meta.update({
-            "provider": provider,
-            "timestamp": datetime.now().isoformat(),
-            "question": question[:200],  # Store truncated for search
-        })
+        meta.update(
+            {
+                "provider": provider,
+                "timestamp": datetime.now().isoformat(),
+                "question": question[:200],  # Store truncated for search
+            }
+        )
 
         try:
             result = self.memory.add(content, user_id=self.user_id, metadata=meta)
             return result.get("memory_id", "")
-        except Exception as e:
-            print(f"Warning: Failed to record memory: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.warning("Failed to record memory: %s", e)
             return ""
 
     def search_context(
         self,
         query: str,
         limit: int = 5,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Search for relevant context."""
         if not self.config.get("enabled", True):
             return []
 
         try:
-            results = self.memory.search(
-                query=query,
-                user_id=self.user_id,
-                limit=limit
-            )
+            results = self.memory.search(query=query, user_id=self.user_id, limit=limit)
             return results
-        except Exception as e:
-            print(f"Warning: Failed to search memory: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.warning("Failed to search memory: %s", e)
             return []
 
     def get_task_context(self, task_keywords: List[str]) -> Dict[str, Any]:
@@ -119,6 +139,7 @@ class CCBMemory:
 
         # Get provider recommendations from registry
         from .registry import CCBRegistry
+
         registry = CCBRegistry()
         providers = registry.find_provider_for_task(task_keywords)
 
@@ -135,7 +156,7 @@ class CCBMemory:
             "memories": memories,
             "recommended_providers": providers[:3],
             "relevant_skills": relevant_skills[:5],
-            "query": query
+            "query": query,
         }
 
     def _contains_sensitive(self, text: str) -> bool:
@@ -177,16 +198,16 @@ class CCBMemory:
             metadata={
                 "type": "learning",
                 "category": category,
-                "timestamp": datetime.now().isoformat()
-            }
+                "timestamp": datetime.now().isoformat(),
+            },
         )
 
     def get_all_memories(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Get all memories for the user."""
         try:
             return self.memory.get_all(user_id=self.user_id)
-        except Exception as e:
-            print(f"Warning: Failed to get all memories: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.warning("Failed to get all memories: %s", e)
             return []
 
 
@@ -195,21 +216,21 @@ def main():
     import sys
 
     if not HAS_MEM0:
-        print("Error: mem0ai is not installed")
-        print("Install with: pip install mem0ai")
+        _emit("Error: mem0ai is not installed")
+        _emit("Install with: pip install mem0ai")
         sys.exit(1)
 
     memory = CCBMemory()
 
     if len(sys.argv) < 2:
-        print("Usage: memory_backend.py [record|search|context|list] [args...]")
+        _emit("Usage: memory_backend.py [record|search|context|list] [args...]")
         sys.exit(1)
 
     command = sys.argv[1]
 
     if command == "record":
         if len(sys.argv) < 5:
-            print("Usage: memory_backend.py record <provider> <question> <answer>")
+            _emit("Usage: memory_backend.py record <provider> <question> <answer>")
             sys.exit(1)
 
         provider = sys.argv[2]
@@ -218,45 +239,45 @@ def main():
 
         memory_id = memory.record_conversation(provider, question, answer)
         if memory_id:
-            print(f"✓ Recorded memory: {memory_id}")
+            _emit(f"✓ Recorded memory: {memory_id}")
         else:
-            print("✗ Failed to record (may contain sensitive data)")
+            _emit("✗ Failed to record (may contain sensitive data)")
 
     elif command == "search":
         if len(sys.argv) < 3:
-            print("Usage: memory_backend.py search <query>")
+            _emit("Usage: memory_backend.py search <query>")
             sys.exit(1)
 
         query = " ".join(sys.argv[2:])
         results = memory.search_context(query)
 
         if results:
-            print(f"Found {len(results)} results for: {query}\n")
+            _emit(f"Found {len(results)} results for: {query}\n")
             for i, result in enumerate(results, 1):
-                print(f"{i}. {result.get('memory', '')[:200]}")
-                print(f"   Metadata: {result.get('metadata', {})}")
-                print()
+                _emit(f"{i}. {result.get('memory', '')[:200]}")
+                _emit(f"   Metadata: {result.get('metadata', {})}")
+                _emit()
         else:
-            print("No results found.")
+            _emit("No results found.")
 
     elif command == "context":
         if len(sys.argv) < 3:
-            print("Usage: memory_backend.py context <task_keywords...>")
+            _emit("Usage: memory_backend.py context <task_keywords...>")
             sys.exit(1)
 
         keywords = sys.argv[2:]
         context = memory.get_task_context(keywords)
 
-        print(memory.format_context_for_prompt(context))
+        _emit(memory.format_context_for_prompt(context))
 
     elif command == "list":
         memories = memory.get_all_memories(limit=20)
-        print(f"Total memories: {len(memories)}\n")
+        _emit(f"Total memories: {len(memories)}\n")
         for i, mem in enumerate(memories[:20], 1):
-            print(f"{i}. {mem.get('memory', '')[:100]}")
+            _emit(f"{i}. {mem.get('memory', '')[:100]}")
 
     else:
-        print(f"Unknown command: {command}")
+        _emit(f"Unknown command: {command}")
         sys.exit(1)
 
 

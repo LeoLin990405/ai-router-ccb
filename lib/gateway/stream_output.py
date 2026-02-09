@@ -17,11 +17,16 @@ from typing import Optional, Dict, Any, Callable, List
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from lib.common.logging import get_logger
+
 # Default stream directory
 STREAM_DIR = Path(os.path.expanduser("~/.ccb/streams"))
 
 # Default database path
 DB_PATH = Path(os.path.expanduser("~/.ccb/ccb_memory.db"))
+
+
+logger = get_logger("gateway.stream_output")
 
 
 @dataclass
@@ -91,8 +96,8 @@ class StreamOutput:
                 self._entries_buffer.append(entry)
                 if len(self._entries_buffer) >= self._buffer_size:
                     self._flush_to_db()
-        except Exception as e:
-            print(f"[StreamOutput] Error writing to {self.log_path}: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.error("Error writing to %s: %s", self.log_path, e)
 
     def _flush_to_db(self) -> None:
         """Batch write buffered entries to database."""
@@ -114,12 +119,12 @@ class StreamOutput:
         except sqlite3.OperationalError as e:
             # Table might not exist yet, disable DB sync
             if "no such table" in str(e):
-                print(f"[StreamOutput] stream_entries table not found, disabling DB sync")
+                logger.warning("stream_entries table not found, disabling DB sync")
                 self._db_enabled = False
             else:
-                print(f"[StreamOutput] DB sync error: {e}")
-        except Exception as e:
-            print(f"[StreamOutput] DB sync error: {e}")
+                logger.error("DB sync error: %s", e)
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.error("DB sync error: %s", e)
 
     def status(self, message: str, **meta) -> None:
         """Write a status update."""
@@ -242,8 +247,8 @@ class StreamOutputManager:
                         entries.append(json.loads(line.strip()))
                     except json.JSONDecodeError:
                         continue
-        except Exception as e:
-            print(f"[StreamOutputManager] Error reading {path}: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.error("Error reading %s: %s", path, e)
 
         return entries
 
@@ -277,7 +282,7 @@ class StreamOutputManager:
                 if path.stat().st_mtime < cutoff:
                     path.unlink()
                     removed += 1
-            except Exception:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
         return removed
@@ -296,7 +301,7 @@ class StreamOutputManager:
                     "mtime": stat.st_mtime,
                     "status": self.get_stream_status(request_id),
                 })
-            except Exception:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
         streams.sort(key=lambda x: x["mtime"], reverse=True)

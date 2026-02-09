@@ -11,6 +11,9 @@ EXIT_ERROR = 1
 EXIT_NO_REPLY = 2
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,12 +31,12 @@ def atomic_write_text(path: Path, content: str, *, encoding: str = "utf-8") -> N
         if fd is not None:
             try:
                 os.close(fd)
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
         if tmp_path:
             try:
                 os.unlink(tmp_path)
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
 
 

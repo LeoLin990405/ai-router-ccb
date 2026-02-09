@@ -9,6 +9,7 @@ import importlib.util
 import json
 import re
 import traceback
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Callable
@@ -44,6 +45,13 @@ class SkillResult:
     output: Any = None
     error: Optional[str] = None
     skill_name: str = ""
+
+
+def _warn(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
+
+
+HANDLED_EXCEPTIONS = (Exception,)
 
 
 class SkillLoader:
@@ -127,8 +135,8 @@ class SkillLoader:
 
             return config
 
-        except Exception as e:
-            print(f"Failed to load skill from {skill_dir}: {e}")
+        except HANDLED_EXCEPTIONS as e:
+            _warn(f"Failed to load skill from {skill_dir}: {e}")
             return None
 
     def _load_skill_from_file(self, skill_file: Path) -> Optional[SkillConfig]:
@@ -173,8 +181,8 @@ class SkillLoader:
 
             return config
 
-        except Exception as e:
-            print(f"Failed to load skill from {skill_file}: {e}")
+        except HANDLED_EXCEPTIONS as e:
+            _warn(f"Failed to load skill from {skill_file}: {e}")
             return None
 
     def _parse_skill_config(self, config_file: Path) -> Optional[SkillConfig]:
@@ -208,7 +216,7 @@ class SkillLoader:
         except ImportError:
             # Fallback to simple parsing
             data = self._simple_yaml_parse(content)
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             return None
 
         if not data:
@@ -237,7 +245,7 @@ class SkillLoader:
         """Parse JSON skill config."""
         try:
             data = json.loads(content)
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             return None
 
         config = SkillConfig(
@@ -311,8 +319,8 @@ class SkillLoader:
 
             return None
 
-        except Exception as e:
-            print(f"Failed to load handler from {handler_file}: {e}")
+        except HANDLED_EXCEPTIONS as e:
+            _warn(f"Failed to load handler from {handler_file}: {e}")
             return None
 
     def register_skill(
@@ -397,7 +405,7 @@ class SkillLoader:
                 output=result,
                 skill_name=name,
             )
-        except Exception as e:
+        except HANDLED_EXCEPTIONS as e:
             return SkillResult(
                 success=False,
                 error=f"{type(e).__name__}: {str(e)}",

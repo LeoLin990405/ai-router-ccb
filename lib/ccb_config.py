@@ -9,6 +9,9 @@ from pathlib import Path
 from terminal import _subprocess_kwargs
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def get_backend_env() -> str | None:
     """Get BackendEnv from env var or .ccb-config.json"""
     v = (os.environ.get("CCB_BACKEND_ENV") or "").strip().lower()
@@ -21,7 +24,7 @@ def get_backend_env() -> str | None:
             v = (data.get("BackendEnv") or "").strip().lower()
             if v in {"wsl", "windows"}:
                 return v
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
     return "windows" if sys.platform == "win32" else None
 
@@ -38,7 +41,7 @@ def _wsl_probe_distro_and_home() -> tuple[str, str]:
             lines = r.stdout.strip().split("\n")
             if len(lines) >= 2:
                 return lines[0].strip(), lines[1].strip()
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         pass
     try:
         r = subprocess.run(
@@ -55,7 +58,7 @@ def _wsl_probe_distro_and_home() -> tuple[str, str]:
                 distro = "Ubuntu"
         else:
             distro = "Ubuntu"
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         distro = "Ubuntu"
     try:
         r = subprocess.run(
@@ -64,7 +67,7 @@ def _wsl_probe_distro_and_home() -> tuple[str, str]:
             **_subprocess_kwargs()
         )
         home = r.stdout.strip() if r.returncode == 0 else "/root"
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         home = "/root"
     return distro, home
 

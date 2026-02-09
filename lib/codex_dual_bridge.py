@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import signal
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,9 @@ def _env_float(name: str, default: float) -> float:
     except ValueError:
         return default
     return max(0.0, value)
+
+
+HANDLED_EXCEPTIONS = (Exception,)
 
 
 class TerminalCodexSession:
@@ -85,7 +89,7 @@ class DualBridge:
                 error_backoff = max(0.0, min(error_backoff_min, error_backoff_max))
             except KeyboardInterrupt:
                 self._running = False
-            except Exception as exc:
+            except HANDLED_EXCEPTIONS as exc:
                 self._log_console(f"❌ Failed to process message: {exc}")
                 self._log_bridge(f"error: {exc}")
                 if error_backoff:
@@ -118,7 +122,7 @@ class DualBridge:
 
         try:
             self.codex_session.send(content)
-        except Exception as exc:
+        except HANDLED_EXCEPTIONS as exc:
             msg = f"❌ Failed to send to Codex: {exc}"
             self._append_history("codex", msg, marker)
             self._log_console(msg)
@@ -134,14 +138,14 @@ class DualBridge:
             with self.history_file.open("a", encoding="utf-8") as handle:
                 json.dump(entry, handle, ensure_ascii=False)
                 handle.write("\n")
-        except Exception as exc:
+        except HANDLED_EXCEPTIONS as exc:
             self._log_console(f"⚠️ Failed to write history: {exc}")
 
     def _log_bridge(self, message: str) -> None:
         try:
             with self.bridge_log.open("a", encoding="utf-8") as handle:
                 handle.write(f"{self._timestamp()} {message}\n")
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
 
     @staticmethod
@@ -154,7 +158,8 @@ class DualBridge:
 
     @staticmethod
     def _log_console(message: str) -> None:
-        print(message, flush=True)
+        sys.stdout.write(f"{message}\n")
+        sys.stdout.flush()
 
 
 def parse_args() -> argparse.Namespace:

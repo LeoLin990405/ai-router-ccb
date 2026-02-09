@@ -11,11 +11,16 @@ from typing import Optional, Tuple
 import urllib.request
 import urllib.parse
 
+from lib.common.logging import get_logger
+
 # Gemini CLI OAuth client credentials
 # These are read from Gemini CLI installation at runtime
 # See: /opt/homebrew/Cellar/gemini-cli/*/libexec/lib/node_modules/@google/gemini-cli/
 #      node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js
 _credentials_cache = {"client_id": None, "client_secret": None}
+
+
+logger = get_logger("gateway.gemini_auth")
 
 
 def _load_gemini_credentials():
@@ -50,8 +55,8 @@ def _load_gemini_credentials():
                     return True
 
         return False
-    except Exception as e:
-        print(f"[Gemini Auth] Error loading credentials: {e}")
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.error("Error loading credentials: %s", e)
         return False
 
 OAUTH_CREDS_PATH = Path.home() / ".gemini" / "oauth_creds.json"
@@ -65,7 +70,7 @@ def load_oauth_creds() -> Optional[dict]:
     try:
         with open(OAUTH_CREDS_PATH) as f:
             return json.load(f)
-    except Exception:
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
         return None
 
 
@@ -75,7 +80,7 @@ def save_oauth_creds(creds: dict) -> bool:
         with open(OAUTH_CREDS_PATH, "w") as f:
             json.dump(creds, f, indent=2)
         return True
-    except Exception:
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
         return False
 
 
@@ -96,7 +101,7 @@ def refresh_token(refresh_token_str: str) -> Optional[dict]:
     """Refresh the OAuth token using refresh_token."""
     # Load credentials dynamically from Gemini CLI installation
     if not _load_gemini_credentials():
-        print("[Gemini Auth] Failed to load OAuth credentials from Gemini CLI")
+        logger.error("Failed to load OAuth credentials from Gemini CLI")
         return None
 
     data = urllib.parse.urlencode({
@@ -116,8 +121,8 @@ def refresh_token(refresh_token_str: str) -> Optional[dict]:
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read().decode())
             return result
-    except Exception as e:
-        print(f"[Gemini Auth] Token refresh failed: {e}")
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.error("Token refresh failed: %s", e)
         return None
 
 
@@ -138,9 +143,9 @@ def ensure_valid_token() -> Tuple[bool, str]:
     
     if not is_token_expired(creds):
         return True, "Token is valid"
-    
+
     # Token expired, refresh it
-    print("[Gemini Auth] Token expired, refreshing...")
+    logger.info("Token expired, refreshing")
     new_tokens = refresh_token(refresh_token_str)
     
     if not new_tokens:
@@ -159,7 +164,7 @@ def ensure_valid_token() -> Tuple[bool, str]:
         creds["id_token"] = new_tokens["id_token"]
     
     if save_oauth_creds(creds):
-        print(f"[Gemini Auth] Token refreshed, valid for {expires_in}s")
+        logger.info("Token refreshed, valid for %ss", expires_in)
         return True, f"Token refreshed successfully"
     else:
         return False, "Failed to save refreshed token"
@@ -167,4 +172,4 @@ def ensure_valid_token() -> Tuple[bool, str]:
 
 if __name__ == "__main__":
     success, msg = ensure_valid_token()
-    print(f"Result: {success}, {msg}")
+    logger.info("Result: %s, %s", success, msg)

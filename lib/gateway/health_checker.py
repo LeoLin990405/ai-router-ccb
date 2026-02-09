@@ -208,14 +208,14 @@ class HealthChecker:
 
         except asyncio.TimeoutError:
             health.record_failure("Health check timed out")
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             health.record_failure(str(e))
 
         # Notify on status change
         if health.status != old_status and self._on_status_change:
             try:
                 await self._on_status_change(provider, old_status, health.status)
-            except Exception:
+            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass  # Don't let callback errors affect health checks
 
     async def check_now(self, provider: Optional[str] = None) -> Dict[str, ProviderHealth]:

@@ -58,7 +58,7 @@ class CCBMemoryArchive:
         old_records = cursor.fetchall()
 
         if not old_records:
-            print(f"✅ 无需归档，所有记录都在最近 {days_to_keep} 天内")
+            _emit(f"✅ 无需归档，所有记录都在最近 {days_to_keep} 天内")
             conn.close()
             return
 
@@ -113,9 +113,9 @@ class CCBMemoryArchive:
 
         archive_size = archive_path.stat().st_size / 1024 / 1024
 
-        print(f"✅ 已归档 {len(old_records)} 条记录")
-        print(f"📁 归档文件: {archive_path.name} ({archive_size:.2f} MB)")
-        print(f"🗑️  已从主数据库删除")
+        _emit(f"✅ 已归档 {len(old_records)} 条记录")
+        _emit(f"📁 归档文件: {archive_path.name} ({archive_size:.2f} MB)")
+        _emit(f"🗑️  已从主数据库删除")
 
     def search_archives(self, keyword: str, limit: int = 10):
         """在归档文件中搜索"""
@@ -169,7 +169,7 @@ class CCBMemoryArchive:
         archive_count = len(archive_files)
         archive_size = sum(f.stat().st_size for f in archive_files) / 1024 / 1024
 
-        print(f"""
+        _emit(f"""
 📊 CCB Memory 存储统计
 {'=' * 50}
 
@@ -195,11 +195,11 @@ def main():
     archive = CCBMemoryArchive()
 
     if len(sys.argv) < 2:
-        print("用法: python3 memory_archive.py <command> [options]")
-        print("\n命令:")
-        print("  stats              - 查看存储统计")
-        print("  archive [days]     - 归档 N 天前的数据（默认 90）")
-        print("  search <keyword>   - 搜索归档数据")
+        _emit("用法: python3 memory_archive.py <command> [options]")
+        _emit("\n命令:")
+        _emit("  stats              - 查看存储统计")
+        _emit("  archive [days]     - 归档 N 天前的数据（默认 90）")
+        _emit("  search <keyword>   - 搜索归档数据")
         return
 
     command = sys.argv[1]
@@ -214,16 +214,16 @@ def main():
 
     elif command == "search":
         if len(sys.argv) < 3:
-            print("❌ 请提供搜索关键词")
+            _emit("❌ 请提供搜索关键词")
             return
         keyword = sys.argv[2]
         results = archive.search_archives(keyword)
 
-        print(f"\n🔍 在归档中找到 {len(results)} 条结果:")
+        _emit(f"\n🔍 在归档中找到 {len(results)} 条结果:")
         for r in results:
-            print(f"\n[{r['provider']}] {r['timestamp']}")
-            print(f"Q: {r['question'][:100]}...")
-            print(f"A: {r['answer'][:100]}...")
+            _emit(f"\n[{r['provider']}] {r['timestamp']}")
+            _emit(f"Q: {r['question'][:100]}...")
+            _emit(f"A: {r['answer'][:100]}...")
 
 
 if __name__ == "__main__":

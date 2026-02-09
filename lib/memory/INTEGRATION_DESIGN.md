@@ -251,7 +251,7 @@ import json
 def main():
     # 解析参数
     if len(sys.argv) < 2:
-        print("用法: ccb-cli <provider> [model] <prompt>")
+        _emit("用法: ccb-cli <provider> [model] <prompt>")
         return
 
     provider = sys.argv[1]
@@ -264,7 +264,7 @@ def main():
         model = sys.argv[2]
         prompt = " ".join(sys.argv[3:])
     else:
-        print("参数错误")
+        _emit("参数错误")
         return
 
     # 调用 Gateway（记忆自动处理）
@@ -284,19 +284,19 @@ def main():
         result = response.json()
 
         if result["status"] == "completed":
-            print(result["response"])
+            _emit(result["response"])
 
             # 显示记忆统计（可选）
             if result.get("_memory_injected"):
-                print(f"\n💡 [已注入 {result.get('_memory_count', 0)} 条相关记忆]")
+                _emit(f"\n💡 [已注入 {result.get('_memory_count', 0)} 条相关记忆]")
 
             if result.get("_recommendation_reason"):
-                print(f"🤖 [推荐使用 {provider}: {result['_recommendation_reason']}]")
+                _emit(f"🤖 [推荐使用 {provider}: {result['_recommendation_reason']}]")
         else:
-            print(f"❌ 错误: {result.get('error')}")
+            _emit(f"❌ 错误: {result.get('error')}")
 
-    except Exception as e:
-        print(f"❌ Gateway 连接失败: {e}")
+    except RuntimeError as e:
+        _emit(f"❌ Gateway 连接失败: {e}")
 
 
 if __name__ == "__main__":

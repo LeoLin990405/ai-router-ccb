@@ -9,11 +9,16 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import sys
 
+from lib.common.logging import get_logger
+
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from lib.memory.registry import CCBRegistry
+
+
+logger = get_logger("gateway.middleware.system_context")
 
 
 class SystemContextBuilder:
@@ -29,20 +34,20 @@ class SystemContextBuilder:
 
     def _preload(self):
         """预加载所有系统信息"""
-        print("[SystemContext] Preloading system information...")
+        logger.info("Preloading system information")
 
         try:
             # 扫描 skills
             skills = self.registry.scan_skills()
-            print(f"[SystemContext] Loaded {len(skills)} skills")
+            logger.info("Loaded %s skills", len(skills))
 
             # 扫描 providers
             providers = self.registry.scan_providers()
-            print(f"[SystemContext] Loaded {len(providers)} providers")
+            logger.info("Loaded %s providers", len(providers))
 
             # 扫描 MCP servers
             mcp_servers = self.registry.scan_mcp_servers()
-            print(f"[SystemContext] Loaded {len(mcp_servers)} MCP servers")
+            logger.info("Loaded %s MCP servers", len(mcp_servers))
 
             # 构建缓存
             self.context_cache = {
@@ -56,10 +61,10 @@ class SystemContextBuilder:
                 }
             }
 
-            print("[SystemContext] Preload completed successfully")
+            logger.info("Preload completed successfully")
 
-        except Exception as e:
-            print(f"[SystemContext] Preload error: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.exception("Preload error: %s", e)
             self.context_cache = {
                 "skills": [],
                 "providers": [],
@@ -263,7 +268,7 @@ class SystemContextBuilder:
 
     def reload(self):
         """重新加载系统信息"""
-        print("[SystemContext] Reloading system information...")
+        logger.info("Reloading system information")
         self._preload()
 
     def get_stats(self) -> Dict[str, Any]:
@@ -278,17 +283,17 @@ class SystemContextBuilder:
 if __name__ == "__main__":
     builder = SystemContextBuilder()
 
-    print("\n" + "=" * 60)
-    print("Full Context (Markdown):")
-    print("=" * 60)
-    print(builder.get_full_context())
+    logger.info("\n%s", "=" * 60)
+    logger.info("Full Context (Markdown):")
+    logger.info("%s", "=" * 60)
+    logger.info("%s", builder.get_full_context())
 
-    print("\n" + "=" * 60)
-    print("Relevant Context for '前端开发':")
-    print("=" * 60)
-    print(builder.get_relevant_context(["前端", "开发", "React"], "gemini"))
+    logger.info("\n%s", "=" * 60)
+    logger.info("Relevant Context for '前端开发':")
+    logger.info("%s", "=" * 60)
+    logger.info("%s", builder.get_relevant_context(["前端", "开发", "React"], "gemini"))
 
-    print("\n" + "=" * 60)
-    print("Stats:")
-    print("=" * 60)
-    print(json.dumps(builder.get_stats(), indent=2))
+    logger.info("\n%s", "=" * 60)
+    logger.info("Stats:")
+    logger.info("%s", "=" * 60)
+    logger.info("%s", json.dumps(builder.get_stats(), indent=2))

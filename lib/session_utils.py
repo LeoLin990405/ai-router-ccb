@@ -11,6 +11,9 @@ from typing import Tuple, Optional
 CCB_PROJECT_CONFIG_DIRNAME = ".ccb_config"
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def project_config_dir(work_dir: Path) -> Path:
     return Path(work_dir).resolve() / CCB_PROJECT_CONFIG_DIRNAME
 
@@ -71,7 +74,7 @@ def check_session_writable(session_file: Path) -> Tuple[bool, Optional[str], Opt
                     f"File owned by {owner_name} (current user: {current_name})",
                     f"sudo chown {current_name}:{current_name} {session_file}",
                 )
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
 
     # 6. Check if file is writable
@@ -106,14 +109,14 @@ def safe_write_session(session_file: Path, content: str) -> Tuple[bool, Optional
         if tmp_file.exists():
             try:
                 tmp_file.unlink()
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
         return False, f"❌ Cannot write {session_file.name}: {e}\n💡 Try: rm -f {session_file} then retry"
-    except Exception as e:
+    except HANDLED_EXCEPTIONS as e:
         if tmp_file.exists():
             try:
                 tmp_file.unlink()
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
         return False, f"❌ Write failed: {e}"
 
@@ -122,7 +125,7 @@ def print_session_error(msg: str, to_stderr: bool = True) -> None:
     """Output session-related error"""
     import sys
     output = sys.stderr if to_stderr else sys.stdout
-    print(msg, file=output)
+    output.write(f"{msg}\n")
 
 
 def find_project_session_file(work_dir: Path, session_filename: str) -> Optional[Path]:

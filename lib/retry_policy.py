@@ -12,6 +12,9 @@ import time
 import random
 
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 class RetryReason(Enum):
     """Reasons for retry."""
     TIMEOUT = "timeout"
@@ -263,7 +266,7 @@ class RetryExecutor:
                 if on_retry:
                     on_retry(attempt)
 
-            except Exception as e:
+            except HANDLED_EXCEPTIONS as e:
                 latency_ms = (time.time() - start_time) * 1000
                 attempt = RetryAttempt(
                     attempt_number=attempt_num + 1,
@@ -321,7 +324,7 @@ class RetryExecutor:
             try:
                 if execute_fn():
                     return True, attempt + 1
-            except Exception:
+            except HANDLED_EXCEPTIONS:
                 pass
 
             if attempt < self.config.max_attempts - 1:

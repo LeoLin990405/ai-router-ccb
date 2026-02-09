@@ -6,8 +6,13 @@ Runtime configuration management for the CCB memory system.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+
+def _warn(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
 
 
 class MemoryConfig:
@@ -56,7 +61,7 @@ class MemoryConfig:
                 with open(self.config_path) as f:
                     self._config = json.load(f)
             except (json.JSONDecodeError, IOError) as e:
-                print(f"[MemoryConfig] Error loading config: {e}")
+                _warn(f"[MemoryConfig] Error loading config: {e}")
                 self._config = {}
 
         # Merge with defaults
@@ -83,7 +88,7 @@ class MemoryConfig:
             with open(self.config_path, 'w') as f:
                 json.dump(self._config, f, indent=2)
         except IOError as e:
-            print(f"[MemoryConfig] Error saving config: {e}")
+            _warn(f"[MemoryConfig] Error saving config: {e}")
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value.

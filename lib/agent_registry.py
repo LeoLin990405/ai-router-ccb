@@ -9,8 +9,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, List, Dict, Any
 from pathlib import Path
+import sys
 import yaml
 
+def _warn(message: str) -> None:
+    sys.stderr.write(f"{message}\n")
+
+HANDLED_EXCEPTIONS = (Exception,)
 
 class AgentCapability(Enum):
     """Agent capability types."""
@@ -33,7 +38,6 @@ class AgentCapability(Enum):
     AUTONOMOUS = "autonomous"       # Self-directed execution
     LONG_RUNNING = "long_running"   # Long-running tasks
 
-
 @dataclass
 class AgentConfig:
     """Configuration for a specialized agent."""
@@ -48,7 +52,6 @@ class AgentConfig:
     max_iterations: int = 10
     temperature: float = 0.7
 
-
 @dataclass
 class AgentMatch:
     """Result of matching a task to an agent."""
@@ -56,7 +59,6 @@ class AgentMatch:
     confidence: float
     matched_capabilities: List[AgentCapability]
     reason: str
-
 
 class AgentRegistry:
     """
@@ -364,8 +366,8 @@ Focus on:
                 )
                 self.agents[name] = agent
 
-        except Exception as e:
-            print(f"Warning: Failed to load agent config from {config_path}: {e}")
+        except HANDLED_EXCEPTIONS as e:
+            _warn(f"Warning: Failed to load agent config from {config_path}: {e}")
 
     def get_agent(self, name: str) -> Optional[AgentConfig]:
         """Get an agent by name."""
@@ -484,10 +486,8 @@ Focus on:
         """Register a new agent."""
         self.agents[agent.name] = agent
 
-
 # Singleton instance
 _agent_registry: Optional[AgentRegistry] = None
-
 
 def get_agent_registry() -> AgentRegistry:
     """Get the global agent registry instance."""

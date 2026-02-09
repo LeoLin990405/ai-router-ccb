@@ -5,6 +5,9 @@ import locale
 import os
 import sys
 
+HANDLED_EXCEPTIONS = (Exception,)
+
+
 def setup_windows_encoding():
     """Configure UTF-8 encoding for Windows console"""
     if sys.platform == "win32":
@@ -41,7 +44,7 @@ def decode_stdin_bytes(data: bytes) -> str:
     if forced:
         try:
             return data.decode(forced, errors="strict")
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             return data.decode(forced, errors="replace")
 
     try:
@@ -61,7 +64,7 @@ def decode_stdin_bytes(data: bytes) -> str:
     if sys.platform == "win32":
         try:
             return data.decode("mbcs", errors="strict")
-        except Exception:
+        except HANDLED_EXCEPTIONS:
             pass
 
     return data.decode("utf-8", errors="replace")
@@ -71,7 +74,7 @@ def read_stdin_text() -> str:
     """Read all text from stdin (non-interactive) using robust decoding."""
     try:
         buf = sys.stdin.buffer  # type: ignore[attr-defined]
-    except Exception:
+    except HANDLED_EXCEPTIONS:
         # Fallback: whatever Python thinks stdin is.
         return sys.stdin.read()
     return decode_stdin_bytes(buf.read())

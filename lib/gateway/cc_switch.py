@@ -16,6 +16,11 @@ import os
 
 import aiohttp
 
+from lib.common.logging import get_logger
+
+
+logger = get_logger("gateway.cc_switch")
+
 
 @dataclass
 class CCProvider:
@@ -99,7 +104,7 @@ class CCSwitch:
     def _load_providers(self):
         """Load providers from CC Switch database."""
         if not os.path.exists(self.db_path):
-            print(f"⚠️  CC Switch database not found: {self.db_path}")
+            logger.warning("CC Switch database not found: %s", self.db_path)
             return
 
         try:
@@ -147,14 +152,14 @@ class CCSwitch:
                     self.providers[provider_id] = provider
 
                 except json.JSONDecodeError as e:
-                    print(f"⚠️  Failed to parse settings for provider {name}: {e}")
+                    logger.warning("Failed to parse settings for provider %s: %s", name, e)
                     continue
 
             conn.close()
-            print(f"✓ Loaded {len(self.providers)} providers from CC Switch")
+            logger.info("Loaded %s providers from CC Switch", len(self.providers))
 
         except sqlite3.Error as e:
-            print(f"✖ Failed to load CC Switch database: {e}")
+            logger.error("Failed to load CC Switch database: %s", e)
 
     def get_active_providers(self) -> List[CCProvider]:
         """Get all active providers sorted by priority (ascending sort_index)."""
@@ -243,7 +248,7 @@ class CCSwitch:
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             return CCTestResult(
                 provider_name=provider.provider_name,
                 success=False,

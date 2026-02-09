@@ -16,7 +16,7 @@ try:
 
     KNOWLEDGE_AVAILABLE = True
     KNOWLEDGE_IMPORT_ERROR: Optional[str] = None
-except Exception as exc:  # pragma: no cover - depends on runtime environment
+except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:  # pragma: no cover - depends on runtime environment
     KNOWLEDGE_AVAILABLE = False
     KNOWLEDGE_IMPORT_ERROR = str(exc)
     KnowledgeRouter = None  # type: ignore[assignment]
@@ -106,7 +106,7 @@ if HAS_FASTAPI:
                 use_cache=request.use_cache,
             )
             return QueryResponse(**result)
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return QueryResponse(
                 answer=None,
                 source=request.source,
@@ -127,7 +127,7 @@ if HAS_FASTAPI:
                 success=True,
                 message=f"Synced {synced_count} notebooks",
             )
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return SyncResponse(
                 notebooks_synced=0,
                 success=False,
@@ -160,7 +160,7 @@ if HAS_FASTAPI:
                 success=bool(result.get("id")),
                 error=result.get("error"),
             )
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return CreateResponse(
                 title=request.title,
                 success=False,
@@ -180,7 +180,7 @@ if HAS_FASTAPI:
                 success=not result.get("error"),
                 error=result.get("error"),
             )
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return AddSourceResponse(
                 success=False,
                 error=str(exc),
@@ -192,7 +192,7 @@ if HAS_FASTAPI:
         try:
             kr = get_knowledge_router()
             return AuthResponse(authenticated=kr.check_auth())
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return AuthResponse(authenticated=False)
 
     @router.get("/search")
@@ -201,7 +201,7 @@ if HAS_FASTAPI:
         try:
             kr = get_knowledge_router()
             return kr.search_notebooks_online(q)
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return {"error": str(exc), "results": []}
 
 

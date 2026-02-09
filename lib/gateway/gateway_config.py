@@ -12,8 +12,12 @@ from typing import Optional, Dict, Any, List
 import os
 import yaml
 
+from lib.common.logging import get_logger
+from lib.common.paths import default_gateway_db_path
+
 from .models import BackendType
 
+logger = get_logger("gateway.config")
 
 # Default fallback chains for providers
 DEFAULT_FALLBACK_CHAINS: Dict[str, List[str]] = {
@@ -37,7 +41,6 @@ DEFAULT_PROVIDER_GROUPS: Dict[str, List[str]] = {
     "chinese": ["deepseek", "kimi", "qwen"],
 }
 
-
 @dataclass
 class ProviderConfig:
     """Configuration for a single provider."""
@@ -60,7 +63,6 @@ class ProviderConfig:
     max_tokens: int = 4096
     # Streaming support
     supports_streaming: bool = False
-
 
 @dataclass
 class RetryConfig:
@@ -87,7 +89,6 @@ class RetryConfig:
     def get_fallbacks(self, provider: str) -> List[str]:
         """Get fallback providers for a given provider."""
         return self.fallback_chains.get(provider, [])
-
 
 @dataclass
 class CacheConfig:
@@ -118,7 +119,6 @@ class CacheConfig:
         message_lower = message.lower()
         return not any(p in message_lower for p in self.no_cache_patterns)
 
-
 @dataclass
 class StreamConfig:
     """Configuration for streaming."""
@@ -127,7 +127,6 @@ class StreamConfig:
     chunk_delay_ms: float = 50.0
     heartbeat_interval_s: float = 15.0
     timeout_s: float = 300.0
-
 
 @dataclass
 class ParallelConfig:
@@ -145,7 +144,6 @@ class ParallelConfig:
         name = group_name.lstrip("@")
         return self.provider_groups.get(name, [])
 
-
 @dataclass
 class AuthConfig:
     """Configuration for API authentication."""
@@ -160,7 +158,6 @@ class AuthConfig:
         "/docs",
         "/openapi.json",
     ])
-
 
 @dataclass
 class RateLimitConfig:
@@ -177,14 +174,12 @@ class RateLimitConfig:
         "/api/admin": 10,  # Very restrictive for admin endpoints
     })
 
-
 @dataclass
 class MetricsConfig:
     """Configuration for Prometheus metrics."""
     enabled: bool = True
     endpoint: str = "/metrics"
     use_prometheus_client: bool = True  # Use prometheus_client if available
-
 
 @dataclass
 class GatewayConfig:
@@ -298,8 +293,8 @@ class GatewayConfig:
             for name, pconfig in data.get("providers", {}).items():
                 self.providers[name] = self._parse_provider_config(name, pconfig)
 
-        except Exception as e:
-            print(f"Warning: Failed to load config from {path}: {e}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            logger.warning("Failed to load config from %s: %s", path, e)
 
     def _parse_provider_config(self, name: str, data: Dict[str, Any]) -> ProviderConfig:
         """Parse a provider configuration."""
@@ -454,7 +449,7 @@ class GatewayConfig:
         if self.db_path:
             path = Path(self.db_path)
         else:
-            path = Path.home() / ".ccb_config" / "gateway.db"
+            path = default_gateway_db_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 

@@ -135,7 +135,7 @@ class BaseBackend(ABC):
 
             return self._status
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             self._status = ProviderStatus.UNAVAILABLE
             self._last_error = str(e)
             self._last_check = time.time()

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from lib.common.logging import get_logger
 
 from .index_manager import IndexManager
 from .notebooklm_client import NotebookLMClient
@@ -38,6 +39,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 
+logger = get_logger("knowledge.router")
+
+
 class KnowledgeRouter:
     """统一知识路由器。"""
 
@@ -54,8 +58,8 @@ class KnowledgeRouter:
                 timeout=int(nlm_conf.get("timeout", 60)),
                 bin_path=nlm_conf.get("bin_path"),
             )
-        except Exception as exc:
-            print(f"[KnowledgeRouter] NotebookLM not available: {exc}")
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+            logger.warning("NotebookLM not available: %s", exc)
 
         self.obsidian: Optional[ObsidianSearch] = None
         obsidian_conf = knowledge_conf.get("obsidian", {})
@@ -68,13 +72,13 @@ class KnowledgeRouter:
                         vault_path=vault_path,
                         excluded_folders=list(obsidian_conf.get("excluded_folders", [])),
                     )
-                except Exception as exc:
-                    print(f"[KnowledgeRouter] Obsidian init failed: {exc}")
+                except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+                    logger.warning("Obsidian init failed: %s", exc)
 
-        print(
-            "[KnowledgeRouter] Initialized: "
-            f"NotebookLM={'✓' if self.notebooklm else '✗'}, "
-            f"Obsidian={'✓' if self.obsidian else '✗'}"
+        logger.info(
+            "KnowledgeRouter initialized NotebookLM=%s Obsidian=%s",
+            bool(self.notebooklm),
+            bool(self.obsidian),
         )
 
     def _load_config(self, config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -85,7 +89,7 @@ class KnowledgeRouter:
         try:
             with path.open("r", encoding="utf-8") as file:
                 loaded = yaml.safe_load(file) or {}
-        except Exception:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError):
             return DEFAULT_CONFIG.copy()
 
         merged = DEFAULT_CONFIG.copy()
@@ -230,7 +234,7 @@ class KnowledgeRouter:
                 "confidence": 0.9 if answer else 0.0,
                 "error": result.get("error"),
             }
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return {
                 "answer": None,
                 "source": "notebooklm",
@@ -283,7 +287,7 @@ class KnowledgeRouter:
                 "references": references,
                 "confidence": confidence,
             }
-        except Exception as exc:
+        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
             return {
                 "answer": None,
                 "source": "obsidian",

@@ -211,7 +211,7 @@ const AddPlatformModal = ModalHOC<{
           {/* Base URL - 自定义选项、标准 Gemini 和 New API 显示 / Base URL - for Custom, standard Gemini and New API */}
           <Form.Item hidden={!isCustom && !isNewApi && platformValue !== 'gemini'} label={t('settings.baseUrl')} field={'baseUrl'} required={isCustom || isNewApi} rules={[{ required: isCustom || isNewApi }]}>
             <Input
-              placeholder={isNewApi ? 'https://your-newapi-instance.com' : selectedPlatform?.baseUrl || ''}
+              placeholder={isNewApi ? t('settings.newApiBaseUrlPlaceholder') : selectedPlatform?.baseUrl || ''}
               onBlur={() => {
                 void modelListState.mutate();
               }}

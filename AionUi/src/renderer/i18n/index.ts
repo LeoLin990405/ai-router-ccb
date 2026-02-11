@@ -36,7 +36,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en-US',
+    lng: 'zh-CN',           // 默认语言设置为中文
+    fallbackLng: 'zh-CN',   // 回退语言也设置为中文
     debug: false,
     interpolation: {
       escapeValue: false,

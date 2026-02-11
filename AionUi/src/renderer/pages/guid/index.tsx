@@ -1140,7 +1140,7 @@ const Guid: React.FC = () => {
         const initialMessage = {
           input,
           files: files.length > 0 ? files : undefined,
-          provider: null,
+          provider: null as string | null,
         };
         sessionStorage.setItem(`hivemind_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 

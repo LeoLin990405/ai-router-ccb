@@ -379,7 +379,7 @@ const CodexSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id }
             ? t('conversation.chat.processing')
             : t('acp.sendbox.placeholder', {
                 backend: 'Codex',
-                defaultValue: `Send message to Codex...`,
+                defaultValue: '向 Codex 发送消息...',
               })
         }
         onStop={handleStop}

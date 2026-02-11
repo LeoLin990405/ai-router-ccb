@@ -157,7 +157,7 @@ try {
   // 2. Run Forge to build webpack bundles with explicit architecture
   console.log(`📦 Building ${targetArch}...`);
   // Use cross-platform command: npm exec works on both Unix and Windows
-  execSync(`npm exec electron-forge -- package --arch=${targetArch}`, {
+  execSync(`npm run package -- --arch=${targetArch}`, {
     stdio: 'inherit',
     env: {
       ...process.env,

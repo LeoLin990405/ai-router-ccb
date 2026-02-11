@@ -67,7 +67,7 @@ const HivemindModalContent: React.FC = () => {
         <div className='flex items-center justify-between gap-12px flex-wrap'>
           <Space>
             <Tag color={connected ? 'green' : 'red'}>{connected ? t('hivemind.settings.connected') : t('hivemind.settings.disconnected')}</Tag>
-            {error && <Typography.Text type='danger'>{error}</Typography.Text>}
+            {error && <Typography.Text type='error'>{error}</Typography.Text>}
           </Space>
           <Space>
             <Button size='small' onClick={() => void refresh()}>
@@ -93,7 +93,7 @@ const HivemindModalContent: React.FC = () => {
           <Form.Item label={t('hivemind.settings.gatewayUrl')}>
             <Input
               value={config.gatewayUrl}
-              placeholder='http://localhost:8765'
+              placeholder={t('hivemind.settings.gatewayUrlPlaceholder')}
               onChange={(value) => {
                 setConfig((prev) => ({ ...prev, gatewayUrl: value }));
               }}

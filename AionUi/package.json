@@ -1,8 +1,8 @@
 {
-  "name": "AionUi",
-  "productName": "AionUi",
+  "name": "Hivemind",
+  "productName": "蜂巢",
   "version": "1.8.5",
-  "description": "Transform your command-line AI agent into a modern, efficient AI Chat interface.",
+  "description": "Hivemind Gateway 桌面客户端 - 统一的多 AI 聊天界面和监控仪表盘",
   "main": ".webpack/main",
   "scripts": {
     "start": "node scripts/start-forge.js",
@@ -38,8 +38,8 @@
   },
   "keywords": [],
   "author": {
-    "name": "AionUi",
-    "email": "service@aionui.com"
+    "name": "Hivemind",
+    "email": "service@hivemind.com"
   },
   "license": "Apache-2.0",
   "devDependencies": {
@@ -75,7 +75,7 @@
     "cross-env": "^7.0.3",
     "css-loader": "^6.11.0",
     "dotenv": "^17.2.1",
-    "electron": "^37.3.1",
+    "electron": "^37.10.3",
     "electron-builder": "^26.6.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",

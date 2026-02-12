@@ -198,6 +198,9 @@
     "show": "表示",
     "hide": "非表示"
   },
+  "app": {
+    "name": "HiveMind"
+  },
   "login": {
     "pageTitle": "HiveMind - ログイン",
     "brand": "HiveMind",

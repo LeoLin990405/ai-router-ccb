@@ -71,6 +71,9 @@
     "openFile": "Open file",
     "errorTitle": "Update failed"
   },
+  "app": {
+    "name": "HiveMind"
+  },
   "login": {
     "pageTitle": "HiveMind - Sign In",
     "brand": "HiveMind",

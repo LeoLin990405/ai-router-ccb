@@ -169,6 +169,9 @@
     "show": "顯示",
     "hide": "隱藏"
   },
+  "app": {
+    "name": "HiveMind"
+  },
   "login": {
     "pageTitle": "HiveMind - 登入",
     "brand": "HiveMind",

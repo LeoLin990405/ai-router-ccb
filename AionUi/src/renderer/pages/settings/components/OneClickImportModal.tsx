@@ -249,8 +249,8 @@ const OneClickImportModal: React.FC<OneClickImportModalProps> = ({ visible, onCa
 
         <div className='mb-6'>
           <AionSteps current={currentStep} size='small'>
-            <AionSteps.Step title={t('settings.mcpStepSelectAgent')} icon={currentStep > 1 ? <Check theme='filled' size={16} fill='#165dff' /> : undefined} />
-            <AionSteps.Step title={t('settings.mcpStepFetchTools')} icon={currentStep > 2 ? <Check theme='filled' size={16} fill='#165dff' /> : undefined} />
+            <AionSteps.Step title={t('settings.mcpStepSelectAgent')} icon={currentStep > 1 ? <Check theme='filled' size={16} fill='#0ea5e9' /> : undefined} />
+            <AionSteps.Step title={t('settings.mcpStepFetchTools')} icon={currentStep > 2 ? <Check theme='filled' size={16} fill='#0ea5e9' /> : undefined} />
             <AionSteps.Step title={t('settings.mcpStepImportSuccess')} />
           </AionSteps>
         </div>

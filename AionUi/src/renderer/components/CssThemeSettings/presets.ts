@@ -26,38 +26,38 @@ export const PRESET_THEMES: ICssTheme[] = [
     name: 'Default',
     isPreset: true,
     cover: defaultThemeCover, // 仅用于预览展示 / Only for preview display
-    css: `/* Default Theme - AOU Purple Theme / 默认主题 */
+    css: `/* Default Theme - Sky Blue Theme / 默认主题 */
 /* 此主题展示了系统默认的颜色变量，您可以基于此进行自定义 */
 /* This theme shows the system default color variables, you can customize based on this */
 
 :root {
   /* Primary Colors - 主色调 */
-  --color-primary: #165dff;
-  --primary: #165dff;
-  --color-primary-light-1: #4080ff;
-  --color-primary-light-2: #6aa1ff;
-  --color-primary-light-3: #94bfff;
-  --color-primary-dark-1: #0e42d2;
-  --primary-rgb: 22, 93, 255;
+  --color-primary: #0ea5e9;
+  --primary: #0ea5e9;
+  --color-primary-light-1: #38bdf8;
+  --color-primary-light-2: #7dd3fc;
+  --color-primary-light-3: #bae6fd;
+  --color-primary-dark-1: #0284c7;
+  --primary-rgb: 14, 165, 233;
 
   /* Brand Colors - 品牌色 */
-  --brand: #7583b2;
-  --brand-light: #eff0f6;
-  --brand-hover: #b5bcd6;
-  --color-brand-fill: #7583b2;
-  --color-brand-bg: #eff0f6;
+  --brand: #0ea5e9;
+  --brand-light: #e0f2fe;
+  --brand-hover: #38bdf8;
+  --color-brand-fill: #0ea5e9;
+  --color-brand-bg: #e0f2fe;
 
   /* AOU Brand Colors - AOU 品牌色板 */
-  --aou-1: #eff0f6;
-  --aou-2: #e5e7f0;
-  --aou-3: #d1d5e5;
-  --aou-4: #b5bcd6;
-  --aou-5: #97a0c5;
-  --aou-6: #7583b2;
-  --aou-7: #596590;
-  --aou-8: #3f4868;
-  --aou-9: #262c41;
-  --aou-10: #0d101c;
+  --aou-1: #f0f9ff;
+  --aou-2: #e0f2fe;
+  --aou-3: #bae6fd;
+  --aou-4: #7dd3fc;
+  --aou-5: #38bdf8;
+  --aou-6: #0ea5e9;
+  --aou-7: #0284c7;
+  --aou-8: #0369a1;
+  --aou-9: #075985;
+  --aou-10: #0c4a6e;
 
   /* Background Colors - 背景色 */
   --color-bg-1: #f7f8fa;

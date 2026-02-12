@@ -147,6 +147,8 @@ export const colorMapping: Record<string, string> = {
   '#e5e7f0': 'var(--color-aou-2-disabled)',
   '#7583B2': 'var(--color-aou-6-brand)',
   '#7583b2': 'var(--color-aou-6-brand)',
+  '#0EA5E9': 'var(--color-aou-6-brand)', // Sky Blue
+  '#0ea5e9': 'var(--color-aou-6-brand)', // Sky Blue
 
   // Background colors
   '#FFFFFF': 'var(--color-bg-0)',
@@ -165,4 +167,6 @@ export const colorMapping: Record<string, string> = {
   // Semantic colors
   '#165DFF': 'var(--color-primary)',
   '#165dff': 'var(--color-primary)',
+  '#0EA5E9': 'var(--color-primary)', // Sky Blue primary
+  '#0ea5e9': 'var(--color-primary)', // Sky Blue primary
 };

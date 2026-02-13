@@ -41,7 +41,7 @@ const getPriorityColor = (priority: number) => {
   return { color: '#0ea5e9', bg: '#0ea5e920', label: '低' };
 };
 
-export const TaskCard: React.FC<TaskCardProps> = ({
+export const TaskCard: React.FC<TaskCardProps> = React.memo(({
   task,
   isDragging = false,
   onViewDetail,
@@ -186,4 +186,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       </motion.div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // 自定义比较函数，只在必要时重新渲染
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.status === nextProps.task.status &&
+    prevProps.task.updated_at === nextProps.task.updated_at &&
+    prevProps.isDragging === nextProps.isDragging
+  );
+});

@@ -11,7 +11,7 @@ interface StatCardProps {
   color?: 'primary' | 'success' | 'warning' | 'error';
 }
 
-export const StatCard: React.FC<StatCardProps> = ({
+export const StatCard: React.FC<StatCardProps> = React.memo(({
   title,
   value,
   icon,
@@ -84,4 +84,10 @@ export const StatCard: React.FC<StatCardProps> = ({
       )}
     </Card>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.title === nextProps.title &&
+    prevProps.trend === nextProps.trend
+  );
+});

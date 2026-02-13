@@ -1,10 +1,10 @@
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'node',
+  testEnvironment: 'jsdom',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
-  testMatch: ['**/tests/**/*.ts', '**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testMatch: ['**/tests/**/*.ts', '**/tests/**/*.tsx', '**/__tests__/**/*.ts', '**/__tests__/**/*.tsx', '**/?(*.)+(spec|test).ts', '**/?(*.)+(spec|test).tsx'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': 'ts-jest',
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -15,7 +15,7 @@ module.exports = {
     '^@mcp/models/(.*)$': '<rootDir>/src/common/models/$1',
     '^@mcp/types/(.*)$': '<rootDir>/src/common/$1',
   },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/*.test.ts', '!src/**/*.spec.ts'],
+  collectCoverageFrom: ['src/**/*.ts', 'src/**/*.tsx', '!src/**/*.d.ts', '!src/**/*.test.ts', '!src/**/*.test.tsx', '!src/**/*.spec.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/jest.setup.ts'],
   testPathIgnorePatterns: ['<rootDir>/tests/jest.setup.ts'],
   testTimeout: 10000,

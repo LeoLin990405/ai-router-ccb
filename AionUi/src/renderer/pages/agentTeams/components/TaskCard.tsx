@@ -9,8 +9,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Tag, Button } from '@arco-design/web-react';
 import { motion } from 'framer-motion';
-import { Play, FileText } from '@icon-park/react';
-import { Link as LinkIcon } from '@icon-park/react';
+import { Play, FileText, Connection } from '@icon-park/react';
 import { Typography } from '@/renderer/components/atoms/Typography';
 import type { IAgentTask } from '@/common/ipcBridge';
 import IconParkHOC from '@/renderer/components/IconParkHOC';
@@ -24,7 +23,7 @@ interface TaskCardProps {
 
 const IconPlay = IconParkHOC(Play);
 const IconFile = IconParkHOC(FileText);
-const IconLink = IconParkHOC(LinkIcon);
+const IconLink = IconParkHOC(Connection);
 
 // Provider 颜色映射
 const PROVIDER_COLORS: Record<string, { color: string; bg: string }> = {

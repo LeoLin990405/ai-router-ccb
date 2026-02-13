@@ -157,3 +157,8 @@ ${env.ELECTRON_CACHE}/
 
 # Agent Kit
 .agent
+
+# Gateway runtime state database (should not be committed)
+gateway_state.db
+../gateway_state.db
+lib/gateway/gateway_state.db

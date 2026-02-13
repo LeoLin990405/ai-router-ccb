@@ -1,6 +1,7 @@
 // UI Components - Phoenix Design System
 // All components are built on top of Radix UI primitives
 
+export { Alert, AlertTitle, AlertDescription } from "./alert"
 export { Badge, badgeVariants } from "./badge"
 export { Button, buttonVariants } from "./button"
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card"

@@ -1,5 +1,7 @@
 import type { IMcpServer, IMcpServerTransport, IMcpTool } from '@/common/storage';
-import { Alert, Button } from '@arco-design/web-react';
+import { Button } from '@/renderer/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/renderer/components/ui/alert';
+import { Info } from 'lucide-react';
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import CodeMirror from '@uiw/react-codemirror';
@@ -197,7 +199,7 @@ const JsonImportModal: React.FC<JsonImportModalProps> = ({ visible, server, onCa
       okButtonProps={{ disabled: !validation.isValid }}
       header={{ title: server ? t('settings.mcpEditServer') : t('settings.mcpImportFromJSON'), showClose: true }}
       style={{ width: 600, height: 450 }}
-      contentStyle={{ borderRadius: 16, padding: '24px', background: 'var(--bg-1)', overflow: 'auto', height: 420 - 80 }} // 与“添加模型”弹窗保持统一尺寸 / Keep same size as Add Model modal
+      contentStyle={{ borderRadius: 16, padding: '24px', background: 'var(--bg-1)', overflow: 'auto', height: 420 - 80 }} // 与"添加模型"弹窗保持统一尺寸 / Keep same size as Add Model modal
     >
       <div className='space-y-12px'>
         <div>
@@ -235,9 +237,9 @@ const JsonImportModal: React.FC<JsonImportModalProps> = ({ visible, server, onCa
             />
             {jsonInput && (
               <Button
-                size='mini'
-                type='outline'
-                className='absolute top-2 right-2 z-10'
+                size='sm'
+                variant='outline'
+                className='absolute top-2 right-2 z-10 backdrop-blur-sm'
                 onClick={() => {
                   const copyToClipboard = async () => {
                     try {
@@ -267,9 +269,6 @@ const JsonImportModal: React.FC<JsonImportModalProps> = ({ visible, server, onCa
 
                   void copyToClipboard();
                 }}
-                style={{
-                  backdropFilter: 'blur(4px)',
-                }}
               >
                 {copyStatus === 'success' ? t('common.copySuccess') : copyStatus === 'error' ? t('common.copyFailed') : t('common.copy')}
               </Button>
@@ -280,20 +279,17 @@ const JsonImportModal: React.FC<JsonImportModalProps> = ({ visible, server, onCa
           {!validation.isValid && jsonInput.trim() && <div className='mt-2 text-sm text-red-600'>{t('settings.mcpJsonFormatError') || 'JSON format error'}</div>}
         </div>
 
-        <Alert
-          type='info'
-          showIcon
-          content={
-            <div>
-              <div>{t('settings.mcpImportTips')}</div>
-              <ul className='list-disc pl-5 mt-2 space-y-1 text-sm'>
-                <li>{t('settings.mcpImportTip1')}</li>
-                <li>{t('settings.mcpImportTip2')}</li>
-                <li>{t('settings.mcpImportTip3')}</li>
-              </ul>
-            </div>
-          }
-        />
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>{t('settings.mcpImportTips')}</AlertTitle>
+          <AlertDescription>
+            <ul className='list-disc pl-5 mt-2 space-y-1 text-sm'>
+              <li>{t('settings.mcpImportTip1')}</li>
+              <li>{t('settings.mcpImportTip2')}</li>
+              <li>{t('settings.mcpImportTip3')}</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
       </div>
     </AionModal>
   );

@@ -22,6 +22,14 @@ import CacheManager from './pages/monitor/CacheManager';
 import TaskQueue from './pages/monitor/TaskQueue';
 import KnowledgeHub from './pages/knowledge';
 import MemoryHub from './pages/memory';
+import AgentTeamsLayout from './pages/agentTeams';
+import AgentTeamsDashboard from './pages/agentTeams/Dashboard';
+import TeamsPage from './pages/agentTeams/TeamsPage';
+import TeamDetailPage from './pages/agentTeams/TeamDetailPage';
+import TasksKanbanPage from './pages/agentTeams/TasksKanbanPage';
+import TaskDetailPage from './pages/agentTeams/TaskDetailPage';
+import AgentTeamsMonitorDashboard from './pages/agentTeams/MonitorDashboard';
+import AgentTeamsAnalyticsPage from './pages/agentTeams/AnalyticsPage';
 
 const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
   const { status } = useAuth();
@@ -57,6 +65,17 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           </Route>
           <Route path='/knowledge' element={<KnowledgeHub />} />
           <Route path='/memory' element={<MemoryHub />} />
+
+          <Route path='/agent-teams' element={<AgentTeamsLayout />}>
+            <Route index element={<Navigate to='dashboard' replace />} />
+            <Route path='dashboard' element={<AgentTeamsDashboard />} />
+            <Route path='teams' element={<TeamsPage />} />
+            <Route path='teams/:teamId' element={<TeamDetailPage />} />
+            <Route path='tasks' element={<TasksKanbanPage />} />
+            <Route path='tasks/:taskId' element={<TaskDetailPage />} />
+            <Route path='monitor' element={<AgentTeamsMonitorDashboard />} />
+            <Route path='analytics' element={<AgentTeamsAnalyticsPage />} />
+          </Route>
           <Route path='/settings/gemini' element={<GeminiSettings />} />
           <Route path='/settings/model' element={<ModeSettings />} />
           <Route path='/settings/agent' element={<AgentSettings />} />

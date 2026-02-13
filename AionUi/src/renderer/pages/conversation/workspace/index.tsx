@@ -8,7 +8,7 @@ import { ipcBridge } from '@/common';
 import type { IDirOrFile } from '@/common/ipcBridge';
 import { STORAGE_KEYS } from '@/common/storageKeys';
 import FlexFullContainer from '@/renderer/components/FlexFullContainer';
-import useDebounce from '@/renderer/hooks/useDebounce';
+import { useDebouncedCallback } from '@/renderer/hooks/useDebounce';
 import { usePreviewContext } from '@/renderer/pages/conversation/preview';
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
@@ -183,14 +183,13 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({ conversation_id, workspace, e
   });
 
   // Debounced search handler
-  const onSearch = useDebounce(
+  const onSearch = useDebouncedCallback(
     (value: string) => {
       void treeHook.loadWorkspace(workspace, value).then((files) => {
         setShowSearch(files.length > 0 && files[0]?.children?.length > 0);
       });
     },
-    200,
-    [workspace, treeHook.loadWorkspace]
+    200
   );
 
   // Context menu calculations

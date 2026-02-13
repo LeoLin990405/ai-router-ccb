@@ -1159,7 +1159,6 @@
       "noActive": "無活躍會話"
     }
   },
-
   "monitor": {
     "title": "Monitor",
     "nav": {
@@ -1213,5 +1212,14 @@
       "completedAt": "Completed At",
       "error": "Error"
     }
+  },
+  "agentTeams": {
+    "title": "Agent Teams",
+    "subtitle": "分散式 AI 協作看板。",
+    "dashboard": "總覽",
+    "teams": "團隊",
+    "tasks": "任務",
+    "monitor": "監控",
+    "analytics": "分析"
   }
 }

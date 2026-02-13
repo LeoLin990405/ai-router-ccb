@@ -1024,10 +1024,31 @@
       "quick_switch_title": "💡 **Quick Switch Options:**",
       "quick_switch_content": "When current service encounters network restrictions, you can:\n\n1. **Switch AI Assistant Immediately**: Select other available assistants from the left panel\n2. **Check Service Status**: Availability of different AI services may vary by region\n3. **Network Optimization**: Use stable network environment to improve connection success rate\n4. **Retry Later**: Network restrictions are usually temporary\n\n**Tip**: It's recommended to configure multiple AI services as alternatives to ensure work continuity.",
       "recovery_actions": {
-        "cloudflare_blocked": ["• Use VPN or proxy service", "• Switch network environment (like mobile hotspot)", "• Wait 10-30 minutes and retry", "• Clear browser cache and cookies", "• Switch to other available services: ChatGPT, Claude, Qwen, Gemini"],
-        "network_timeout": ["• Check if network connection is stable", "• Retry connection operation", "• Switch to more stable network environment", "• Check firewall settings"],
-        "connection_refused": ["• Check if Codex CLI is properly installed", "• Verify service configuration and API keys", "• Restart application", "• Check if local ports are occupied"],
-        "unknown": ["• Check network connection status", "• Retry current operation", "• Switch network environment", "• Contact technical support"]
+        "cloudflare_blocked": [
+          "• Use VPN or proxy service",
+          "• Switch network environment (like mobile hotspot)",
+          "• Wait 10-30 minutes and retry",
+          "• Clear browser cache and cookies",
+          "• Switch to other available services: ChatGPT, Claude, Qwen, Gemini"
+        ],
+        "network_timeout": [
+          "• Check if network connection is stable",
+          "• Retry connection operation",
+          "• Switch to more stable network environment",
+          "• Check firewall settings"
+        ],
+        "connection_refused": [
+          "• Check if Codex CLI is properly installed",
+          "• Verify service configuration and API keys",
+          "• Restart application",
+          "• Check if local ports are occupied"
+        ],
+        "unknown": [
+          "• Check network connection status",
+          "• Retry current operation",
+          "• Switch network environment",
+          "• Contact technical support"
+        ]
       }
     },
     "thinking": {
@@ -1456,5 +1477,14 @@
       "completedAt": "Completed At",
       "error": "Error"
     }
+  },
+  "agentTeams": {
+    "title": "Agent Teams",
+    "subtitle": "Distributed AI collaboration dashboard.",
+    "dashboard": "Dashboard",
+    "teams": "Teams",
+    "tasks": "Tasks",
+    "monitor": "Monitor",
+    "analytics": "Analytics"
   }
 }

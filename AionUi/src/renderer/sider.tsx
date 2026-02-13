@@ -25,6 +25,7 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
   const isMonitor = pathname.startsWith('/monitor');
   const isKnowledge = pathname.startsWith('/knowledge');
   const isMemory = pathname.startsWith('/memory');
+  const isAgentTeams = pathname.startsWith('/agent-teams');
   const lastNonSettingsPathRef = useRef('/guid');
 
   useEffect(() => {
@@ -72,6 +73,23 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
       });
     } else {
       Promise.resolve(navigate('/knowledge')).catch((error) => {
+        console.error('Navigation failed:', error);
+      });
+    }
+
+    if (onSessionClick) {
+      onSessionClick();
+    }
+  };
+
+
+  const handleAgentTeamsClick = () => {
+    if (isAgentTeams) {
+      Promise.resolve(navigate('/guid')).catch((error) => {
+        console.error('Navigation failed:', error);
+      });
+    } else {
+      Promise.resolve(navigate('/agent-teams/dashboard')).catch((error) => {
         console.error('Navigation failed:', error);
       });
     }
@@ -150,6 +168,16 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
           <div onClick={handleMonitorClick} className='flex items-center justify-start gap-10px px-12px py-8px hover:bg-hover rd-0.5rem mb-8px cursor-pointer'>
             <IconDashboard className='flex text-22px' />
             <span className='collapsed-hidden text-t-primary'>{t('monitor.title', { defaultValue: 'Monitor' })}</span>
+          </div>
+        </Tooltip>
+      </div>
+
+      {/* Footer - Agent Teams button */}
+      <div className='shrink-0'>
+        <Tooltip disabled={!collapsed} content={t('agentTeams.title', { defaultValue: 'Agent Teams' })} position='right'>
+          <div onClick={handleAgentTeamsClick} className='flex items-center justify-start gap-10px px-12px py-8px hover:bg-hover rd-0.5rem mb-8px cursor-pointer'>
+            <IconDashboard className='flex text-22px' />
+            <span className='collapsed-hidden text-t-primary'>{t('agentTeams.title', { defaultValue: 'Agent Teams' })}</span>
           </div>
         </Tooltip>
       </div>

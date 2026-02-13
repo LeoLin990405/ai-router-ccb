@@ -1,41 +1,49 @@
-import type React from 'react';
-import { useCallback, useEffect, useRef } from 'react';
+/**
+ * @license
+ * Copyright 2026 AionUi (aionui.com)
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from 'react';
 
 /**
  * 防抖 Hook
- * @param callback 需要防抖的函数
- * @param delay 防抖延迟时间（毫秒）
- * @returns 防抖后的函数
+ * @param value 需要防抖的值
+ * @param delay 延迟时间（毫秒）
+ * @returns 防抖后的值
  */
-function useDebounce<T extends (...args: any[]) => any>(callback: T, delay: number, deps: React.DependencyList): T {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-  // 清理定时器
-  const clearTimer = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, []);
-
-  // 组件卸载时清理
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
     return () => {
-      clearTimer();
+      clearTimeout(handler);
     };
-  }, [clearTimer]);
+  }, [value, delay]);
 
-  const debouncedFunction = useCallback(
-    (...args: Parameters<T>) => {
-      clearTimer();
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    },
-    [delay, clearTimer, ...deps]
-  );
-
-  return debouncedFunction as T;
+  return debouncedValue;
 }
 
-export default useDebounce;
+/**
+ * 防抖回调 Hook
+ * @param callback 需要防抖的回调函数
+ * @param delay 延迟时间（毫秒）
+ * @returns 防抖后的回调函数
+ */
+export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
+  callback: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+}

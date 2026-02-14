@@ -12,28 +12,30 @@ Migration from Arco Design to Phoenix (shadcn/ui + Tailwind CSS)
 - [x] Create 21 core UI components
 - [x] Write component unit tests
 
-### Components Created (21 total)
+### Components Created (23 total)
 1. ✅ Alert
 2. ✅ Badge
 3. ✅ Button
 4. ✅ Card
 5. ✅ Checkbox
-6. ✅ Dialog
-7. ✅ Drawer
-8. ✅ DropdownMenu
-9. ✅ Form (react-hook-form)
-10. ✅ Input
-11. ✅ Label
-12. ✅ LegacyModal (compatibility)
-13. ✅ Popover
-14. ✅ RadioGroup
-15. ✅ Select
-16. ✅ Separator
-17. ✅ Slider
-18. ✅ Switch
-19. ✅ Table
-20. ✅ Tabs
-21. ✅ Tooltip
+6. ✅ Description
+7. ✅ Dialog
+8. ✅ Drawer
+9. ✅ DropdownMenu
+10. ✅ Form (react-hook-form)
+11. ✅ Input
+12. ✅ Label
+13. ✅ LegacyModal (compatibility)
+14. ✅ Popover
+15. ✅ RadioGroup
+16. ✅ Select
+17. ✅ Separator
+18. ✅ Slider
+19. ✅ Switch
+20. ✅ Table
+21. ✅ Tabs
+22. ✅ Timeline
+23. ✅ Tooltip
 
 ### Utilities
 - ✅ `cn()` utility function
@@ -84,9 +86,34 @@ For complex forms (AddPlatformModal):
 | Checkbox | Checkbox |
 | Spin | Loader2 (lucide) |
 
-## Phase 2-6: Pending
+## Phase 2: Agent Teams 🚧 IN PROGRESS (70%)
 
-- Phase 2: Agent Teams (12 files)
+### Migrated Components ✅
+1. ✅ `Timeline` component created
+2. ✅ `Description` component created
+3. ✅ `MessagesTab.tsx` - Arco Timeline → shadcn Timeline
+4. ✅ `OverviewTab.tsx` - Arco Button/Descriptions/Tag → shadcn
+5. ✅ `AnalyticsTab.tsx` - Arco Card/Table → shadcn
+6. ✅ `TasksTab.tsx` - Arco Tag → shadcn Badge
+7. ✅ `TeammateCard.tsx` - Arco Tag → shadcn Badge
+8. ✅ `CreateTeamModal.tsx` - Arco Modal/Form → shadcn Dialog
+9. ✅ `CreateTaskModal.tsx` - Arco Modal/Form → shadcn Dialog
+10. ✅ `CostChart.tsx` - Arco Empty/Space/Tag → shadcn
+11. ✅ `DependencyGraph.tsx` - Arco Empty/Space/Tag → shadcn
+12. ✅ `TaskCard.tsx` - Arco Tag/Button → shadcn
+13. ✅ `index.tsx` (layout) - Arco Button/Space/Typography → shadcn
+
+### Remaining Page Components ⏳
+1. ⏳ `Dashboard.tsx` (462 lines) - Complex, uses many Arco components
+2. ⏳ `TeamsPage.tsx` (155 lines) - Uses Table, Modal, Form
+3. ⏳ `TasksKanbanPage.tsx` (319 lines) - Uses Card, Button, etc
+4. ⏳ `TeamDetailPage.tsx` (274 lines) - Uses Tabs, Card, Table
+5. ⏳ `TaskDetailPage.tsx` (135 lines) - Uses Descriptions, Tag
+6. ⏳ `AnalyticsPage.tsx` (160 lines) - Uses Card, Grid, Statistic
+7. ⏳ `MonitorDashboard.tsx` (123 lines) - Uses Card, Grid, Spin
+
+## Phase 3-6: Pending
+
 - Phase 3: Knowledge/Memory (10 files)
 - Phase 4: Conversation (18 files)
 - Phase 5: Monitor/Cron (8 files)
@@ -94,17 +121,17 @@ For complex forms (AddPlatformModal):
 
 ## Statistics
 
-- **Total Commits**: 8
-- **Files Modified**: 40+
-- **Lines Changed**: +2,600, -400
-- **UI Components**: 21
+- **Total Commits**: 10
+- **Files Modified**: 55+
+- **Lines Changed**: +3,500, -600
+- **UI Components**: 23
 - **Test Files**: 5
 
 ## Next Steps
 
-1. Complete AssistantManagement.tsx migration
+1. Complete Agent Teams page components migration
 2. Migrate SettingsModal content components
-3. Enter Phase 2: Agent Teams
+3. Enter Phase 3: Knowledge/Memory
 4. Remove Arco Design dependency
 5. Performance testing
 

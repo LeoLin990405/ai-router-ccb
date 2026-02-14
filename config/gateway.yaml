@@ -121,7 +121,7 @@ providers:
     priority: 40
     timeout_s: 300.0
     cli_command: "opencode"
-    cli_args: ["run", "-m", "opencode/minimax-m2.1-free"]
+    cli_args: ["run", "--format", "json", "-m", "opencode/minimax-m2.5-free"]
 
   # iFlow (CLI)
   iflow:

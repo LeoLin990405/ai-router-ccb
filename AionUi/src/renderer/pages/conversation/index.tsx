@@ -1,6 +1,6 @@
 import { ipcBridge } from '@/common';
 import { DesignTokens } from '@/renderer/design-system';
-import { Spin } from '@arco-design/web-react';
+import { Loader2 } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import useSWR from 'swr';
@@ -38,7 +38,12 @@ const ChatConversationIndex: React.FC = () => {
     }
   }, [data, openTab]);
 
-  if (isLoading) return <Spin loading></Spin>;
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  
   return (
     <div
       style={{

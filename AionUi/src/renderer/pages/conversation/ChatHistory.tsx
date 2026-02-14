@@ -10,8 +10,20 @@ import FlexFullContainer from '@/renderer/components/FlexFullContainer';
 import { CronJobIndicator, useCronJobsMap } from '@/renderer/pages/cron';
 import { addEventListener, emitter } from '@/renderer/utils/emitter';
 import { getActivityTime, createTimelineGrouper } from '@/renderer/utils/timeline';
-import { Empty, Popconfirm, Input, Tooltip } from '@arco-design/web-react';
-import { DeleteOne, MessageOne, EditOne } from '@icon-park/react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/renderer/components/ui/tooltip';
+import { Input } from '@/renderer/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/renderer/components/ui/alert-dialog';
+import { Trash2, MessageSquare, Pencil } from 'lucide-react';
 import classNames from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +73,7 @@ const ChatHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }
   const [chatHistory, setChatHistory] = useState<TChatConversation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -69,7 +82,6 @@ const ChatHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }
   useScrollIntoView(id);
 
   const handleSelect = (conversation: TChatConversation) => {
-    // ipcBridge.conversation.createWithConversation.invoke({ conversation }).then(() => {
     Promise.resolve(navigate(`/conversation/${conversation.id}`)).catch((error) => {
       console.error('Navigation failed:', error);
     });
@@ -77,7 +89,6 @@ const ChatHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }
     if (onSessionClick) {
       onSessionClick();
     }
-    // });
   };
 
   const isConversation = !!id;
@@ -168,75 +179,100 @@ const ChatHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }
     const cronStatus = getJobStatus(conversation.id);
 
     return (
-      <Tooltip key={conversation.id} disabled={!collapsed} content={conversation.name || t('conversation.welcome.newConversation')} position='right'>
-        <div
-          id={'c-' + conversation.id}
-          className={classNames('chat-history__item hover:bg-hover px-12px py-8px rd-8px flex justify-start items-center group cursor-pointer relative overflow-hidden group shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-2px', {
-            '!bg-active ': isSelected,
-          })}
-          onClick={handleSelect.bind(null, conversation)}
-        >
-          <MessageOne theme='outline' size='20' className='mt-2px flex' />
-          <FlexFullContainer className='h-24px collapsed-hidden ml-10px'>
-            {isEditing ? (
-              <Input className='chat-history__item-editor text-14px lh-24px h-24px w-full' value={editingName} onChange={setEditingName} onKeyDown={handleEditKeyDown} onBlur={handleEditSave} autoFocus size='small' />
-            ) : (
-              <div className='flex items-center gap-4px w-full'>
-                <div className='chat-history__item-name text-nowrap overflow-hidden inline-block flex-1 text-14px lh-24px whitespace-nowrap'>{conversation.name}</div>
-                <CronJobIndicator status={cronStatus} size={14} />
-              </div>
-            )}
-          </FlexFullContainer>
-          {!isEditing && (
+      <TooltipProvider key={conversation.id}>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
             <div
-              className={classNames('absolute right-0px top-0px h-full w-70px items-center justify-end hidden group-hover:flex !collapsed-hidden pr-12px')}
-              style={{
-                backgroundImage: isSelected ? `linear-gradient(to right, transparent, var(--aou-2) 50%)` : `linear-gradient(to right, transparent, var(--aou-1) 50%)`,
-              }}
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
+              id={'c-' + conversation.id}
+              className={classNames('chat-history__item hover:bg-hover px-3 py-2 rounded-lg flex justify-start items-center group cursor-pointer relative overflow-hidden shrink-0 conversation-item [&.conversation-item+&.conversation-item]:mt-0.5', {
+                'bg-active': isSelected,
+              })}
+              onClick={handleSelect.bind(null, conversation)}
             >
+              <MessageSquare size={20} className='mt-0.5 flex shrink-0' />
+              <FlexFullContainer className='h-6 collapsed-hidden ml-2.5'>
+                {isEditing ? (
+                  <Input 
+                    className='chat-history__item-editor text-sm leading-6 h-6 w-full' 
+                    value={editingName} 
+                    onChange={(e) => setEditingName(e.target.value)} 
+                    onKeyDown={handleEditKeyDown} 
+                    onBlur={handleEditSave} 
+                    autoFocus 
+                  />
+                ) : (
+                  <div className='flex items-center gap-1 w-full'>
+                    <div className='chat-history__item-name text-nowrap overflow-hidden inline-block flex-1 text-sm leading-6 whitespace-nowrap'>{conversation.name}</div>
+                    <CronJobIndicator status={cronStatus} size={14} />
+                  </div>
+                )}
+              </FlexFullContainer>
               {!isEditing && (
-                <span
-                  className='flex-center mr-8px'
+                <div
+                  className={classNames('absolute right-0 top-0 h-full w-[70px] items-center justify-end hidden group-hover:flex collapsed-hidden pr-3')}
+                  style={{
+                    backgroundImage: isSelected ? `linear-gradient(to right, transparent, var(--aou-2) 50%)` : `linear-gradient(to right, transparent, var(--aou-1) 50%)`,
+                  }}
                   onClick={(event) => {
-                    event.stopPropagation();
-                    handleEditStart(conversation);
-                  }}
-                >
-                  <EditOne theme='outline' size='20' className='flex' />
-                </span>
-              )}
-              {!isEditing && (
-                <Popconfirm
-                  title={t('conversation.history.deleteTitle')}
-                  content={t('conversation.history.deleteConfirm')}
-                  okText={t('conversation.history.confirmDelete')}
-                  cancelText={t('conversation.history.cancelDelete')}
-                  onOk={(event) => {
-                    event.stopPropagation();
-                    handleRemoveConversation(conversation.id);
-                  }}
-                  onCancel={(event) => {
                     event.stopPropagation();
                   }}
                 >
                   <span
-                    className='flex-center'
+                    className='flex-center mr-2'
                     onClick={(event) => {
                       event.stopPropagation();
+                      handleEditStart(conversation);
                     }}
                   >
-                    <DeleteOne theme='outline' size='20' className='flex' />
+                    <Pencil size={20} className='flex' />
                   </span>
-                </Popconfirm>
+                  <AlertDialog open={deleteTargetId === conversation.id} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
+                    <AlertDialogTrigger asChild>
+                      <span
+                        className='flex-center'
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteTargetId(conversation.id);
+                        }}
+                      >
+                        <Trash2 size={20} className='flex' />
+                      </span>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('conversation.history.deleteTitle')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('conversation.history.deleteConfirm')}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTargetId(null);
+                        }}>
+                          {t('conversation.history.cancelDelete')}
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveConversation(conversation.id);
+                          setDeleteTargetId(null);
+                        }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          {t('conversation.history.confirmDelete')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right">
+              <p>{conversation.name || t('conversation.welcome.newConversation')}</p>
+            </TooltipContent>
           )}
-          {/* legacy hover overlay removed to avoid duplicate edit icon */}
-        </div>
-      </Tooltip>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 
@@ -244,19 +280,22 @@ const ChatHistory: React.FC<{ onSessionClick?: () => void; collapsed?: boolean }
     <FlexFullContainer>
       <div
         className={classNames('size-full chat-history', {
-          'flex-center': !chatHistory.length,
+          'flex items-center justify-center': !chatHistory.length,
           'flex flex-col overflow-y-auto': !!chatHistory.length,
           'chat-history--collapsed': collapsed,
         })}
       >
         {!chatHistory.length ? (
-          <Empty className='chat-history__placeholder' description={t('conversation.history.noHistory')} />
+          <div className='chat-history__placeholder flex flex-col items-center justify-center text-muted-foreground'>
+            <MessageSquare size={48} className='mb-2 opacity-50' />
+            <p>{t('conversation.history.noHistory')}</p>
+          </div>
         ) : (
           chatHistory.map((item) => {
             const timeline = formatTimeline(item);
             return (
               <React.Fragment key={item.id}>
-                {timeline && <div className='chat-history__section px-12px py-8px text-13px text-t-secondary font-bold'>{timeline}</div>}
+                {timeline && <div className='chat-history__section px-3 py-2 text-sm text-muted-foreground font-bold'>{timeline}</div>}
                 {renderConversation(item)}
               </React.Fragment>
             );

@@ -9,8 +9,14 @@ import type { TChatConversation } from '@/common/storage';
 import { uuid } from '@/common/utils';
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
-import { Dropdown, Menu, Tooltip } from '@arco-design/web-react';
-import { Close, Plus } from '@icon-park/react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/renderer/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/renderer/components/ui/tooltip';
+import { X, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -156,51 +162,35 @@ const ConversationTabs: React.FC = () => {
         console.error('Failed to load conversations:', error);
         void navigate('/guid');
       });
-  }, [navigate, openTabs, activeTabId, openTab]);
+  }, [navigate, openTabs, activeTabId, openTab, t]);
 
   // 生成右键菜单内容
-  const getContextMenu = useCallback(
+  const getContextMenuItems = useCallback(
     (tabId: string) => {
       const tabIndex = openTabs.findIndex((tab) => tab.id === tabId);
       const hasLeftTabs = tabIndex > 0;
       const hasRightTabs = tabIndex < openTabs.length - 1;
       const hasOtherTabs = openTabs.length > 1;
 
-      return (
-        <Menu
-          onClickMenuItem={(key) => {
-            switch (key) {
-              case 'close-all':
-                closeAllTabs();
-                void navigate('/guid');
-                break;
-              case 'close-left':
-                closeTabsToLeft(tabId);
-                break;
-              case 'close-right':
-                closeTabsToRight(tabId);
-                break;
-              case 'close-others':
-                closeOtherTabs(tabId);
-                void navigate(`/conversation/${tabId}`);
-                break;
-            }
-          }}
-        >
-          <Menu.Item key='close-others' disabled={!hasOtherTabs}>
-            {t('conversation.tabs.closeOthers')}
-          </Menu.Item>
-          <Menu.Item key='close-left' disabled={!hasLeftTabs}>
-            {t('conversation.tabs.closeLeft')}
-          </Menu.Item>
-          <Menu.Item key='close-right' disabled={!hasRightTabs}>
-            {t('conversation.tabs.closeRight')}
-          </Menu.Item>
-          <Menu.Item key='close-all'>{t('conversation.tabs.closeAll')}</Menu.Item>
-        </Menu>
-      );
+      return {
+        hasLeftTabs,
+        hasRightTabs,
+        hasOtherTabs,
+        handlers: {
+          'close-others': () => {
+            closeOtherTabs(tabId);
+            void navigate(`/conversation/${tabId}`);
+          },
+          'close-left': () => closeTabsToLeft(tabId),
+          'close-right': () => closeTabsToRight(tabId),
+          'close-all': () => {
+            closeAllTabs();
+            void navigate('/guid');
+          },
+        } as const,
+      };
     },
-    [openTabs, closeAllTabs, closeTabsToLeft, closeTabsToRight, closeOtherTabs, navigate, t]
+    [openTabs, closeAllTabs, closeTabsToLeft, closeTabsToRight, closeOtherTabs, navigate]
   );
 
   const { left: showLeftFade, right: showRightFade } = tabFadeState;
@@ -216,43 +206,67 @@ const ConversationTabs: React.FC = () => {
   }
 
   return (
-    <div className='relative shrink-0 bg-2 min-h-40px'>
-      <div className='relative flex items-center h-40px w-full border-t border-x border-solid border-[color:var(--border-base)]'>
-        {/* Tabs 滚动区域 */}
-        <div ref={tabsContainerRef} className='flex items-center h-full flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'>
-          {openTabs.map((tab) => (
-            <Dropdown key={tab.id} droplist={getContextMenu(tab.id)} trigger='contextMenu' position='bl'>
-              <Tooltip content={tab.name} position='bottom'>
-                <div className={`flex items-center gap-8px px-12px h-full max-w-240px cursor-pointer transition-all duration-200 shrink-0 border-r border-[color:var(--border-base)] ${tab.id === activeTabId ? 'bg-1 text-[color:var(--color-text-1)] font-medium' : 'bg-2 text-[color:var(--color-text-3)] hover:text-[color:var(--color-text-2)] border-b border-[color:var(--border-base)]'}`} style={{ borderRight: '1px solid var(--border-base)' }} onClick={() => handleSwitchTab(tab.id)}>
-                  <span className='text-15px whitespace-nowrap overflow-hidden text-ellipsis select-none flex-1'>{tab.name}</span>
-                  <Close
-                    theme='outline'
-                    size='14'
-                    fill={iconColors.secondary}
-                    className='shrink-0 transition-all duration-200 hover:fill-[rgb(var(--danger-6))]'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCloseTab(tab.id);
-                    }}
-                  />
-                </div>
-              </Tooltip>
-            </Dropdown>
-          ))}
+    <TooltipProvider>
+      <div className='relative shrink-0 bg-2 min-h-10'>
+        <div className='relative flex items-center h-10 w-full border-t border-x border-solid border-[color:var(--border-base)]'>
+          {/* Tabs 滚动区域 */}
+          <div ref={tabsContainerRef} className='flex items-center h-full flex-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'>
+            {openTabs.map((tab) => {
+              const menuItems = getContextMenuItems(tab.id);
+              return (
+                <DropdownMenu key={tab.id}>
+                  <DropdownMenuTrigger asChild>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`flex items-center gap-2 px-3 h-full max-w-[240px] cursor-pointer transition-all duration-200 shrink-0 border-r border-[color:var(--border-base)] ${tab.id === activeTabId ? 'bg-1 text-[color:var(--color-text-1)] font-medium' : 'bg-2 text-[color:var(--color-text-3)] hover:text-[color:var(--color-text-2)] border-b border-[color:var(--border-base)]'}`} style={{ borderRight: '1px solid var(--border-base)' }} onClick={() => handleSwitchTab(tab.id)}>
+                          <span className='text-[15px] whitespace-nowrap overflow-hidden text-ellipsis select-none flex-1'>{tab.name}</span>
+                          <X
+                            size={14}
+                            className='shrink-0 transition-all duration-200 hover:text-destructive'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCloseTab(tab.id);
+                            }}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>{tab.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem disabled={!menuItems.hasOtherTabs} onClick={menuItems.handlers['close-others']}>
+                      {t('conversation.tabs.closeOthers')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!menuItems.hasLeftTabs} onClick={menuItems.handlers['close-left']}>
+                      {t('conversation.tabs.closeLeft')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!menuItems.hasRightTabs} onClick={menuItems.handlers['close-right']}>
+                      {t('conversation.tabs.closeRight')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={menuItems.handlers['close-all']}>
+                      {t('conversation.tabs.closeAll')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            })}
+          </div>
+
+          {/* 新建会话按钮 */}
+          <div className='flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer transition-colors duration-200 hover:bg-[var(--fill-2)]' style={{ borderLeft: '1px solid var(--border-base)' }} onClick={handleNewConversation} title={t('conversation.workspace.createNewConversation')}>
+            <Plus size={16} className='text-primary' strokeWidth={3} />
+          </div>
+
+          {/* 左侧渐变指示器 */}
+          {showLeftFade && <div className='pointer-events-none absolute left-0 top-0 bottom-0 w-8 [background:linear-gradient(90deg,var(--bg-2)_0%,transparent_100%)]' />}
+
+          {/* 右侧渐变指示器 */}
+          {showRightFade && <div className='pointer-events-none absolute right-10 top-0 bottom-0 w-8 [background:linear-gradient(270deg,var(--bg-2)_0%,transparent_100%)]' />}
         </div>
-
-        {/* 新建会话按钮 */}
-        <div className='flex items-center justify-center w-40px h-40px shrink-0 cursor-pointer transition-colors duration-200 hover:bg-[var(--fill-2)] ' style={{ borderLeft: '1px solid var(--border-base)' }} onClick={handleNewConversation} title={t('conversation.workspace.createNewConversation')}>
-          <Plus theme='outline' size='16' fill={iconColors.primary} strokeWidth={3} />
-        </div>
-
-        {/* 左侧渐变指示器 */}
-        {showLeftFade && <div className='pointer-events-none absolute left-0 top-0 bottom-0 w-32px [background:linear-gradient(90deg,var(--bg-2)_0%,transparent_100%)]' />}
-
-        {/* 右侧渐变指示器 */}
-        {showRightFade && <div className='pointer-events-none absolute right-40px top-0 bottom-0 w-32px [background:linear-gradient(270deg,var(--bg-2)_0%,transparent_100%)]' />}
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 

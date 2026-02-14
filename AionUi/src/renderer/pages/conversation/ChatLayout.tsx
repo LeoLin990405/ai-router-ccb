@@ -6,8 +6,7 @@ import { useResizableSplit } from '@/renderer/hooks/useResizableSplit';
 import ConversationTabs from '@/renderer/pages/conversation/ConversationTabs';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
 import { PreviewPanel, usePreviewContext } from '@/renderer/pages/conversation/preview';
-import { Layout as ArcoLayout } from '@arco-design/web-react';
-import { ExpandLeft, ExpandRight, Robot } from '@icon-park/react';
+import { ChevronLeft, ChevronRight, Bot } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 
@@ -68,16 +67,16 @@ interface WorkspaceHeaderProps {
 }
 
 const WorkspacePanelHeader: React.FC<WorkspaceHeaderProps> = ({ children, showToggle = false, collapsed, onToggle, togglePlacement = 'right' }) => (
-  <div className='workspace-panel-header flex items-center justify-start px-12px py-4px gap-12px border-b border-[var(--bg-3)]' style={{ height: WORKSPACE_HEADER_HEIGHT, minHeight: WORKSPACE_HEADER_HEIGHT }}>
+  <div className='workspace-panel-header flex items-center justify-start px-3 py-1 gap-3 border-b border-[var(--bg-3)]' style={{ height: WORKSPACE_HEADER_HEIGHT, minHeight: WORKSPACE_HEADER_HEIGHT }}>
     {showToggle && togglePlacement === 'left' && (
-      <button type='button' className='workspace-header__toggle mr-4px' aria-label='Toggle workspace' onClick={onToggle}>
-        {collapsed ? <ExpandRight size={16} /> : <ExpandLeft size={16} />}
+      <button type='button' className='workspace-header__toggle mr-1' aria-label='Toggle workspace' onClick={onToggle}>
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
     )}
     <div className='flex-1 truncate'>{children}</div>
     {showToggle && togglePlacement === 'right' && (
       <button type='button' className='workspace-header__toggle' aria-label='Toggle workspace' onClick={onToggle}>
-        {collapsed ? <ExpandRight size={16} /> : <ExpandLeft size={16} />}
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
     )}
   </div>
@@ -368,8 +367,8 @@ const ChatLayout: React.FC<{
       : null;
 
   return (
-    <ArcoLayout
-      className='size-full color-black '
+    <div
+      className='size-full text-black'
       style={
         {
           // fontFamily: `cursive,"anthropicSans","anthropicSans Fallback",system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif`,
@@ -390,7 +389,7 @@ const ChatLayout: React.FC<{
             minWidth: isDesktop ? '240px' : '100%',
           }}
         >
-          <ArcoLayout.Content
+          <div
             className='flex flex-col h-full'
             onClick={() => {
               const isMobile = window.innerWidth < 768;
@@ -401,29 +400,29 @@ const ChatLayout: React.FC<{
           >
             {/* 会话 Tabs 栏 / Conversation tabs bar */}
             <ConversationTabs />
-            <ArcoLayout.Header className={classNames('h-36px flex items-center justify-between p-16px gap-16px !bg-1 chat-layout-header')}>
+            <header className={classNames('h-9 flex items-center justify-between px-4 gap-4 bg-1 chat-layout-header')}>
               <div>{props.headerLeft}</div>
-              <FlexFullContainer className='h-full' containerClassName='flex items-center gap-16px'>
-                {!hasTabs && <span className='font-bold text-16px text-t-primary inline-block overflow-hidden text-ellipsis whitespace-nowrap shrink-0 max-w-[50%]'>{props.title}</span>}
+              <FlexFullContainer className='h-full' containerClassName='flex items-center gap-4'>
+                {!hasTabs && <span className='font-bold text-base text-t-primary inline-block overflow-hidden text-ellipsis whitespace-nowrap shrink-0 max-w-[50%]'>{props.title}</span>}
               </FlexFullContainer>
-              <div className='flex items-center gap-12px'>
+              <div className='flex items-center gap-3'>
                 {/* headerExtra 会在右上角优先渲染，例如模型切换按钮 / headerExtra renders at top-right for items like model switchers */}
                 {props.headerExtra}
                 {(backend || agentLogo) && (
-                  <div className='ml-16px flex items-center gap-2 bg-2 w-fit rounded-full px-[8px] py-[2px]'>
-                    {agentLogo ? agentLogoIsEmoji ? <span className='text-sm'>{agentLogo}</span> : <img src={agentLogo} alt={`${agentName || 'agent'} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : AGENT_LOGO_MAP[backend as AcpBackend] ? <img src={AGENT_LOGO_MAP[backend as AcpBackend]} alt={`${backend} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : <Robot theme='outline' size={16} fill={iconColors.primary} />}
+                  <div className='ml-4 flex items-center gap-2 bg-2 w-fit rounded-full px-2 py-0.5'>
+                    {agentLogo ? agentLogoIsEmoji ? <span className='text-sm'>{agentLogo}</span> : <img src={agentLogo} alt={`${agentName || 'agent'} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : AGENT_LOGO_MAP[backend as AcpBackend] ? <img src={AGENT_LOGO_MAP[backend as AcpBackend]} alt={`${backend} logo`} width={16} height={16} style={{ objectFit: 'contain' }} /> : <Bot size={16} className='text-primary' />}
                     <span className='text-sm text-t-primary'>{displayName}</span>
                   </div>
                 )}
                 {isWindowsRuntime && workspaceEnabled && (
                   <button type='button' className='workspace-header__toggle' aria-label='Toggle workspace' onClick={() => dispatchWorkspaceToggleEvent()}>
-                    {rightSiderCollapsed ? <ExpandRight size={16} /> : <ExpandLeft size={16} />}
+                    {rightSiderCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                   </button>
                 )}
               </div>
-            </ArcoLayout.Header>
-            <ArcoLayout.Content className='flex flex-col flex-1 bg-1 overflow-hidden'>{props.children}</ArcoLayout.Content>
-          </ArcoLayout.Content>
+            </header>
+            <main className='flex flex-col flex-1 bg-1 overflow-hidden'>{props.children}</main>
+          </div>
 
           {/* 会话右侧拖动手柄：在桌面模式下调节会话和预览的宽度比例 */}
           {isPreviewOpen &&
@@ -437,7 +436,7 @@ const ChatLayout: React.FC<{
         {/* 预览面板（移到中间位置）/ Preview panel (moved to middle position) */}
         {isPreviewOpen && (
           <div
-            className='preview-panel flex flex-col relative my-[12px] mr-[12px] ml-[8px] rounded-[15px]'
+            className='preview-panel flex flex-col relative my-3 mr-3 ml-2 rounded-[15px]'
             style={{
               // 使用 flexGrow: 1 填充剩余空间（会话和工作空间使用固定 flexBasis）
               flexGrow: layout?.isMobile ? 0 : 1,
@@ -454,7 +453,7 @@ const ChatLayout: React.FC<{
         {/* 工作空间面板（移到最右边）/ Workspace panel (moved to rightmost position) */}
         {workspaceEnabled && !layout?.isMobile && (
           <div
-            className={classNames('!bg-1 relative chat-layout-right-sider layout-sider')}
+            className={classNames('bg-1 relative chat-layout-right-sider layout-sider')}
             style={{
               // 使用 flexBasis 设置宽度，避免 width 和 flexBasis 冲突
               flexGrow: isPreviewOpen ? 0 : workspaceFlex,
@@ -475,7 +474,7 @@ const ChatLayout: React.FC<{
             <WorkspacePanelHeader showToggle={!isMacRuntime && !isWindowsRuntime} collapsed={rightSiderCollapsed} onToggle={() => dispatchWorkspaceToggleEvent()} togglePlacement={layout?.isMobile ? 'left' : 'right'}>
               {props.siderTitle}
             </WorkspacePanelHeader>
-            <ArcoLayout.Content style={{ height: `calc(100% - ${WORKSPACE_HEADER_HEIGHT}px)` }}>{props.sider}</ArcoLayout.Content>
+            <main className='overflow-hidden' style={{ height: `calc(100% - ${WORKSPACE_HEADER_HEIGHT}px)` }}>{props.sider}</main>
           </div>
         )}
 
@@ -485,7 +484,7 @@ const ChatLayout: React.FC<{
         {/* 移动端工作空间（保持原有的固定定位）/ Mobile workspace (keep original fixed positioning) */}
         {workspaceEnabled && layout?.isMobile && (
           <div
-            className='!bg-1 relative chat-layout-right-sider'
+            className='bg-1 relative chat-layout-right-sider'
             style={{
               position: 'fixed',
               right: 0,
@@ -502,19 +501,19 @@ const ChatLayout: React.FC<{
             <WorkspacePanelHeader showToggle collapsed={rightSiderCollapsed} onToggle={() => dispatchWorkspaceToggleEvent()} togglePlacement='left'>
               {props.siderTitle}
             </WorkspacePanelHeader>
-            <ArcoLayout.Content className='bg-1' style={{ height: `calc(100% - ${WORKSPACE_HEADER_HEIGHT}px)` }}>
+            <main className='bg-1 overflow-hidden' style={{ height: `calc(100% - ${WORKSPACE_HEADER_HEIGHT}px)` }}>
               {props.sider}
-            </ArcoLayout.Content>
+            </main>
           </div>
         )}
 
         {!isMacRuntime && !isWindowsRuntime && workspaceEnabled && rightSiderCollapsed && !layout?.isMobile && (
           <button type='button' className='workspace-toggle-floating workspace-header__toggle absolute top-1/2 right-2 z-10' style={{ transform: 'translateY(-50%)' }} onClick={() => dispatchWorkspaceToggleEvent()} aria-label='Expand workspace'>
-            <ExpandLeft size={16} />
+            <ChevronLeft size={16} />
           </button>
         )}
       </div>
-    </ArcoLayout>
+    </div>
   );
 };
 

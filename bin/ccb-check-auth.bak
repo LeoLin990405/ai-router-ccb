@@ -50,7 +50,7 @@ check_cli "DeepSeek" "deepseek" "deepseek -q '回复pong'" 15
 echo ""
 echo "中速 Provider:"
 check_cli "iFlow" "iflow" "iflow -p 'pong'" 15
-check_cli "OpenCode" "opencode" "opencode run -m opencode/minimax-m2.5-free 'pong'" 20
+check_cli "OpenCode" "opencode" "opencode run -m opencode/minimax-m2.1-free 'pong'" 20
 
 echo ""
 echo "慢速 Provider:"

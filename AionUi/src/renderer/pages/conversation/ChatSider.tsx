@@ -5,14 +5,26 @@
  */
 
 import type { TChatConversation } from '@/common/storage';
-import { Message } from '@arco-design/web-react';
+import { Toaster, toast } from 'sonner';
 import React from 'react';
 import ChatWorkspace from './workspace';
+
+interface MessageApi {
+  success: (content: string) => void;
+  error: (content: string) => void;
+  warning: (content: string) => void;
+  info: (content: string) => void;
+}
 
 const ChatSider: React.FC<{
   conversation?: TChatConversation;
 }> = ({ conversation }) => {
-  const [messageApi, messageContext] = Message.useMessage({ maxCount: 1 });
+  const messageApi: MessageApi = {
+    success: (content: string) => toast.success(content),
+    error: (content: string) => toast.error(content),
+    warning: (content: string) => toast.warning(content),
+    info: (content: string) => toast.info(content),
+  };
 
   let workspaceNode: React.ReactNode = null;
   if (conversation?.type === 'gemini') {
@@ -33,7 +45,7 @@ const ChatSider: React.FC<{
 
   return (
     <>
-      {messageContext}
+      <Toaster position="top-center" richColors closeButton />
       {workspaceNode}
     </>
   );

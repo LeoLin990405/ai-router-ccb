@@ -8,7 +8,6 @@ import { ipcBridge } from '@/common';
 import { ConfigStorage } from '@/common/storage';
 import PwaPullToRefresh from '@/renderer/components/PwaPullToRefresh';
 import Titlebar from '@/renderer/components/Titlebar';
-import { Layout as ArcoLayout } from '@arco-design/web-react';
 import { MenuFold, MenuUnfold } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useEffect, useRef, useState } from 'react';
@@ -170,6 +169,10 @@ const Layout: React.FC<{
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
+
+  // Calculate sider width based on state
+  const siderWidth = isMobile ? (collapsed ? 0 : DEFAULT_SIDER_WIDTH) : (collapsed ? 64 : DEFAULT_SIDER_WIDTH);
+
   return (
     <LayoutContext.Provider value={{ isMobile, siderCollapsed: collapsed, setSiderCollapsed: setCollapsed }}>
       <div className='app-shell flex flex-col size-full min-h-0'>
@@ -177,16 +180,14 @@ const Layout: React.FC<{
         {/* 移动端左侧边栏蒙板 / Mobile left sider backdrop */}
         {isMobile && !collapsed && <div className='fixed inset-0 bg-black/30 z-90' onClick={() => setCollapsed(true)} aria-hidden='true' />}
 
-        <ArcoLayout className={'size-full layout flex-1 min-h-0'}>
-          <ArcoLayout.Sider
-            collapsedWidth={isMobile ? 0 : 64}
-            collapsed={collapsed}
-            width={DEFAULT_SIDER_WIDTH}
-            className={classNames('!bg-2 layout-sider', {
+        <div className='flex size-full flex-1 min-h-0'>
+          <aside
+            className={classNames('!bg-2 layout-sider flex flex-col shrink-0 transition-all duration-200', {
               collapsed: collapsed,
             })}
-            style={
-              isMobile
+            style={{
+              width: siderWidth,
+              ...(isMobile
                 ? {
                     position: 'fixed',
                     left: 0,
@@ -195,11 +196,11 @@ const Layout: React.FC<{
                     transition: 'none',
                     pointerEvents: collapsed ? 'none' : 'auto',
                   }
-                : undefined
-            }
+                : {}),
+            }}
           >
-            <ArcoLayout.Header
-              className={classNames('flex items-center justify-start py-10px px-16px pl-20px gap-12px layout-sider-header', {
+            <header
+              className={classNames('flex items-center justify-start py-10px px-16px pl-20px gap-12px layout-sider-header shrink-0', {
                 'cursor-pointer group ': collapsed,
               })}
             >
@@ -224,8 +225,8 @@ const Layout: React.FC<{
                 </button>
               )}
               {/* 侧栏折叠改由标题栏统一控制 / Sidebar folding handled by Titlebar toggle */}
-            </ArcoLayout.Header>
-            <ArcoLayout.Content className={classNames('p-8px layout-sider-content', !isMobile && 'h-[calc(100%-72px-16px)]')}>
+            </header>
+            <div className={classNames('p-8px layout-sider-content flex-1 overflow-auto', !isMobile && 'h-[calc(100%-72px-16px)]')}>
               {React.isValidElement(sider)
                 ? React.cloneElement(sider, {
                     onSessionClick: () => {
@@ -234,11 +235,11 @@ const Layout: React.FC<{
                     collapsed,
                   } as any)
                 : sider}
-            </ArcoLayout.Content>
-          </ArcoLayout.Sider>
+            </div>
+          </aside>
 
-          <ArcoLayout.Content
-            className={'bg-1 layout-content flex flex-col min-h-0'}
+          <main
+            className='bg-1 layout-content flex flex-col flex-1 min-h-0 overflow-auto'
             onClick={() => {
               if (isMobile && !collapsed) setCollapsed(true);
             }}
@@ -255,8 +256,8 @@ const Layout: React.FC<{
             {directorySelectionContextHolder}
             <PwaPullToRefresh />
             <UpdateModal />
-          </ArcoLayout.Content>
-        </ArcoLayout>
+          </main>
+        </div>
       </div>
     </LayoutContext.Provider>
   );

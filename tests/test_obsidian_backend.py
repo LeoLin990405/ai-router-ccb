@@ -118,7 +118,9 @@ async def test_obsidian_backend_health_check_binary_exists(monkeypatch: pytest.M
 
 def test_user_gateway_yaml_contains_obsidian_provider_block() -> None:
     yaml_path = Path.home() / ".ccb_config" / "gateway.yaml"
-    content = yaml_path.read_text(encoding="utf-8")
+    if not yaml_path.exists():
+        pytest.skip("user gateway.yaml not found in this environment")
 
+    content = yaml_path.read_text(encoding="utf-8")
     assert "obsidian:" in content
     assert "/Applications/Obsidian.app/Contents/MacOS/Obsidian" in content

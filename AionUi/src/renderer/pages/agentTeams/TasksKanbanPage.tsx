@@ -6,7 +6,16 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Form, Input, InputNumber, Message, Select, Space, Tag } from '@arco-design/web-react';
+import { Button } from '@/renderer/components/ui/button';
+import { Input } from '@/renderer/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/renderer/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/renderer/components/ui/select';
 import {
   DndContext,
   DragOverlay,
@@ -26,7 +35,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { motion } from 'framer-motion';
 import { ipcBridge } from '@/common';
 import type { IAgentTask, IAgentTeam } from '@/common/ipcBridge';
 import { agentTeamsApi } from './api';
@@ -43,7 +51,11 @@ const TasksKanbanPage: React.FC = () => {
   const [tasks, setTasks] = useState<IAgentTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [form] = Form.useForm();
+
+  // Quick create form state
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState(5);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -64,7 +76,7 @@ const TasksKanbanPage: React.FC = () => {
         setTeamId(nextTeams[0].id);
       }
     } catch (error) {
-      Message.error('Failed to load teams');
+      console.error('Failed to load teams');
     }
   };
 
@@ -79,7 +91,7 @@ const TasksKanbanPage: React.FC = () => {
       const nextTasks = await agentTeamsApi.listTasks(selectedTeamId);
       setTasks(nextTasks);
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -176,7 +188,7 @@ const TasksKanbanPage: React.FC = () => {
         // No need to manually refresh, listener will handle it, 
         // but optimistic update already happened in handleDragOver or can be done here.
       } catch (error) {
-        Message.error('Failed to update task status');
+        console.error('Failed to update task status');
         void refreshTasks(teamId);
       }
     }
@@ -184,39 +196,39 @@ const TasksKanbanPage: React.FC = () => {
 
   const createTask = async () => {
     if (!teamId) {
-      Message.warning('Please select a team first');
+      console.warn('Please select a team first');
+      return;
+    }
+
+    if (!subject.trim() || !description.trim()) {
       return;
     }
 
     try {
-      const values = await form.validate();
       await agentTeamsApi.createTask({
         team_id: teamId,
-        subject: values.subject,
-        description: values.description,
-        priority: values.priority,
+        subject,
+        description,
+        priority,
       });
 
-      form.resetFields();
-      Message.success('Task created');
+      setSubject('');
+      setDescription('');
+      setPriority(5);
       await refreshTasks(teamId);
     } catch (error) {
-      if (error instanceof Error) {
-        Message.error(error.message);
-      }
+      console.error(error);
     }
   };
 
   const runTask = async (taskId: string) => {
     try {
       const result = await agentTeamsApi.runTask(taskId);
-      if (result.success) {
-        Message.success(`Task executed successfully`);
-      } else {
-        Message.error(result.error || 'Task execution failed');
+      if (!result.success) {
+        console.error(result.error || 'Task execution failed');
       }
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       void refreshTasks(teamId);
     }
@@ -229,46 +241,71 @@ const TasksKanbanPage: React.FC = () => {
           <Typography variant="h4" bold>Tasks Kanban</Typography>
           <Typography variant="body2" color="secondary">Drag and drop tasks to manage their workflow</Typography>
         </div>
-        <Card style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }} bodyStyle={{ padding: '8px 16px' }}>
-          <Space align='center'>
-            <Typography variant="body2" bold>Team:</Typography>
-            <Select
-              style={{ width: 220, borderRadius: 'var(--radius-sm)' }}
-              value={teamId}
-              onChange={(value) => setTeamId(String(value))}
-              options={teams.map((team) => ({ label: team.name, value: team.id }))}
-            />
-            <Button 
-              onClick={() => void refreshTasks(teamId)} 
-              loading={loading}
-              style={{ borderRadius: 'var(--radius-sm)' }}
-            >
-              Refresh
-            </Button>
-          </Space>
+        <Card>
+          <CardContent className="py-2 px-4">
+            <div className="flex items-center gap-2">
+              <Typography variant="body2" bold>Team:</Typography>
+              <Select
+                value={teamId}
+                onValueChange={setTeamId}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={() => void refreshTasks(teamId)} 
+                disabled={loading}
+                variant="outline"
+              >
+                Refresh
+              </Button>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
-      <Card 
-        style={{ marginBottom: '24px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}
-        title={<Typography variant="h6">Quick Create Task</Typography>}
-      >
-        <Form form={form} layout='inline'>
-          <Form.Item field='subject' rules={[{ required: true }]}>
-            <Input placeholder='Task subject' style={{ width: 240, borderRadius: 'var(--radius-sm)' }} />
-          </Form.Item>
-          <Form.Item field='description' rules={[{ required: true }]}>
-            <Input placeholder='Task description' style={{ width: 380, borderRadius: 'var(--radius-sm)' }} />
-          </Form.Item>
-          <Form.Item field='priority' initialValue={5}>
-            <InputNumber min={1} max={10} style={{ borderRadius: 'var(--radius-sm)' }} />
-          </Form.Item>
-          <Form.Item>
-            <Button type='primary' onClick={() => void createTask()} style={{ borderRadius: 'var(--radius-sm)' }}>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>
+            <Typography variant="h6">Quick Create Task</Typography>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Task subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+            </div>
+            <div className="flex-[2]">
+              <Input
+                placeholder="Task description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <div className="w-20">
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={priority}
+                onChange={(e) => setPriority(Number(e.target.value))}
+              />
+            </div>
+            <Button onClick={() => void createTask()}>
               Create
             </Button>
-          </Form.Item>
-        </Form>
+          </div>
+        </CardContent>
       </Card>
 
       <DndContext

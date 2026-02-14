@@ -6,7 +6,11 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button, Card, Form, Input, Message, Spin, Tabs, Tag } from '@arco-design/web-react';
+import { Button } from '@/renderer/components/ui/button';
+import { Input } from '@/renderer/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/renderer/components/ui/card';
+import { Badge } from '@/renderer/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/renderer/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ipcBridge } from '@/common';
 import type { IAgentCostAnalysis, IAgentTask, IAgentTeam, IAgentTeamMessage, IAgentTeamStats, IAgentTeammate } from '@/common/ipcBridge';
@@ -20,8 +24,6 @@ import {
 } from './components';
 import { Typography } from '@/renderer/components/atoms/Typography';
 
-const { TabPane } = Tabs;
-
 const TeamDetailPage: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,13 @@ const TeamDetailPage: React.FC = () => {
   const [stats, setStats] = useState<IAgentTeamStats | null>(null);
   const [cost, setCost] = useState<IAgentCostAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [form] = Form.useForm();
   const [updates, setUpdates] = useState<string[]>([]);
+
+  // Add teammate form state
+  const [teammateName, setTeammateName] = useState('');
+  const [teammateRole, setTeammateRole] = useState('');
+  const [teammateProvider, setTeammateProvider] = useState('');
+  const [teammateModel, setTeammateModel] = useState('');
 
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => b.priority - a.priority || a.created_at - b.created_at);
@@ -58,7 +65,7 @@ const TeamDetailPage: React.FC = () => {
       setStats(nextStats);
       setCost(nextCost);
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -73,30 +80,33 @@ const TeamDetailPage: React.FC = () => {
         description: 'Added from overview',
         priority: 5,
       });
-      Message.success('Task created');
       await refresh();
     } catch (error) {
-      Message.error('Failed to create task');
+      console.error('Failed to create task');
     }
   };
 
   const addTeammate = async () => {
     if (!teamId) return;
+    if (!teammateName.trim() || !teammateRole.trim() || !teammateProvider.trim() || !teammateModel.trim()) {
+      return;
+    }
     try {
-      const values = await form.validate();
       await agentTeamsApi.addTeammate({
         team_id: teamId,
-        name: values.name,
-        role: values.role,
-        provider: values.provider,
-        model: values.model,
-        skills: String(values.skills || '').split(',').map(s => s.trim()).filter(Boolean),
+        name: teammateName,
+        role: teammateRole,
+        provider: teammateProvider,
+        model: teammateModel,
+        skills: [],
       });
-      Message.success('Teammate added');
-      form.resetFields();
+      setTeammateName('');
+      setTeammateRole('');
+      setTeammateProvider('');
+      setTeammateModel('');
       await refresh();
     } catch (error) {
-      if (error instanceof Error) Message.error(error.message);
+      console.error(error);
     }
   };
 
@@ -140,11 +150,15 @@ const TeamDetailPage: React.FC = () => {
   }, [teamId]);
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: '48px 0' }}><Spin size={40} /></div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   if (!team) {
-    return <Card style={{ borderRadius: 'var(--radius-lg)' }}>Team not found</Card>;
+    return <Card><CardContent>Team not found</CardContent></Card>;
   }
 
   return (
@@ -185,16 +199,12 @@ const TeamDetailPage: React.FC = () => {
           <Typography variant="body2" color="secondary" style={{ marginTop: '4px' }}>{team.description || 'No description provided'}</Typography>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <Tag color={team.status === 'active' ? 'green' : 'orange'} style={{ borderRadius: 'var(--radius-sm)', padding: '4px 12px', height: 'auto' }}>
+          <Badge variant={team.status === 'active' ? 'default' : 'secondary'} className="text-sm px-3 py-1">
             {team.status.toUpperCase()}
-          </Tag>
+          </Badge>
           <Button 
-            status='success'
-            type='primary'
-            style={{ borderRadius: 'var(--radius-md)' }}
             onClick={async () => {
               const result = await agentTeamsApi.runTeam(team.id);
-              Message.success(`Team run finished: started ${result.started}, completed ${result.completed}, failed ${result.failed}`);
               await refresh();
             }}
           >
@@ -211,61 +221,105 @@ const TeamDetailPage: React.FC = () => {
         <StatBadge label="Total Cost" value={`$${team.total_cost_usd.toFixed(4)}`} color="warning" />
       </div>
 
-      <Card 
-        style={{ borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}
-        bodyStyle={{ padding: '0px' }}
-      >
-        <Tabs activeTab={activeTab} onChange={setActiveTab} type="line" style={{ padding: '0 20px' }}>
-          <TabPane key='overview' title={<Typography variant="body2" bold={activeTab === 'overview'}>Overview</Typography>}>
-            <OverviewTab 
-              team={team} 
-              stats={stats} 
-              onRefresh={refresh} 
-              onQuickCreateTask={handleQuickCreateTask} 
-            />
-          </TabPane>
+      <Card>
+        <CardContent className="p-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="px-5 pt-2">
+              <TabsTrigger value="overview">
+                <Typography variant="body2" bold={activeTab === 'overview'}>Overview</Typography>
+              </TabsTrigger>
+              <TabsTrigger value="teammates">
+                <Typography variant="body2" bold={activeTab === 'teammates'}>{`Teammates (${teammates.length})`}</Typography>
+              </TabsTrigger>
+              <TabsTrigger value="tasks">
+                <Typography variant="body2" bold={activeTab === 'tasks'}>{`Tasks (${tasks.length})`}</Typography>
+              </TabsTrigger>
+              <TabsTrigger value="messages">
+                <Typography variant="body2" bold={activeTab === 'messages'}>Messages</Typography>
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <Typography variant="body2" bold={activeTab === 'analytics'}>Analytics</Typography>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabPane key='teammates' title={<Typography variant="body2" bold={activeTab === 'teammates'}>{`Teammates (${teammates.length})`}</Typography>}>
-            <div style={{ padding: '24px 0' }}>
-              <Card title={<Typography variant="h6">Add New Teammate</Typography>} style={{ marginBottom: 24, borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-                <Form form={form} layout='inline'>
-                  <Form.Item field='name' rules={[{ required: true }]}><Input placeholder='Name' /></Form.Item>
-                  <Form.Item field='role' rules={[{ required: true }]}><Input placeholder='Role' /></Form.Item>
-                  <Form.Item field='provider' rules={[{ required: true }]}><Input placeholder='Provider' /></Form.Item>
-                  <Form.Item field='model' rules={[{ required: true }]}><Input placeholder='Model' /></Form.Item>
-                  <Form.Item><Button type='primary' onClick={() => void addTeammate()}>Add</Button></Form.Item>
-                </Form>
-              </Card>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-                {teammates.map(teammate => (
-                  <motion.div key={teammate.id} whileHover={{ y: -4 }} style={{ padding: 16, background: 'var(--bg-1)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Typography variant="body1" bold>{teammate.name}</Typography>
-                      <Tag color={teammate.status === 'idle' ? 'green' : 'orange'} style={{ borderRadius: 'var(--radius-sm)' }}>{teammate.status}</Tag>
+            <TabsContent value="overview" className="p-0">
+              <OverviewTab 
+                team={team} 
+                stats={stats} 
+                onRefresh={refresh} 
+                onQuickCreateTask={handleQuickCreateTask} 
+              />
+            </TabsContent>
+
+            <TabsContent value="teammates">
+              <div style={{ padding: '24px 0' }}>
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>
+                      <Typography variant="h6">Add New Teammate</Typography>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-end gap-2">
+                      <Input
+                        placeholder="Name"
+                        value={teammateName}
+                        onChange={(e) => setTeammateName(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Role"
+                        value={teammateRole}
+                        onChange={(e) => setTeammateRole(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Provider"
+                        value={teammateProvider}
+                        onChange={(e) => setTeammateProvider(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Model"
+                        value={teammateModel}
+                        onChange={(e) => setTeammateModel(e.target.value)}
+                      />
+                      <Button onClick={() => void addTeammate()}>Add</Button>
                     </div>
-                    <Typography variant="body2" color="secondary">{teammate.role}</Typography>
-                    <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Tag size="small">{teammate.provider}</Tag>
-                      <Tag size="small">{teammate.model}</Tag>
-                    </div>
-                  </motion.div>
-                ))}
+                  </CardContent>
+                </Card>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                  {teammates.map(teammate => (
+                    <motion.div 
+                      key={teammate.id} 
+                      whileHover={{ y: -4 }} 
+                      style={{ padding: 16, background: 'var(--bg-1)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Typography variant="body1" bold>{teammate.name}</Typography>
+                        <Badge variant={teammate.status === 'idle' ? 'default' : 'secondary'}>{teammate.status}</Badge>
+                      </div>
+                      <Typography variant="body2" color="secondary">{teammate.role}</Typography>
+                      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Badge variant="outline">{teammate.provider}</Badge>
+                        <Badge variant="outline">{teammate.model}</Badge>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </TabPane>
+            </TabsContent>
 
-          <TabPane key='tasks' title={<Typography variant="body2" bold={activeTab === 'tasks'}>{`Tasks (${tasks.length})`}</Typography>}>
-            <TasksTab tasks={sortedTasks} />
-          </TabPane>
+            <TabsContent value="tasks">
+              <TasksTab tasks={sortedTasks} />
+            </TabsContent>
 
-          <TabPane key='messages' title={<Typography variant="body2" bold={activeTab === 'messages'}>Messages</Typography>}>
-            <MessagesTab messages={messages} />
-          </TabPane>
+            <TabsContent value="messages">
+              <MessagesTab messages={messages} />
+            </TabsContent>
 
-          <TabPane key='analytics' title={<Typography variant="body2" bold={activeTab === 'analytics'}>Analytics</Typography>}>
-            <AnalyticsTab stats={stats} cost={cost} />
-          </TabPane>
-        </Tabs>
+            <TabsContent value="analytics">
+              <AnalyticsTab stats={stats} cost={cost} />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
       </Card>
     </motion.div>
   );

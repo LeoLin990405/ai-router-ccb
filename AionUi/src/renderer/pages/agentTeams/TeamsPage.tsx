@@ -6,7 +6,33 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Form, Input, InputNumber, Message, Modal, Space, Table, Tag } from '@arco-design/web-react';
+import { Button } from '@/renderer/components/ui/button';
+import { Input } from '@/renderer/components/ui/input';
+import { Label } from '@/renderer/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/renderer/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/renderer/components/ui/card';
+import { Badge } from '@/renderer/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/renderer/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/renderer/components/ui/table';
 import { motion } from 'framer-motion';
 import { agentTeamsApi } from './api';
 import type { IAgentTeam } from '@/common/ipcBridge';
@@ -18,7 +44,12 @@ const TeamsPage: React.FC = () => {
   const [teams, setTeams] = useState<IAgentTeam[]>([]);
   const [visible, setVisible] = useState(false);
 
-  const [form] = Form.useForm();
+  // Form state
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [maxTeammates, setMaxTeammates] = useState(5);
+  const [strategy, setStrategy] = useState<'round_robin' | 'load_balance' | 'skill_based'>('round_robin');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const refresh = async () => {
     setLoading(true);
@@ -26,24 +57,39 @@ const TeamsPage: React.FC = () => {
       const data = await agentTeamsApi.listTeams();
       setTeams(data);
     } catch (error) {
-      Message.error(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
   const createTeam = async () => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) {
+      newErrors.name = 'Team name is required';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     try {
-      const values = await form.validate();
-      await agentTeamsApi.createTeam(values);
-      Message.success('Team created');
+      await agentTeamsApi.createTeam({
+        name,
+        description,
+        max_teammates: maxTeammates,
+        task_allocation_strategy: strategy,
+      });
       setVisible(false);
-      form.resetFields();
+      setName('');
+      setDescription('');
+      setMaxTeammates(5);
+      setStrategy('round_robin');
+      setErrors({});
       await refresh();
     } catch (error) {
-      if (error instanceof Error) {
-        Message.error(error.message);
-      }
+      console.error(error);
     }
   };
 
@@ -63,91 +109,118 @@ const TeamsPage: React.FC = () => {
           <Typography variant="h4" bold>Teams</Typography>
           <Typography variant="body2" color="secondary">Manage your AI agent teams</Typography>
         </div>
-        <Button 
-          type='primary' 
-          onClick={() => setVisible(true)}
-          style={{ borderRadius: 'var(--radius-md)' }}
-        >
+        <Button onClick={() => setVisible(true)}>
           Create Team
         </Button>
       </div>
 
-      <Card 
-        style={{ borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}
-        bodyStyle={{ padding: 0 }}
-      >
-        <Table
-          loading={loading}
-          rowKey='id'
-          data={teams}
-          pagination={{ pageSize: 10 }}
-          columns={[
-            {
-              title: 'Name',
-              dataIndex: 'name',
-              render: (_: unknown, row: IAgentTeam) => (
-                <Button
-                  type='text'
-                  onClick={() => {
-                    void navigate(`/agent-teams/teams/${row.id}`);
-                  }}
-                  style={{ padding: 0, height: 'auto', fontWeight: 600, color: 'var(--color-primary)' }}
-                >
-                  {row.name}
-                </Button>
-              ),
-            },
-            { 
-              title: 'Description', 
-              dataIndex: 'description',
-              render: (desc: string) => <Typography variant="body2" color="secondary">{desc || '-'}</Typography>
-            },
-            { title: 'Max Teammates', dataIndex: 'max_teammates' },
-            {
-              title: 'Strategy',
-              dataIndex: 'task_allocation_strategy',
-              render: (strategy: string) => <Tag style={{ borderRadius: 'var(--radius-sm)' }}>{strategy}</Tag>
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              render: (status: IAgentTeam['status']) => (
-                <Tag 
-                  color={status === 'active' ? 'green' : 'orange'}
-                  style={{ borderRadius: 'var(--radius-sm)' }}
-                >
-                  {status}
-                </Tag>
-              ),
-            },
-          ]}
-        />
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Max Teammates</TableHead>
+                <TableHead>Strategy</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {teams.map((team) => (
+                <TableRow key={team.id}>
+                  <TableCell>
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        void navigate(`/agent-teams/teams/${team.id}`);
+                      }}
+                      className="p-0 h-auto font-semibold"
+                    >
+                      {team.name}
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="secondary">{team.description || '-'}</Typography>
+                  </TableCell>
+                  <TableCell>{team.max_teammates}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{team.task_allocation_strategy}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={team.status === 'active' ? 'default' : 'secondary'}>
+                      {team.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
 
-      <Modal
-        title={<Typography variant="h6">Create Team</Typography>}
-        visible={visible}
-        onCancel={() => setVisible(false)}
-        style={{ borderRadius: 'var(--radius-lg)' }}
-        onOk={() => {
-          void createTeam();
-        }}
-      >
-        <Form form={form} layout='vertical'>
-          <Form.Item label='Team Name' field='name' rules={[{ required: true }]}> 
-            <Input placeholder='e.g. Core Delivery Team' style={{ borderRadius: 'var(--radius-md)' }} />
-          </Form.Item>
-          <Form.Item label='Description' field='description'>
-            <Input placeholder='Optional description' style={{ borderRadius: 'var(--radius-md)' }} />
-          </Form.Item>
-          <Form.Item label='Max Teammates' field='max_teammates' initialValue={5}>
-            <InputNumber min={1} max={20} style={{ borderRadius: 'var(--radius-md)', width: '100%' }} />
-          </Form.Item>
-          <Form.Item label='Allocation Strategy' field='task_allocation_strategy' initialValue='round_robin'>
-            <Input placeholder='round_robin / load_balance / skill_based' style={{ borderRadius: 'var(--radius-md)' }} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Dialog open={visible} onOpenChange={setVisible}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              <Typography variant="h6">Create Team</Typography>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="team-name">Team Name</Label>
+              <Input
+                id="team-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Core Delivery Team"
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team-description">Description</Label>
+              <Input
+                id="team-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="max-teammates">Max Teammates</Label>
+              <Input
+                id="max-teammates"
+                type="number"
+                min={1}
+                max={20}
+                value={maxTeammates}
+                onChange={(e) => setMaxTeammates(Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Allocation Strategy</Label>
+              <Select value={strategy} onValueChange={(value) => setStrategy(value as typeof strategy)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="round_robin">Round Robin</SelectItem>
+                  <SelectItem value="load_balance">Load Balance</SelectItem>
+                  <SelectItem value="skill_based">Skill Based</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVisible(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void createTeam()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

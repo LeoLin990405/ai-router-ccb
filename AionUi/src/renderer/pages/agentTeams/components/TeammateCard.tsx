@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag } from '@arco-design/web-react';
+import { Badge } from '@/renderer/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Typography } from '@/renderer/components/atoms/Typography';
 import type { IAgentTeammate } from '@/common/ipcBridge';
@@ -25,27 +25,26 @@ export const TeammateCard: React.FC<TeammateCardProps> = ({ teammate }) => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="body1" bold>{teammate.name}</Typography>
-        <Tag 
-          color={teammate.status === 'idle' ? 'green' : 'orange'} 
-          style={{ borderRadius: 'var(--radius-sm)' }}
+        <Badge 
+          variant={teammate.status === 'idle' ? 'default' : 'secondary'}
         >
           {teammate.status.toUpperCase()}
-        </Tag>
+        </Badge>
       </div>
       
       <Typography variant="body2" color="secondary">{teammate.role}</Typography>
       
       <div style={{ marginTop: '4px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <Tag size="small" style={{ borderRadius: 'var(--radius-sm)' }}>{teammate.provider}</Tag>
-        <Tag size="small" style={{ borderRadius: 'var(--radius-sm)' }}>{teammate.model}</Tag>
+        <Badge variant="outline">{teammate.provider}</Badge>
+        <Badge variant="outline">{teammate.model}</Badge>
       </div>
 
       {teammate.skills.length > 0 && (
         <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           {teammate.skills.map(skill => (
-            <Tag key={skill} size="small" bordered style={{ borderRadius: 'var(--radius-sm)' }}>
+            <Badge key={skill} variant="secondary">
               {skill}
-            </Tag>
+            </Badge>
           ))}
         </div>
       )}

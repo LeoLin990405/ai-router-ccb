@@ -1,5 +1,5 @@
 import React from 'react';
-import { Timeline } from '@arco-design/web-react';
+import { Timeline, TimelineItem } from '@/renderer/components/ui/timeline';
 import { Typography } from '@/renderer/components/atoms/Typography';
 import type { IAgentTeamMessage } from '@/common/ipcBridge';
 
@@ -12,7 +12,7 @@ export const MessagesTab: React.FC<MessagesTabProps> = ({ messages }) => {
     <div style={{ padding: '24px 0' }}>
       <Timeline>
         {messages.map((message) => (
-          <Timeline.Item 
+          <TimelineItem 
             key={message.id} 
             label={<Typography variant="caption" color="secondary">{new Date(message.created_at).toLocaleString()}</Typography>}
           >
@@ -20,7 +20,7 @@ export const MessagesTab: React.FC<MessagesTabProps> = ({ messages }) => {
               <Typography variant="body2" bold style={{ marginBottom: 4 }}>{message.type.toUpperCase()}</Typography>
               <Typography variant="body2">{message.content}</Typography>
             </div>
-          </Timeline.Item>
+          </TimelineItem>
         ))}
       </Timeline>
       {messages.length === 0 && (

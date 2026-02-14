@@ -6,10 +6,8 @@
 
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Space, Typography } from '@arco-design/web-react';
+import { Button } from '@/renderer/components/ui/button';
 import { useTranslation } from 'react-i18next';
-
-const { Title, Paragraph } = Typography;
 
 const NAV_ITEMS = [
   { key: '/agent-teams/dashboard', i18nKey: 'agentTeams.dashboard', fallback: 'Dashboard' },
@@ -27,21 +25,21 @@ const AgentTeamsLayout: React.FC = () => {
   return (
     <div className='size-full flex flex-col bg-1 p-24px overflow-hidden'>
       <div className='mb-16px'>
-        <Title heading={3} style={{ marginBottom: 8 }}>
+        <h1 className='text-2xl font-semibold mb-2'>
           {t('agentTeams.title', { defaultValue: 'Agent Teams' })}
-        </Title>
-        <Paragraph style={{ marginBottom: 0 }} type='secondary'>
+        </h1>
+        <p className='text-muted-foreground text-sm mb-0'>
           {t('agentTeams.subtitle', { defaultValue: 'Distributed AI collaboration dashboard.' })}
-        </Paragraph>
+        </p>
       </div>
 
-      <Space wrap style={{ marginBottom: 16 }}>
+      <div className="flex flex-wrap gap-2 mb-4">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname.startsWith(item.key);
           return (
             <Button
               key={item.key}
-              type={isActive ? 'primary' : 'default'}
+              variant={isActive ? 'default' : 'outline'}
               onClick={() => {
                 void navigate(item.key);
               }}
@@ -50,7 +48,7 @@ const AgentTeamsLayout: React.FC = () => {
             </Button>
           );
         })}
-      </Space>
+      </div>
 
       <div className='flex-1 min-h-0 overflow-auto'>
         <Outlet />

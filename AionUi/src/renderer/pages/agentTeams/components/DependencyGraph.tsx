@@ -5,17 +5,17 @@
  */
 
 import React, { useMemo } from 'react';
-import { Card, Empty, Space, Tag } from '@arco-design/web-react';
+import { Badge } from '@/renderer/components/ui/badge';
 import { motion } from 'framer-motion';
 import type { IAgentTask } from '@/common/ipcBridge';
 import { Typography } from '@/renderer/components/atoms/Typography';
 
-const statusColor: Record<IAgentTask['status'], string> = {
-  pending: 'orange',
-  in_progress: 'arcoblue',
-  completed: 'green',
-  failed: 'red',
-  cancelled: 'gray',
+const statusVariant: Record<IAgentTask['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  pending: 'secondary',
+  in_progress: 'default',
+  completed: 'default',
+  failed: 'destructive',
+  cancelled: 'outline',
 };
 
 interface DependencyGraphProps {
@@ -49,7 +49,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ tasks }) => {
   if (tasks.length === 0) {
     return (
       <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Empty description='No tasks yet' />
+        <div className="text-muted-foreground">No tasks yet</div>
       </div>
     );
   }
@@ -71,15 +71,15 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ tasks }) => {
               boxShadow: 'var(--shadow-sm)'
             }}
           >
-            <Space direction='vertical' style={{ width: '100%' }}>
+            <div className="flex flex-col w-full gap-2">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <Typography variant="body2" bold>{task.subject}</Typography>
-                  <Tag color={statusColor[task.status]} style={{ borderRadius: 'var(--radius-sm)' }}>{task.status}</Tag>
+                  <Badge variant={statusVariant[task.status]}>{task.status}</Badge>
                   {task.status === 'pending' && (
-                    <Tag color={isReady ? 'green' : 'orange'} style={{ borderRadius: 'var(--radius-sm)' }}>
+                    <Badge variant={isReady ? 'default' : 'secondary'}>
                       {isReady ? 'READY' : 'BLOCKED'}
-                    </Tag>
+                    </Badge>
                   )}
                 </div>
                 <Typography variant="caption" color="tertiary">Priority P{task.priority}</Typography>
@@ -93,9 +93,9 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ tasks }) => {
                       <Typography variant="caption" color="tertiary">None</Typography>
                     ) : (
                       deps.map((dep) => (
-                        <Tag key={dep.id} size="small" style={{ borderRadius: 'var(--radius-sm)' }}>
+                        <Badge key={dep.id} variant="outline">
                           {dep.subject}
-                        </Tag>
+                        </Badge>
                       ))
                     )}
                   </div>
@@ -108,15 +108,15 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ tasks }) => {
                       <Typography variant="caption" color="tertiary">None</Typography>
                     ) : (
                       dependents.map((dep) => (
-                        <Tag key={dep.id} size="small" style={{ borderRadius: 'var(--radius-sm)' }}>
+                        <Badge key={dep.id} variant="outline">
                           {dep.subject}
-                        </Tag>
+                        </Badge>
                       ))
                     )}
                   </div>
                 </div>
               </div>
-            </Space>
+            </div>
           </motion.div>
         ))}
       </div>

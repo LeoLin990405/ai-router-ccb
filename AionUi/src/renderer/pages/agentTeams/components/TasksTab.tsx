@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag } from '@arco-design/web-react';
+import { Badge } from '@/renderer/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Typography } from '@/renderer/components/atoms/Typography';
 import DependencyGraph from './DependencyGraph';
@@ -10,6 +10,14 @@ interface TasksTabProps {
 }
 
 export const TasksTab: React.FC<TasksTabProps> = ({ tasks }) => {
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'completed': return 'default';
+      case 'failed': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
   return (
     <div style={{ padding: '24px 0' }}>
       <DependencyGraph tasks={tasks} />
@@ -34,9 +42,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({ tasks }) => {
             </div>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <Typography variant="caption" color="secondary">P{task.priority}</Typography>
-              <Tag color={task.status === 'completed' ? 'green' : task.status === 'failed' ? 'red' : 'orange'} style={{ borderRadius: 'var(--radius-sm)' }}>
+              <Badge variant={getStatusVariant(task.status)}>
                 {task.status}
-              </Tag>
+              </Badge>
             </div>
           </motion.div>
         ))}

@@ -1,5 +1,15 @@
-import React from 'react';
-import { Modal, Form, Input, InputNumber, Select } from '@arco-design/web-react';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/renderer/components/ui/dialog';
+import { Button } from '@/renderer/components/ui/button';
+import { Input } from '@/renderer/components/ui/input';
+import { Label } from '@/renderer/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/renderer/components/ui/select';
 import { Typography } from '@/renderer/components/atoms/Typography';
 
 interface CreateTeamModalProps {
@@ -15,47 +25,106 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   onConfirm,
   loading
 }) => {
-  const [form] = Form.useForm();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [maxTeammates, setMaxTeammates] = useState(5);
+  const [strategy, setStrategy] = useState('round_robin');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleOk = async () => {
-    try {
-      const values = await form.validate();
-      await onConfirm(values);
-      form.resetFields();
-    } catch (error) {
-      // Form validation error
+  useEffect(() => {
+    if (visible) {
+      setName('');
+      setDescription('');
+      setMaxTeammates(5);
+      setStrategy('round_robin');
+      setErrors({});
     }
+  }, [visible]);
+
+  const handleSubmit = async () => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) {
+      newErrors.name = 'Team name is required';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    await onConfirm({
+      name,
+      description,
+      max_teammates: maxTeammates,
+      task_allocation_strategy: strategy,
+    });
   };
 
   return (
-    <Modal
-      title={<Typography variant="h6">Create New Team</Typography>}
-      visible={visible}
-      onCancel={onCancel}
-      onOk={handleOk}
-      confirmLoading={loading}
-      style={{ borderRadius: 'var(--radius-lg)' }}
-    >
-      <Form form={form} layout='vertical'>
-        <Form.Item label='Team Name' field='name' rules={[{ required: true }]}>
-          <Input placeholder='e.g. Content Generation Team' style={{ borderRadius: 'var(--radius-sm)' }} />
-        </Form.Item>
-        <Form.Item label='Description' field='description'>
-          <Input.TextArea placeholder='What this team is for...' style={{ borderRadius: 'var(--radius-sm)' }} />
-        </Form.Item>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <Form.Item label='Max Teammates' field='max_teammates' initialValue={5}>
-            <InputNumber min={1} max={20} style={{ width: '100%', borderRadius: 'var(--radius-sm)' }} />
-          </Form.Item>
-          <Form.Item label='Allocation Strategy' field='task_allocation_strategy' initialValue='round_robin'>
-            <Select style={{ borderRadius: 'var(--radius-sm)' }}>
-              <Select.Option value='round_robin'>Round Robin</Select.Option>
-              <Select.Option value='load_balance'>Load Balance</Select.Option>
-              <Select.Option value='skill_based'>Skill Based</Select.Option>
-            </Select>
-          </Form.Item>
+    <Dialog open={visible} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>
+            <Typography variant="h6">Create New Team</Typography>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="team-name">Team Name</Label>
+            <Input
+              id="team-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Content Generation Team"
+            />
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="team-description">Description</Label>
+            <textarea
+              id="team-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What this team is for..."
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="max-teammates">Max Teammates</Label>
+              <Input
+                id="max-teammates"
+                type="number"
+                min={1}
+                max={20}
+                value={maxTeammates}
+                onChange={(e) => setMaxTeammates(Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Allocation Strategy</Label>
+              <Select value={strategy} onValueChange={setStrategy}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="round_robin">Round Robin</SelectItem>
+                  <SelectItem value="load_balance">Load Balance</SelectItem>
+                  <SelectItem value="skill_based">Skill Based</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-      </Form>
-    </Modal>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Creating...' : 'Create'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -7,7 +7,8 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Tag, Button } from '@arco-design/web-react';
+import { Badge } from '@/renderer/components/ui/badge';
+import { Button } from '@/renderer/components/ui/button';
 import { motion } from 'framer-motion';
 import { Play, FileText, Connection } from '@icon-park/react';
 import { Typography } from '@/renderer/components/atoms/Typography';
@@ -85,25 +86,29 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
         {/* 头部：优先级和 Provider */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span
-              className="px-2 py-0.5 text-xs font-medium rounded-full"
+            <Badge
+              variant="outline"
+              className="text-xs"
               style={{
                 backgroundColor: priorityConfig.bg,
                 color: priorityConfig.color,
+                borderColor: priorityConfig.color,
               }}
             >
               P{task.priority} {priorityConfig.label}
-            </span>
+            </Badge>
             {task.provider && providerConfig && (
-              <span
-                className="px-2 py-0.5 text-xs font-medium rounded-full capitalize"
+              <Badge
+                variant="outline"
+                className="text-xs capitalize"
                 style={{
                   backgroundColor: providerConfig.bg,
                   color: providerConfig.color,
+                  borderColor: providerConfig.color,
                 }}
               >
                 {task.provider}
-              </span>
+              </Badge>
             )}
           </div>
           
@@ -116,8 +121,8 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
 
         {/* 标题 */}
         <Button
-          type="text"
-          className="w-full p-0 h-auto text-left mb-2 hover:text-primary"
+          variant="ghost"
+          className="w-full p-0 h-auto text-left mb-2 hover:text-primary justify-start"
           onClick={(e) => {
             e.stopPropagation();
             onViewDetail?.(task.id);
@@ -156,15 +161,14 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
 
           {task.status !== 'completed' && task.status !== 'failed' && (
             <Button
-              size="mini"
-              type="primary"
-              icon={<IconPlay />}
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onRun?.(task.id);
               }}
-              className="rounded-md"
+              className="rounded-md gap-1"
             >
+              <IconPlay />
               执行
             </Button>
           )}

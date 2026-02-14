@@ -2,6 +2,7 @@
 // All components are built on top of Radix UI primitives
 
 export { Alert, AlertTitle, AlertDescription } from "./alert"
+export { Description, type DescriptionItem } from "./description"
 export { Badge, badgeVariants } from "./badge"
 export { Button, buttonVariants } from "./button"
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card"
@@ -17,4 +18,5 @@ export { Slider } from "./slider"
 export { Switch } from "./switch"
 export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption } from "./table"
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs"
+export { Timeline, TimelineItem } from "./timeline"
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip"

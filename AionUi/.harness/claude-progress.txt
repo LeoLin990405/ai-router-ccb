@@ -181,27 +181,105 @@ All routes follow consistent patterns:
 | Files | 8 | ✅ Implemented (mock) |
 | **Total** | **29** | **27% complete** |
 
-**Next Session (R002-4/6) TODO**:
+=== SESSION 5 (2026-02-15) - R002-4/6 ===
 
-1. 🔲 Implement Model/Provider routes
-   - GET /api/v1/models (list available models)
+**Goal**: Implement Model/Provider, Agent integration, and MCP routes
+
+**Work Completed**:
+
+1. ✅ Implemented Model routes (6 endpoints)
+   - GET /api/v1/models (list with filtering by provider/capability)
+   - POST /api/v1/models (create new model)
    - GET /api/v1/models/:id (get model details)
-   - POST /api/v1/models/:id/test (test model)
-   - GET /api/v1/providers (list providers)
+   - PATCH /api/v1/models/:id (update model)
+   - DELETE /api/v1/models/:id (delete model)
+   - POST /api/v1/models/:id/test (test model connection)
+
+2. ✅ Implemented Provider routes (6 endpoints)
+   - GET /api/v1/providers (list with filtering by type/enabled)
+   - POST /api/v1/providers (create new provider, masks API key)
    - GET /api/v1/providers/:id (get provider details)
-   - POST /api/v1/providers/:id/test (test provider)
+   - PATCH /api/v1/providers/:id (update provider)
+   - DELETE /api/v1/providers/:id (delete provider)
+   - POST /api/v1/providers/:id/test (test provider connection)
 
-2. 🔲 Implement Agent integration routes
-   - POST /api/v1/gemini/chat (Gemini chat)
-   - GET /api/v1/gemini/models (list Gemini models)
-   - POST /api/v1/codex/chat (Codex chat)
-   - POST /api/v1/acp/execute (ACP command)
+3. ✅ Implemented Gemini integration routes (4 endpoints)
+   - POST /api/v1/gemini/chat (send chat message)
+   - GET /api/v1/gemini/models (list available Gemini models)
+   - POST /api/v1/gemini/generate-content (multimodal content generation)
+   - POST /api/v1/gemini/embed (generate embeddings)
 
-3. 🔲 Implement MCP routes
+4. ✅ Implemented Codex (OpenAI) integration routes (4 endpoints)
+   - POST /api/v1/codex/chat (send chat message)
+   - GET /api/v1/codex/models (list available OpenAI models)
+   - POST /api/v1/codex/completions (text completions)
+   - POST /api/v1/codex/embeddings (generate embeddings)
+
+5. ✅ Implemented ACP (Anthropic Claude) integration routes (5 endpoints)
+   - POST /api/v1/acp/messages (send message via Messages API)
+   - GET /api/v1/acp/models (list Claude models with pricing)
+   - POST /api/v1/acp/count-tokens (count tokens)
+   - POST /api/v1/acp/batch (create batch request)
+   - GET /api/v1/acp/batch/:id (get batch status)
+
+6. ✅ Implemented MCP routes (7 endpoints)
    - GET /api/v1/mcp/servers (list MCP servers)
-   - POST /api/v1/mcp/servers (add server)
+   - POST /api/v1/mcp/servers (add new server)
+   - GET /api/v1/mcp/servers/:id (get server details)
+   - PATCH /api/v1/mcp/servers/:id (update server)
+   - DELETE /api/v1/mcp/servers/:id (remove server)
    - GET /api/v1/mcp/servers/:id/tools (list tools)
    - POST /api/v1/mcp/servers/:id/call (call tool)
+
+7. ✅ Mounted all new routes in API index
+
+**Implementation Highlights**:
+
+- **Model/Provider 管理**: 支持多种 AI provider (OpenAI, Anthropic, Google, custom)
+- **安全性**: Provider API keys 在响应中自动 mask
+- **Agent 集成**: 直接集成 Gemini、Codex、ACP 的核心功能
+- **MCP 协议**: 完整的 MCP server 管理和工具调用能力
+- **一致性**: 所有路由遵循相同的认证、验证、响应格式模式
+
+**API Endpoint Summary (Current)**:
+
+| Category | Endpoints | Status |
+|----------|-----------|--------|
+| Auth | 6 | ✅ Implemented |
+| Conversations | 11 | ✅ Implemented (mock) |
+| Messages | 4 | ✅ Implemented (mock) |
+| Files | 8 | ✅ Implemented (mock) |
+| Models | 6 | ✅ Implemented (mock) |
+| Providers | 6 | ✅ Implemented (mock) |
+| Gemini | 4 | ✅ Implemented (mock) |
+| Codex | 4 | ✅ Implemented (mock) |
+| ACP | 5 | ✅ Implemented (mock) |
+| MCP | 7 | ✅ Implemented (mock) |
+| **Total** | **61/105** | **58% complete** |
+
+**Next Session (R002-5/6) TODO**:
+
+1. 🔲 Implement Skills routes
+   - GET /api/v1/skills (list skills)
+   - POST /api/v1/skills (install skill)
+   - GET /api/v1/skills/:id (get skill details)
+   - PATCH /api/v1/skills/:id (update skill)
+   - DELETE /api/v1/skills/:id (uninstall skill)
+   - POST /api/v1/skills/:id/execute (execute skill)
+
+2. 🔲 Implement Cron routes
+   - GET /api/v1/cron/jobs (list cron jobs)
+   - POST /api/v1/cron/jobs (create job)
+   - GET /api/v1/cron/jobs/:id (get job details)
+   - PATCH /api/v1/cron/jobs/:id (update job)
+   - DELETE /api/v1/cron/jobs/:id (delete job)
+   - POST /api/v1/cron/jobs/:id/trigger (manual trigger)
+   - GET /api/v1/cron/jobs/:id/history (execution history)
+
+3. 🔲 Implement Channels routes (multi-agent communication)
+   - GET /api/v1/channels (list channels)
+   - POST /api/v1/channels (create channel)
+   - POST /api/v1/channels/:id/message (send message)
 
 **Blockers**: None
 

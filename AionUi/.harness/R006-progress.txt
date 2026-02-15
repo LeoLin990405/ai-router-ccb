@@ -123,5 +123,121 @@ Session 1 完成了 React Query 的基础设置和核心 hooks。系统现在：
 
 ===
 
-**R006 进度**: 1/3 sessions complete (33%)
+===
+
+**R006 进度**: 2/3 sessions complete (67%)
+
+
+=== SESSION 2 (2026-02-15) - R006-2/3 ===
+
+**Goal**: Zustand Client State and Optimistic Updates
+
+**Work Plan**:
+1. Create Zustand stores for client-only state ✅
+2. Implement optimistic updates for mutations ✅
+3. Create additional query hooks (users, skills, messages) ✅
+4. Create comprehensive usage examples ✅
+5. Add loading and error states handling ✅
+
+**Work Completed**:
+
+1. ✅ Created Zustand stores for client state
+   - src/renderer/stores/uiStore.ts (160+ lines)
+     * Sidebar state (collapsed, width)
+     * Modal management (active modal, modal data)
+     * Global loading (loading state, message)
+     * Notifications (add, remove, clear)
+     * Theme state (dark mode toggle)
+     * Layout mode (default, compact, wide)
+     * Persistence with localStorage
+     * Optimized selectors
+
+   - src/renderer/stores/conversationStore.ts (150+ lines)
+     * Active conversation tracking
+     * Message drafts (persisted)
+     * Typing indicators
+     * UI state (scroll, composing)
+     * Search functionality
+     * Message selection
+     * Optimized selectors
+
+2. ✅ Created additional React Query hooks
+   - src/renderer/hooks/queries/useUsers.ts (150+ lines)
+     * useUsers() - list with filters
+     * useUser() - get by ID
+     * useUpdateUser() - update with cache
+     * useDeleteUser() - delete with cache removal
+     * useResetUserPassword() - admin password reset
+
+   - src/renderer/hooks/queries/useSkills.ts (200+ lines)
+     * useSkills() - list with filters
+     * useSkill() - get by ID
+     * useCreateSkill() - create with cache update
+     * useUpdateSkill() - update with cache update
+     * useDeleteSkill() - delete with cache removal
+     * useToggleSkill() - toggle with OPTIMISTIC UPDATE
+
+   - src/renderer/hooks/queries/useMessages.ts (210+ lines)
+     * useCreateMessage() - create with OPTIMISTIC UPDATE
+     * useUpdateMessage() - update with OPTIMISTIC UPDATE
+     * useDeleteMessage() - delete with OPTIMISTIC UPDATE
+
+3. ✅ Implemented optimistic updates
+   - useToggleSkill: Checkbox changes immediately, reverts on error
+   - useCreateMessage: Message appears instantly, replaced/removed based on result
+   - useUpdateMessage: Content updates immediately, reverts on error
+   - useDeleteMessage: Message disappears immediately, restored on error
+   - All include proper rollback logic and error handling
+
+4. ✅ Created comprehensive usage documentation
+   - src/renderer/hooks/queries/USAGE_EXAMPLES.md (250+ lines)
+     * Auth examples
+     * Conversations examples
+     * Messages with optimistic updates
+     * Skills toggle examples
+     * UI Store examples
+     * Conversation Store examples
+     * Combined React Query + Zustand examples
+     * Best practices (selectors, error handling, state separation)
+     * Migration guide (Context → React Query, useState → Zustand)
+
+5. ✅ Updated exports
+   - src/renderer/stores/index.ts (centralized exports)
+   - src/renderer/hooks/queries/index.ts (added all new hooks)
+
+**Files Created** (7 files, ~1,240 lines):
+1. src/renderer/stores/uiStore.ts (160 lines)
+2. src/renderer/stores/conversationStore.ts (150 lines)
+3. src/renderer/stores/index.ts (10 lines)
+4. src/renderer/hooks/queries/useUsers.ts (150 lines)
+5. src/renderer/hooks/queries/useSkills.ts (200 lines)
+6. src/renderer/hooks/queries/useMessages.ts (210 lines)
+7. src/renderer/hooks/queries/USAGE_EXAMPLES.md (250 lines)
+
+**Files Modified** (1 file):
+1. src/renderer/hooks/queries/index.ts (added exports)
+
+**Technical Achievements**:
+- ✅ Complete separation of server state (React Query) and client state (Zustand)
+- ✅ Optimistic updates for instant UI feedback
+- ✅ Proper error handling and rollback mechanisms
+- ✅ State persistence (UI preferences, message drafts)
+- ✅ Optimized re-renders with selectors
+- ✅ DevTools integration (both React Query and Zustand)
+- ✅ Type-safe state management
+- ✅ Comprehensive documentation with examples
+
+**Optimistic Update Examples**:
+1. **Skills Toggle**: User clicks checkbox → UI updates instantly → API call → Success: keep state / Error: revert + show error
+2. **Send Message**: User sends → Message appears with "sending" indicator → API call → Success: replace with real message / Error: remove + show error
+3. **Delete Message**: User deletes → Message disappears → API call → Success: confirm deletion / Error: restore message + show error
+
+**Next Steps for Session 3**:
+1. Add error boundaries for graceful error handling
+2. Create error state components (ErrorBoundary, ErrorFallback)
+3. Add React Query DevTools configuration
+4. Write comprehensive state management documentation
+5. Add migration examples for existing components
+
+**阻塞问题**: 无
 

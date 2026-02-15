@@ -1,124 +1,177 @@
-=== SESSION 2 (2026-02-15) ===
+=== SESSION 3 (2026-02-15) - R002-2/6 ===
 
-**Goal**: Initiate comprehensive Hivemind web refactor
+**Goal**: Design REST API architecture + OpenAPI specification
 
 **Work Completed**:
 
-1. ✅ Established long-running agent harness system (Anthropic pattern)
-   - Created features.json with 6 initial features
-   - Created claude-progress.txt for session tracking
-   - Created init.sh environment setup script
-   - Created comprehensive documentation
+1. ✅ Created comprehensive API design document
+   - Documented 105 REST endpoints across 18 categories
+   - Defined request/response formats
+   - Established error codes and pagination
+   - Planned 5-phase implementation strategy
 
-2. ✅ Defined web refactor plan (R001-R010)
-   - R001: Frontend decouple from Electron (5 sessions)
-   - R002: Backend API server refactor (6 sessions)
-   - R003: Database migration to PostgreSQL (4 sessions)
-   - R004: WebSocket refactor with Socket.IO (3 sessions)
-   - R005: Auth system enhancement with JWT (4 sessions)
-   - R006: Frontend state management (React Query + Zustand) (3 sessions)
-   - R007: Docker deployment configuration (2 sessions)
-   - R008: Comprehensive testing suite (5 sessions)
-   - R009: MCP server ecosystem expansion (3 sessions)
-   - R010: Skills ecosystem expansion (3 sessions)
+2. ✅ Implemented Zod validation schemas
+   - Common schemas (success/error/pagination responses)
+   - Auth schemas (register, login, refresh token, password reset)
+   - Conversation schemas (conversations, messages, workspace)
+   - Model/Provider schemas (models, providers, capabilities)
 
-   **Total estimated**: 38 sessions
+3. ✅ Generated OpenAPI 3.0 specification
+   - Auto-generated from Zod schemas using @asteasolutions/zod-to-openapi
+   - Includes security schemes (JWT Bearer)
+   - Tagged by category for easy navigation
+   - Sample endpoints registered (auth, conversations)
 
-3. ✅ Started R001: Frontend Architecture Analysis
-   - Discovered centralized IPC architecture via @office-ai/platform
-   - All IPC communication defined in src/common/ipcBridge.ts
-   - Type-safe bridge using buildProvider/buildEmitter pattern
-   - 6 files use electronAPI directly (platform detection)
+4. ✅ Created validation middleware
+   - Request validation using Zod schemas
+   - Support for body, query, params validation
+   - Structured error responses with field-level details
 
-4. ⏸️ Initiated MCP/Skills research (in progress)
-   - Kimi researching top MCP servers (request ID: 10b37017...)
-   - Need to research Claude Code skills
+5. ✅ Implemented authentication middleware
+   - JWT bearer token validation
+   - Role-based access control (admin/user)
+   - Extended Express Request type with user property
 
-**Key Findings**:
+6. ✅ Implemented Auth routes (example implementation)
+   - POST /api/v1/auth/register
+   - POST /api/v1/auth/login
+   - POST /api/v1/auth/logout
+   - POST /api/v1/auth/refresh
+   - GET /api/v1/auth/me
+   - PATCH /api/v1/auth/me
 
-- **IPC Architecture**: Centralized in ipcBridge.ts using @office-ai/platform
-- **Bridge Pattern**: Type-safe providers and emitters
-- **Main IPC Categories**:
-  * conversation (chat, messages, confirmations, approvals)
-  * geminiConversation (Gemini-specific)
-  * application (restart, devtools, system info, zoom)
-  * update (manual update system)
-  * dialog (file picker)
-  * fs (file system operations)
-  * shell (open files, folders, external links)
-  * database (conversations, models, providers, sync)
-  * model (provider and model management)
-  * gemini (OAuth, subscriptions)
-  * codex (conversation management)
-  * acp (agent communication protocol)
-  * channels (Lark, Telegram integrations)
-  * webui (web interface management)
-  * mcp (Model Context Protocol servers)
-  * skills (skills management)
-  * cron (scheduled tasks)
-  * notebooklm (NotebookLM integration)
-  * obsidian (Obsidian integration)
-  * preview (preview history)
-  * agentTeams (multi-agent teams)
+7. ✅ Integrated Swagger UI
+   - API documentation available at /api/docs
+   - Interactive API explorer
+   - OpenAPI spec available at /api/v1/openapi.json
 
-**Technical Decisions**:
+8. ✅ Installed dependencies
+   - zod (runtime validation)
+   - express-validator
+   - @asteasolutions/zod-to-openapi
+   - swagger-ui-express
 
-1. **Refactor Strategy**: Bottom-up approach
-   - Start with backend API (R002) - no dependencies
-   - Then frontend decouple (R001) - depends on API
-   - Then database migration (R003) - for production scalability
+**Architecture Decisions**:
 
-2. **Technology Stack** (confirmed):
-   - Frontend: React SPA (Vite) - replace Electron/Webpack
-   - Backend: Node.js/Express with OpenAPI 3.0
-   - Database: PostgreSQL (or optimized SQLite)
-   - Real-time: Socket.IO
-   - Auth: JWT + refresh tokens
-   - Deployment: Docker + Docker Compose
-
-**Next Session TODO**:
-
-1. ✅ Query Kimi results for MCP servers
-   ```bash
-   ccb-query get 10b37017-b70c-4cdd-814d-efb7f9b0f54c
+1. **Response Format**: Standardized wrapper
+   ```json
+   {
+     "success": true/false,
+     "data": {...} or "error": {...},
+     "pagination": {...} (for list endpoints),
+     "meta": { "timestamp", "requestId" }
+   }
    ```
 
-2. 🔲 Download and test 5-10 popular MCP servers
-   - File system operations
-   - Database access
-   - Web search
-   - Code analysis
+2. **Validation Strategy**: Zod schemas
+   - Type-safe at compile time
+   - Runtime validation
+   - Auto-generate OpenAPI spec
+   - Single source of truth
 
-3. 🔲 Download and test 5-10 popular Claude Code skills
-   - PDF processing
-   - Code review
-   - Frontend development
-   - Testing automation
+3. **API Versioning**: `/api/v1/`
+   - Backward compatibility
+   - Easy migration path
 
-4. 🔲 Begin R002: Backend API Server Refactor (Session 1/6)
-   - Audit existing webserver implementation
-   - Design comprehensive REST API schema
-   - Create OpenAPI 3.0 specification
+4. **Error Handling**: Consistent error codes
+   - VALIDATION_ERROR (400)
+   - UNAUTHORIZED (401)
+   - FORBIDDEN (403)
+   - NOT_FOUND (404)
+   - CONFLICT (409)
+   - RATE_LIMIT_EXCEEDED (429)
+   - INTERNAL_ERROR (500)
 
-5. 🔲 Create development workflow documentation
-   - How to run frontend dev server
-   - How to run backend API server
-   - How to run with Docker Compose
+**Directory Structure Created**:
+
+```
+src/api/v1/
+├── index.ts                    # Main router
+├── openapi.ts                  # OpenAPI spec generator
+├── swagger.ts                  # Swagger UI setup
+├── schemas/
+│   ├── common.ts              # Common response schemas
+│   ├── auth.ts                # Auth schemas
+│   ├── conversation.ts        # Conversation schemas
+│   └── model.ts               # Model/Provider schemas
+├── middleware/
+│   ├── auth.ts                # JWT authentication
+│   └── validate.ts            # Request validation
+└── routes/
+    └── auth.routes.ts         # Auth endpoints (implemented)
+```
+
+**API Endpoint Breakdown**:
+
+| Category | Endpoints | Status |
+|----------|-----------|--------|
+| Auth | 8 | ✅ Implemented |
+| Conversations | 11 | 📋 Designed |
+| Messages | 4 | 📋 Designed |
+| Files | 8 | 📋 Designed |
+| Models | 6 | 📋 Designed |
+| Providers | 6 | 📋 Designed |
+| Gemini | 4 | 📋 Designed |
+| Codex | 3 | 📋 Designed |
+| ACP | 5 | 📋 Designed |
+| MCP | 7 | 📋 Designed |
+| Skills | 7 | 📋 Designed |
+| Cron | 8 | 📋 Designed |
+| NotebookLM | 4 | 📋 Designed |
+| Obsidian | 3 | 📋 Designed |
+| Channels | 6 | 📋 Designed |
+| Agent Teams | 8 | 📋 Designed |
+| System | 4 | 📋 Designed |
+| Updates | 3 | 📋 Designed |
+
+**Next Session (R002-3/6) TODO**:
+
+1. 🔲 Implement Conversation routes
+   - GET /api/v1/conversations (list with pagination)
+   - POST /api/v1/conversations (create)
+   - GET /api/v1/conversations/:id (get one)
+   - PATCH /api/v1/conversations/:id (update)
+   - DELETE /api/v1/conversations/:id (delete)
+   - POST /api/v1/conversations/:id/reset (reset)
+   - POST /api/v1/conversations/:id/messages (send message)
+   - GET /api/v1/conversations/:id/messages (list messages)
+   - POST /api/v1/conversations/:id/stop (stop streaming)
+
+2. 🔲 Implement Message routes
+   - GET /api/v1/messages/:id
+   - PATCH /api/v1/messages/:id
+   - DELETE /api/v1/messages/:id
+   - POST /api/v1/messages/:id/confirm
+
+3. 🔲 Implement File routes (basic)
+   - GET /api/v1/files (list)
+   - GET /api/v1/files/content (read)
+   - POST /api/v1/files (create/upload)
+   - PATCH /api/v1/files (update)
+   - DELETE /api/v1/files (delete)
+
+4. 🔲 Connect to database layer
+   - Update conversation service to use new API
+   - Test CRUD operations
 
 **Blockers**: None
 
 **Context for Next Agent**:
 
-This session established the foundation for a major architectural refactor. The goal is to transform Hivemind from an Electron desktop app to a pure web application.
+Session 2 established the complete API architecture and design. We now have:
+- Full OpenAPI 3.0 specification
+- Zod schemas for type-safe validation
+- Middleware for auth and validation
+- Example implementation (auth routes)
+- Swagger UI for interactive documentation
 
-Key insight: The existing IPC architecture is already well-organized through @office-ai/platform bridge, which will make the migration to REST API relatively straightforward. Each `bridge.buildProvider` can become a REST endpoint, and each `bridge.buildEmitter` can become a WebSocket event.
+The foundation is solid. Next session focuses on implementing the core business logic routes (conversations, messages, files) which are the most frequently used endpoints.
 
-Priority for next session: Download MCP servers and skills to have tools ready for the refactor work.
+Key insight: Using Zod + OpenAPI generator creates a single source of truth for API contracts, reducing maintenance burden and ensuring consistency.
 
 ===
 
-Total commits this session: 4
-- c2104fb: docs: Add development harness section to README
-- a6b80d8: docs: Add iteration guide for harness system
-- a0afe75: feat: Initialize long-running agent harness system
-- f439b4d: feat(harness): Add comprehensive web refactor plan (R001-R010)
+**R002 Progress**: 2/6 sessions complete (33%)
+
+Total commits this session: 1
+- c6694f9: feat(R002): Design REST API architecture with OpenAPI 3.0

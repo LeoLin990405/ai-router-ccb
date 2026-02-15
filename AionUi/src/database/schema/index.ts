@@ -8,12 +8,8 @@
 export * from './users';
 export * from './conversations';
 export * from './models';
-
-// Note: Additional schemas to be added:
-// - skills
-// - cron
-// - mcp
-// - channels
-// - teams
-// - files
-// etc.
+export * from './skills';
+export * from './cron';
+export * from './mcp';
+export * from './channels';
+export * from './teams';

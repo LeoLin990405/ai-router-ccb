@@ -128,9 +128,133 @@ Next session will add the remaining schemas, create seed data, install dependenc
 
 ===
 
-**R003 Progress**: 1/4 sessions complete (25%)
+=== SESSION 2 (2026-02-15) - R003-2/4 ===
 
-Files created this session:
+**Goal**: Database Dependencies, Remaining Schemas, and Development Scripts
+
+**Work Completed**:
+
+1. ✅ Installed database dependencies (with --legacy-peer-deps)
+   - drizzle-orm@0.40.1
+   - drizzle-zod@0.7.6
+   - pg@8.15.0
+   - dotenv@16.5.0
+   - drizzle-kit@0.30.2 (dev)
+   - @types/pg@8.13.1 (dev)
+
+2. ✅ Added npm scripts to package.json
+   - db:generate - Generate migrations from schema
+   - db:push - Push schema to database directly
+   - db:migrate - Run migration files
+   - db:studio - Open Drizzle Studio GUI
+   - db:drop - Drop all database objects
+   - db:check - Health check script
+   - db:seed - Seed development data
+
+3. ✅ Created remaining database schemas
+   - skills.ts - Skills and skill logs tables
+   - cron.ts - Cron jobs and executions tables
+   - mcp.ts - MCP servers table
+   - channels.ts - Channels and channel messages tables
+   - teams.ts - Teams and team tasks tables
+
+4. ✅ Updated schema exports
+   - Modified src/database/schema/index.ts to export all 7 schema modules
+
+5. ✅ Created development utility scripts
+   - scripts/db-check.js - Database health check (connection, tables, sizes, pool stats)
+   - scripts/db-seed.js - Seed script with users, providers, models, sample conversation
+
+**Schema Details**:
+
+**New Tables:**
+- `skills` - Skill definitions with metadata and configuration
+- `skill_logs` - Skill execution history and logs
+- `cron_jobs` - Scheduled job definitions with retry logic
+- `cron_executions` - Cron job execution history
+- `mcp_servers` - MCP server configurations
+- `channels` - Communication channels (agent/broadcast/direct)
+- `channel_messages` - Channel message history with priority
+- `teams` - Team configurations with workflow
+- `team_tasks` - Team task assignments and tracking
+
+**New ENUMs:**
+- `skill_category` - Enum for skill categories
+- `skill_log_status` - Enum for skill execution status
+- `cron_status` - Enum for cron job status
+- `cron_action_type` - Enum for cron action types
+- `channel_type` - Enum for channel types
+- `message_priority` - Enum for message priority levels
+- `team_status` - Enum for team status
+- `task_status` - Enum for task status
+- `task_priority` - Enum for task priority levels
+
+**Total Database Schema**:
+- 18 tables across 7 schema files
+- 14 custom ENUM types
+- Full JSONB support for flexible metadata
+- Comprehensive indexing strategy
+- Type-safe with Drizzle + Zod integration
+
+**Dependency Resolution**:
+- Encountered zod version conflict (project uses 3.25.76, drizzle-zod requires ^4.0.0)
+- Resolved using --legacy-peer-deps flag (consistent with R002 approach)
+
+**Next Session (R003-3/4) TODO**:
+
+1. 🔲 Create database service layer
+   - UserService
+   - ConversationService
+   - MessageService
+   - ProviderService
+   - ModelService
+   - SkillService
+   - CronService
+   - McpService
+   - ChannelService
+   - TeamService
+
+2. 🔲 Implement repository pattern
+   - Generic repository base class
+   - Specific repositories for each entity
+   - Transaction support
+   - Error handling
+
+3. 🔲 Create database migration system
+   - Generate initial migration
+   - Test migration up/down
+   - Add migration documentation
+
+4. 🔲 Integrate with existing API routes
+   - Update route handlers to use new services
+   - Replace mock data with database queries
+   - Add proper error handling
+
+5. 🔲 Test complete database setup
+   - Start Docker services
+   - Run migrations
+   - Execute seed script
+   - Verify all tables and data
+   - Test connection pooling
+
+**Blockers**: None
+
+**Context for Next Agent**:
+
+Session 2 completed the database schema definition:
+- All 7 schema modules created (users, conversations, models, skills, cron, mcp, channels, teams)
+- 18 database tables with comprehensive indexes and foreign keys
+- Development scripts for health checks and seeding
+- npm scripts for all database operations
+- Dependencies installed with legacy peer deps flag
+
+Next session will create the service layer to connect the REST API routes (from R002) to the actual database, implementing the repository pattern for clean data access.
+
+===
+
+**R003 Progress**: 2/4 sessions complete (50%)
+
+Files created in R003-1/4:
 - docker-compose.yml
 - .env.example
 - drizzle.config.ts
@@ -141,3 +265,16 @@ Files created this session:
 - src/database/schema/conversations.ts
 - src/database/schema/models.ts
 - src/database/schema/index.ts
+
+Files created in R003-2/4:
+- scripts/db-check.js
+- scripts/db-seed.js
+- src/database/schema/skills.ts
+- src/database/schema/cron.ts
+- src/database/schema/mcp.ts
+- src/database/schema/channels.ts
+- src/database/schema/teams.ts
+
+Files modified in R003-2/4:
+- package.json (added npm scripts, installed dependencies)
+- src/database/schema/index.ts (added exports for new schemas)

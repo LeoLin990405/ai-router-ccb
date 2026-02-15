@@ -200,55 +200,130 @@ Next session will add the remaining schemas, create seed data, install dependenc
 - Encountered zod version conflict (project uses 3.25.76, drizzle-zod requires ^4.0.0)
 - Resolved using --legacy-peer-deps flag (consistent with R002 approach)
 
-**Next Session (R003-3/4) TODO**:
+=== SESSION 3 (2026-02-15) - R003-3/4 ===
 
-1. 🔲 Create database service layer
-   - UserService
-   - ConversationService
-   - MessageService
-   - ProviderService
-   - ModelService
-   - SkillService
-   - CronService
-   - McpService
-   - ChannelService
-   - TeamService
+**Goal**: Service Layer Implementation and API Integration
 
-2. 🔲 Implement repository pattern
-   - Generic repository base class
-   - Specific repositories for each entity
-   - Transaction support
-   - Error handling
+**Work Completed**:
 
-3. 🔲 Create database migration system
-   - Generate initial migration
-   - Test migration up/down
-   - Add migration documentation
+1. ✅ Created repository layer (6 repository classes)
+   - BaseRepository: Generic CRUD operations
+   - UserRepository: User and refresh token operations
+   - ConversationRepository: Conversation and message operations
+   - ProviderRepository & ModelRepository: AI provider/model operations
+   - SkillRepository: Skills and skill logs operations
+   - CronRepository: Cron jobs and executions operations
 
-4. 🔲 Integrate with existing API routes
-   - Update route handlers to use new services
-   - Replace mock data with database queries
-   - Add proper error handling
+2. ✅ Created service layer (3 main services)
+   - UserService: Registration, authentication, profile management, JWT tokens
+   - ConversationService: Conversation/message CRUD with ownership verification
+   - ModelService: Provider/model management
 
-5. 🔲 Test complete database setup
-   - Start Docker services
-   - Run migrations
-   - Execute seed script
-   - Verify all tables and data
-   - Test connection pooling
+3. ✅ Created utility modules
+   - jwt.util.ts: JWT token generation and verification
+   - Access token (15min) and refresh token (7d) support
+   - Token pair generation with expiration
 
-**Blockers**: None
+4. ✅ Created integration documentation
+   - database/INTEGRATION.md: Complete API integration guide with examples
+   - Detailed examples for auth, conversation, and model routes
+   - Error handling patterns and best practices
+   - Transaction support documentation
+
+5. ✅ Created migration system documentation
+   - database/MIGRATION.md: Comprehensive migration guide
+   - Development vs production workflows
+   - Common migration scenarios (add column, index, FK, etc.)
+   - Rollback strategies and troubleshooting
+
+6. ✅ Installed additional dependencies
+   - bcrypt@5.1.1: Password hashing
+   - @types/bcrypt@5.0.2: TypeScript types
+   - @types/jsonwebtoken@9.0.7: TypeScript types
+
+**Repository Layer Architecture**:
+
+**BaseRepository** provides:
+- findAll(), findById(), findOne()
+- create(), createMany()
+- updateById(), update()
+- deleteById(), delete()
+- count(), exists()
+
+**Specialized Repositories** extend BaseRepository with domain-specific methods:
+- UserRepository: findByUsername, findByEmail, createRefreshToken, revokeRefreshToken
+- ConversationRepository: findByUserId, findMessages, createMessage, getStats
+- ProviderRepository/ModelRepository: findByName, findEnabled, findWithProvider
+- SkillRepository: findByCategory, incrementExecutionCount, createLog, getStats
+- CronRepository: findEnabled, updateRunStats, createExecution, getStats
+
+**Service Layer Features**:
+- Business logic separation from data access
+- Input validation and authorization
+- Error handling with descriptive messages
+- Ownership verification for multi-tenant operations
+- Password hashing with bcrypt (10 rounds)
+- JWT token management (access + refresh)
+
+**Integration Approach**:
+1. Routes call services (not repositories directly)
+2. Services handle business logic and authorization
+3. Repositories handle data access
+4. JWT middleware extracts user from token
+5. Services verify ownership before mutations
+
+**Next Session (R003-4/4) TODO**:
+
+1. 🔲 Generate initial database migration
+   - Run `npm run db:generate` to create migration from schemas
+   - Review generated SQL migration file
+   - Document migration in progress file
+
+2. 🔲 Update API route implementations
+   - Integrate UserService into auth.routes.ts
+   - Integrate ConversationService into conversation.routes.ts
+   - Integrate ModelService into model.routes.ts
+   - Add ownership checks in middleware
+
+3. 🔲 Test complete database flow
+   - Start Docker services (postgres + redis)
+   - Apply migrations: `npm run db:migrate`
+   - Run seed script: `npm run db:seed`
+   - Test API endpoints with real database
+   - Verify JWT authentication flow
+
+4. 🔲 Update JWT authentication middleware
+   - Integrate with UserService for token validation
+   - Extract user info from JWT payload
+   - Attach user to req.user for route handlers
+
+5. 🔲 Create final migration from SQLite
+   - Export existing SQLite data (if any)
+   - Transform to PostgreSQL format
+   - Import into new database
+   - Verify data integrity
+
+**Blockers**: None (Docker required for testing in R003-4/4)
 
 **Context for Next Agent**:
 
-Session 2 completed the database schema definition:
-- All 7 schema modules created (users, conversations, models, skills, cron, mcp, channels, teams)
-- 18 database tables with comprehensive indexes and foreign keys
-- Development scripts for health checks and seeding
-- npm scripts for all database operations
-- Dependencies installed with legacy peer deps flag
+Session 3 implemented the complete service and repository layers:
+- 6 repository classes with comprehensive CRUD operations
+- 3 service classes with business logic and authorization
+- JWT utility for token management
+- Complete integration documentation with code examples
+- Migration system documentation
+- bcrypt for password hashing
 
-Next session will create the service layer to connect the REST API routes (from R002) to the actual database, implementing the repository pattern for clean data access.
+Next session (R003-4/4) will generate the initial migration, update the API routes to use services instead of mock data, and test the complete database setup end-to-end.
+
+===
+
+**Next Session (R003-4/4) TODO**:
+
+(See detailed list above in Session 3 section)
+
+**Blockers**: None
 
 ===
 

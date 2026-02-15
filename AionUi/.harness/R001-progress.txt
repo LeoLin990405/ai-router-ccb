@@ -272,5 +272,145 @@ Next session will create the REST API endpoints for WebUI features and update th
 
 ===
 
-**R001 Progress**: 2/5 sessions complete (40%)
+=== SESSION 3 (2026-02-15) - R001-3/5 ===
+
+**Goal**: Create WebUI REST Endpoints and File Upload
+
+**Work Completed**:
+
+1. ✅ Installed dependencies
+   - multer@1.4.5-lts.1 (file upload middleware)
+   - @types/multer@1.4.12 (TypeScript types)
+
+2. ✅ Created WebUI REST API routes
+   - `webui.routes.ts`: Complete WebUI management (200 lines)
+   - GET /api/v1/webui/status - Get WebUI server status
+   - POST /api/v1/webui/change-password - Change WebUI password (admin only)
+   - POST /api/v1/webui/reset-password - Reset to default (admin only)
+   - POST /api/v1/webui/qr-token - Generate QR code token
+   - GET /api/v1/webui/config - Get configuration (admin only)
+   - PUT /api/v1/webui/config - Update configuration (admin only)
+
+3. ✅ Created file upload routes
+   - `upload.routes.ts`: Complete file upload system (280 lines)
+   - POST /api/v1/upload - Upload multiple files
+   - POST /api/v1/upload/single - Upload single file
+   - GET /api/v1/upload/:userId/:filename - Download file
+   - DELETE /api/v1/upload/:userId/:filename - Delete file
+   - GET /api/v1/upload/list - List user's files
+
+4. ✅ Implemented file upload features
+   - Multer disk storage with user-specific directories
+   - Unique filename generation (timestamp + random hash)
+   - File type filtering (images, documents, code, archives)
+   - File size limits (10MB default, configurable)
+   - Security: users can only access their own files
+   - Automatic directory creation
+
+5. ✅ Registered new routes
+   - Updated src/api/v1/index.ts
+   - Added webui and upload routes to main router
+
+6. ✅ Created migration documentation
+   - WEBUI_MIGRATION.md: Complete migration guide
+   - Before/After code examples
+   - Component migration patterns
+   - Error handling examples
+   - Testing checklist
+
+**API Endpoints Created**:
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/webui/status` | GET | No | Get WebUI status |
+| `/webui/change-password` | POST | Admin | Change password |
+| `/webui/reset-password` | POST | Admin | Reset password |
+| `/webui/qr-token` | POST | Yes | Generate QR token |
+| `/webui/config` | GET | Admin | Get config |
+| `/webui/config` | PUT | Admin | Update config |
+| `/upload` | POST | Yes | Upload files |
+| `/upload/single` | POST | Yes | Upload single file |
+| `/upload/:userId/:filename` | GET | Yes | Download file |
+| `/upload/:userId/:filename` | DELETE | Yes | Delete file |
+| `/upload/list` | GET | Yes | List files |
+
+**File Upload Features**:
+- ✅ User-specific directories (`uploads/{userId}/`)
+- ✅ Unique filenames with timestamp and hash
+- ✅ File type validation (images, docs, code, archives)
+- ✅ Size limits (10MB default, configurable)
+- ✅ Security: ownership checks for access/delete
+- ✅ Admin can access all files
+- ✅ Automatic directory creation
+- ✅ File listing with stats (size, dates)
+
+**Migration Path**:
+
+**Electron IPC → HTTP REST**:
+```typescript
+// Before
+await window.electronAPI.webuiGetStatus()
+await window.electronAPI.webuiChangePassword(pwd)
+await window.electronAPI.webuiGenerateQRToken()
+const path = window.electronAPI.getPathForFile(file)
+
+// After
+await api.http.get('/webui/status')
+await api.http.post('/webui/change-password', { newPassword: pwd })
+await api.http.post('/webui/qr-token')
+// Upload file instead of getting path
+```
+
+**Next Session (R001-4/5) TODO**:
+
+1. 🔲 Update WebuiModalContent.tsx component
+   - Replace window.electronAPI calls with api.http
+   - Add loading states
+   - Add error handling
+   - Test in both Electron and browser modes
+
+2. 🔲 Update file drag & drop handling
+   - Replace getPathForFile with file upload
+   - Use FormData for multipart upload
+   - Handle upload progress
+   - Show upload status/errors
+
+3. 🔲 Create Vite configuration
+   - Set up Vite dev server
+   - Configure API proxy
+   - Handle CORS in development
+   - Test hot module replacement
+
+4. 🔲 Set up environment variables
+   - Create .env.development
+   - Configure API URLs
+   - Set up feature flags
+   - Test in different modes
+
+5. 🔲 Test complete migration
+   - Test WebUI features in Electron
+   - Test WebUI features in browser
+   - Test file uploads
+   - Verify no Electron dependencies in web mode
+
+**Blockers**: None
+
+**Files Created** (3 files, ~580 lines):
+- src/api/v1/routes/webui.routes.ts (200 lines)
+- src/api/v1/routes/upload.routes.ts (280 lines)
+- src/api/v1/routes/WEBUI_MIGRATION.md (100 lines)
+
+**Files Modified**:
+- src/api/v1/index.ts (added webui and upload routes)
+- package.json (added multer dependencies)
+
+**Context for Next Agent**:
+
+Session 3 created all the necessary REST API endpoints for WebUI features and file uploads. The backend is now complete and ready for frontend integration.
+
+Next session will update the frontend components to use the new API client instead of Electron IPC calls, completing the migration from IPC to HTTP/WebSocket.
+
+===
+
+**R001 Progress**: 3/5 sessions complete (60%)
 

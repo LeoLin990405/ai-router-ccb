@@ -23,6 +23,8 @@ import obsidianRoutes from './routes/obsidian.routes';
 import teamsRoutes from './routes/teams.routes';
 import systemRoutes from './routes/system.routes';
 import updateRoutes from './routes/update.routes';
+import webuiRoutes from './routes/webui.routes';
+import uploadRoutes from './routes/upload.routes';
 
 const router = Router();
 
@@ -47,6 +49,8 @@ router.use('/obsidian', obsidianRoutes);
 router.use('/teams', teamsRoutes);
 router.use('/system', systemRoutes);
 router.use('/update', updateRoutes);
+router.use('/webui', webuiRoutes);
+router.use('/upload', uploadRoutes);
 
 /**
  * Health check endpoint (no auth required)

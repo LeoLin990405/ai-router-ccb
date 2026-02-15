@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+    ports:
+      - "5432:5432"  # Expose for local development tools
+
+  # Redis
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+    ports:
+      - "6379:6379"  # Expose for local development tools
+
+  # Backend API (Development mode with hot reload)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: builder  # Use builder stage for development
+    container_name: hivemind-backend-dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 8765
+      DATABASE_URL: postgresql://hivemind:hivemind_password@postgres:5432/hivemind
+      REDIS_URL: redis://:redis_password@redis:6379
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "8765:8765"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src  # Hot reload
+      - ./package.json:/app/package.json
+      - /app/node_modules  # Don't override node_modules
+    networks:
+      - hivemind-network
+    command: npm run webui
+
+  # Frontend (Vite dev server with HMR)
+  frontend:
+    image: node:20-alpine
+    container_name: hivemind-frontend-dev
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8765
+    ports:
+      - "3000:3000"  # Vite dev server
+    depends_on:
+      - backend
+    volumes:
+      - ./:/app
+      - /app/node_modules  # Don't override node_modules
+    networks:
+      - hivemind-network
+    command: npm run dev:web
+
+networks:
+  hivemind-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

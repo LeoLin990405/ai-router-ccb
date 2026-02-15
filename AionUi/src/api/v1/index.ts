@@ -6,8 +6,10 @@
 
 import { Router } from 'express';
 import authRoutes from './routes/auth.routes';
+import conversationRoutes from './routes/conversation.routes';
+import messageRoutes from './routes/message.routes';
+import fileRoutes from './routes/file.routes';
 // Import other routes as they are implemented
-// import conversationRoutes from './routes/conversation.routes';
 // import modelRoutes from './routes/model.routes';
 // etc.
 
@@ -17,7 +19,9 @@ const router = Router();
  * Mount v1 API routes
  */
 router.use('/auth', authRoutes);
-// router.use('/conversations', conversationRoutes);
+router.use('/conversations', conversationRoutes);
+router.use('/messages', messageRoutes);
+router.use('/files', fileRoutes);
 // router.use('/models', modelRoutes);
 // router.use('/providers', providerRoutes);
 // router.use('/mcp', mcpRoutes);

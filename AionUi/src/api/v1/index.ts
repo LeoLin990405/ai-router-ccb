@@ -18,8 +18,11 @@ import mcpRoutes from './routes/mcp.routes';
 import skillsRoutes from './routes/skills.routes';
 import cronRoutes from './routes/cron.routes';
 import channelsRoutes from './routes/channels.routes';
-// Import other routes as they are implemented
-// import systemRoutes from './routes/system.routes';
+import notebooklmRoutes from './routes/notebooklm.routes';
+import obsidianRoutes from './routes/obsidian.routes';
+import teamsRoutes from './routes/teams.routes';
+import systemRoutes from './routes/system.routes';
+import updateRoutes from './routes/update.routes';
 
 const router = Router();
 
@@ -39,7 +42,11 @@ router.use('/mcp', mcpRoutes);
 router.use('/skills', skillsRoutes);
 router.use('/cron', cronRoutes);
 router.use('/channels', channelsRoutes);
-// router.use('/system', systemRoutes);
+router.use('/notebooklm', notebooklmRoutes);
+router.use('/obsidian', obsidianRoutes);
+router.use('/teams', teamsRoutes);
+router.use('/system', systemRoutes);
+router.use('/update', updateRoutes);
 
 /**
  * Health check endpoint (no auth required)

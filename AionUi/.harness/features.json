@@ -1,0 +1,168 @@
+{
+  "project": "Hivemind - Multi-AI Collaboration Platform",
+  "baseline_commit": "1fc570a",
+  "features": [
+    {
+      "id": "F001",
+      "name": "Enhanced Gateway API with Circuit Breaker",
+      "priority": "high",
+      "description": "Add circuit breaker pattern to Gateway API to handle provider failures gracefully",
+      "steps": [
+        "Implement circuit breaker state machine (closed/open/half-open)",
+        "Add failure threshold configuration per provider",
+        "Add automatic recovery mechanism with exponential backoff",
+        "Update Gateway API to use circuit breaker for all provider calls",
+        "Add monitoring metrics for circuit breaker state changes",
+        "Write unit tests for circuit breaker logic",
+        "Add integration tests with simulated provider failures"
+      ],
+      "passes": false,
+      "estimated_sessions": 2,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Circuit breaker prevents cascading failures",
+        "Failed providers automatically recover after cooldown",
+        "Metrics show circuit breaker state transitions",
+        "All tests pass"
+      ]
+    },
+    {
+      "id": "F002",
+      "name": "Multi-Provider Smart Routing",
+      "priority": "high",
+      "description": "Implement intelligent routing based on task type, provider capabilities, and cost",
+      "steps": [
+        "Create task classification system (frontend/algorithm/translation/etc)",
+        "Build provider capability matrix from CLAUDE.md",
+        "Implement routing decision engine with scoring algorithm",
+        "Add cost optimization layer",
+        "Add A/B testing framework for routing strategies",
+        "Create dashboard for routing analytics",
+        "Write comprehensive tests for all routing scenarios"
+      ],
+      "passes": false,
+      "estimated_sessions": 3,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Tasks automatically route to optimal provider",
+        "Cost tracking shows optimization vs naive routing",
+        "Dashboard displays routing decisions and performance",
+        "All routing logic has >90% test coverage"
+      ]
+    },
+    {
+      "id": "F003",
+      "name": "Persistent Agent Memory System",
+      "priority": "medium",
+      "description": "Implement cross-session memory for agents using vector embeddings",
+      "steps": [
+        "Set up vector database (ChromaDB or similar)",
+        "Create embedding pipeline for conversation history",
+        "Implement semantic search for relevant past context",
+        "Add memory consolidation system (summarize old sessions)",
+        "Build memory retrieval API for agents",
+        "Add privacy controls and memory expiration policies",
+        "Create UI for viewing and managing agent memories"
+      ],
+      "passes": false,
+      "estimated_sessions": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Agents can retrieve relevant context from past sessions",
+        "Memory search is fast (<200ms) and accurate",
+        "Old memories are automatically consolidated",
+        "Users can view and delete memories",
+        "Privacy controls work correctly"
+      ]
+    },
+    {
+      "id": "F004",
+      "name": "Agent Teams Workflow Templates",
+      "priority": "medium",
+      "description": "Pre-built workflow templates for common multi-agent tasks",
+      "steps": [
+        "Design template schema (YAML or JSON)",
+        "Create 5 starter templates (code review, research, documentation, testing, deployment)",
+        "Implement template loader and validator",
+        "Add template marketplace UI",
+        "Add template customization editor",
+        "Create template sharing mechanism",
+        "Write documentation and examples"
+      ],
+      "passes": false,
+      "estimated_sessions": 2,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Users can load and run templates with one click",
+        "Templates can be customized and saved",
+        "Template marketplace is browsable and searchable",
+        "Documentation has examples for each template"
+      ]
+    },
+    {
+      "id": "F005",
+      "name": "Real-time Collaboration Mode",
+      "priority": "low",
+      "description": "Multiple users can collaborate with same agent team in real-time",
+      "steps": [
+        "Design real-time sync protocol (WebSocket or CRDT)",
+        "Implement collaborative editing for prompts",
+        "Add user presence indicators",
+        "Implement permission system (owner/editor/viewer)",
+        "Add conflict resolution for simultaneous edits",
+        "Create collaborative session history view",
+        "Add notification system for team updates"
+      ],
+      "passes": false,
+      "estimated_sessions": 5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Multiple users can see each other's prompts in real-time",
+        "No data loss during conflicts",
+        "Permission system works correctly",
+        "Session history shows all contributors",
+        "Performance is acceptable with 5+ concurrent users"
+      ]
+    },
+    {
+      "id": "F006",
+      "name": "Automated Testing Harness",
+      "priority": "high",
+      "description": "Comprehensive E2E testing using Playwright for agent workflows",
+      "steps": [
+        "Set up Playwright test framework",
+        "Create test fixtures for mock AI providers",
+        "Write E2E tests for CCB workflow",
+        "Write E2E tests for Agent Teams",
+        "Add visual regression testing",
+        "Set up CI/CD pipeline with test automation",
+        "Add test coverage reporting"
+      ],
+      "passes": false,
+      "estimated_sessions": 3,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All critical user flows have E2E tests",
+        "Tests run in CI on every PR",
+        "Test coverage >80% for core features",
+        "Visual regression tests catch UI bugs",
+        "Tests complete in <5 minutes"
+      ]
+    }
+  ],
+  "completed_features": [],
+  "technical_debt": [
+    {
+      "id": "TD001",
+      "description": "Refactor ACP adapter error handling to use Result types",
+      "priority": "medium",
+      "estimated_effort": "1 session"
+    },
+    {
+      "id": "TD002",
+      "description": "Consolidate duplicate code in Codex/Gemini message processors",
+      "priority": "low",
+      "estimated_effort": "1 session"
+    }
+  ]
+}

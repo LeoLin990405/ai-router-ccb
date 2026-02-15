@@ -55,5 +55,11 @@ export const mainConfig: Configuration = {
     // Handle ?binary WASM imports from aioncli-core - let them fail so fallback can work
     'web-tree-sitter/tree-sitter.wasm?binary': 'commonjs web-tree-sitter/tree-sitter.wasm',
     'tree-sitter-bash/tree-sitter-bash.wasm?binary': 'commonjs tree-sitter-bash/tree-sitter-bash.wasm',
+    // OpenTelemetry SDK - aioncli-core 依赖
+    // OpenTelemetry SDK - dependency of aioncli-core
+    '@opentelemetry/sdk-metrics': 'commonjs @opentelemetry/sdk-metrics',
+    '@opentelemetry/sdk-node': 'commonjs @opentelemetry/sdk-node',
+    '@opentelemetry/sdk-logs': 'commonjs @opentelemetry/sdk-logs',
+    '@opentelemetry/api': 'commonjs @opentelemetry/api',
   },
 };

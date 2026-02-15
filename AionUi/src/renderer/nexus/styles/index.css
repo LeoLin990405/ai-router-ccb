@@ -1,0 +1,477 @@
+@import './tokens.css';
+
+body.nexus-mode {
+  background: var(--nexus-bg-canvas);
+  color: var(--nexus-text-primary);
+  font-family: var(--nexus-font-sans);
+  color-scheme: dark;
+}
+
+body.nexus-mode * {
+  scrollbar-color: rgba(143, 154, 176, 0.4) transparent;
+}
+
+.nexus-shell {
+  background:
+    radial-gradient(900px 420px at -12% -18%, rgba(124, 140, 255, 0.18), transparent 62%),
+    radial-gradient(700px 360px at 112% -8%, rgba(58, 192, 255, 0.16), transparent 58%),
+    linear-gradient(180deg, var(--nexus-bg-canvas), var(--nexus-bg-app));
+}
+
+.nexus-workspace {
+  padding: 10px;
+  gap: 10px;
+  background: transparent;
+}
+
+.nexus-sider {
+  border: 1px solid var(--nexus-border-subtle);
+  border-radius: var(--nexus-radius-lg);
+  background: linear-gradient(180deg, rgba(18, 23, 34, 0.94), rgba(12, 16, 24, 0.98));
+  box-shadow: var(--nexus-shadow-md);
+  overflow: hidden;
+}
+
+.nexus-sider-header {
+  height: 54px;
+  padding: 0 var(--nexus-space-3);
+  border-bottom: 1px solid var(--nexus-border-subtle);
+  background: linear-gradient(180deg, rgba(27, 35, 51, 0.92), rgba(21, 27, 40, 0.82));
+}
+
+.nexus-brand-text {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+  color: var(--nexus-text-primary);
+}
+
+.nexus-sider-kicker {
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--nexus-text-tertiary);
+  font-family: var(--nexus-font-mono);
+}
+
+.nexus-nav-group-title {
+  margin: 10px 8px 6px;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--nexus-text-tertiary);
+  font-family: var(--nexus-font-mono);
+}
+
+.nexus-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--nexus-radius-md);
+  color: var(--nexus-text-secondary);
+  font-size: 12px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.nexus-nav-item:hover {
+  border-color: var(--nexus-border-default);
+  color: var(--nexus-text-primary);
+  background: rgba(27, 35, 51, 0.78);
+}
+
+.nexus-nav-item--active {
+  border-color: rgba(124, 140, 255, 0.56);
+  color: #e3e8ff;
+  background: linear-gradient(180deg, rgba(124, 140, 255, 0.24), rgba(124, 140, 255, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(124, 140, 255, 0.22);
+}
+
+.nexus-nav-item--primary {
+  border-color: rgba(49, 208, 170, 0.54);
+  color: #d9fff3;
+  background: linear-gradient(180deg, rgba(49, 208, 170, 0.2), rgba(49, 208, 170, 0.12));
+}
+
+.nexus-main {
+  min-width: 0;
+  border: 1px solid var(--nexus-border-subtle);
+  border-radius: var(--nexus-radius-lg);
+  background: linear-gradient(180deg, rgba(17, 22, 33, 0.86), rgba(11, 15, 23, 0.98));
+  box-shadow: var(--nexus-shadow-lg);
+  overflow: hidden;
+}
+
+.nexus-topbar {
+  height: 54px;
+  border-bottom: 1px solid var(--nexus-border-subtle);
+  background: linear-gradient(180deg, rgba(25, 31, 45, 0.88), rgba(16, 21, 32, 0.84));
+  backdrop-filter: blur(12px);
+}
+
+.nexus-topbar__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--nexus-text-primary);
+}
+
+.nexus-topbar__meta {
+  font-size: 11px;
+  color: var(--nexus-text-tertiary);
+  font-family: var(--nexus-font-mono);
+}
+
+.nexus-command-shell {
+  height: 36px;
+  border: 1px solid var(--nexus-border-default);
+  border-radius: var(--nexus-radius-md);
+  background: rgba(12, 15, 23, 0.84);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.nexus-command-shell:focus-within {
+  border-color: rgba(124, 140, 255, 0.7);
+  box-shadow: var(--nexus-glow-accent);
+}
+
+.nexus-command-prefix {
+  font-family: var(--nexus-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--nexus-text-tertiary);
+}
+
+.nexus-command-input {
+  height: 100%;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--nexus-text-primary);
+  font-size: 12px;
+}
+
+.nexus-command-input::placeholder {
+  color: var(--nexus-text-disabled);
+}
+
+.nexus-command-shortcut {
+  font-family: var(--nexus-font-mono);
+  font-size: 10px;
+  color: var(--nexus-text-tertiary);
+  border: 1px solid var(--nexus-border-subtle);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.nexus-content {
+  min-height: 0;
+  overflow: auto;
+  background: linear-gradient(180deg, rgba(11, 15, 23, 0.6), rgba(8, 11, 17, 0.95));
+}
+
+.nexus-right-rail {
+  width: 292px;
+  flex-shrink: 0;
+  border: 1px solid var(--nexus-border-subtle);
+  border-radius: var(--nexus-radius-lg);
+  background: linear-gradient(180deg, rgba(19, 24, 36, 0.92), rgba(12, 16, 24, 0.98));
+  box-shadow: var(--nexus-shadow-md);
+  overflow: hidden;
+}
+
+.nexus-rail-head {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--nexus-border-subtle);
+  background: linear-gradient(180deg, rgba(27, 35, 51, 0.9), rgba(20, 26, 38, 0.82));
+}
+
+.nexus-rail-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--nexus-text-primary);
+}
+
+.nexus-rail-subtitle {
+  font-size: 10px;
+  color: var(--nexus-text-tertiary);
+  font-family: var(--nexus-font-mono);
+}
+
+.nexus-rail-scroll {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  height: calc(100% - 54px);
+}
+
+.nexus-rail-card {
+  border: 1px solid var(--nexus-border-subtle);
+  border-radius: var(--nexus-radius-md);
+  background: rgba(22, 29, 43, 0.72);
+  padding: 10px;
+}
+
+.nexus-rail-card__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nexus-text-secondary);
+  margin-bottom: 8px;
+}
+
+.nexus-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--nexus-text-secondary);
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(159, 173, 198, 0.15);
+}
+
+.nexus-provider-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.nexus-provider-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nexus-provider-latency {
+  font-family: var(--nexus-font-mono);
+  color: var(--nexus-text-tertiary);
+}
+
+.nexus-chip {
+  font-size: 10px;
+  font-family: var(--nexus-font-mono);
+  border-radius: 999px;
+  padding: 2px 7px;
+  border: 1px solid var(--nexus-border-subtle);
+  color: var(--nexus-text-secondary);
+}
+
+.nexus-chip--ok {
+  border-color: rgba(49, 208, 170, 0.45);
+  color: #c7ffef;
+  background: rgba(49, 208, 170, 0.16);
+}
+
+.nexus-chip--warn {
+  border-color: rgba(247, 185, 85, 0.46);
+  color: #ffe9c3;
+  background: rgba(247, 185, 85, 0.16);
+}
+
+.nexus-chip--err {
+  border-color: rgba(255, 111, 134, 0.46);
+  color: #ffd7df;
+  background: rgba(255, 111, 134, 0.16);
+}
+
+.nexus-quick-btn {
+  width: 100%;
+  border: 1px solid var(--nexus-border-default);
+  border-radius: var(--nexus-radius-sm);
+  background: rgba(12, 15, 23, 0.84);
+  color: var(--nexus-text-secondary);
+  font-size: 11px;
+  text-align: left;
+  padding: 7px 9px;
+  transition: all 120ms ease;
+}
+
+.nexus-quick-btn:hover {
+  color: var(--nexus-text-primary);
+  border-color: rgba(124, 140, 255, 0.58);
+  background: rgba(124, 140, 255, 0.12);
+}
+
+.nexus-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.nexus-status-dot--ok {
+  background: var(--nexus-success);
+  box-shadow: 0 0 10px rgba(49, 208, 170, 0.62);
+}
+
+.nexus-status-dot--warn {
+  background: var(--nexus-warning);
+  box-shadow: 0 0 9px rgba(247, 185, 85, 0.62);
+}
+
+.nexus-status-dot--err {
+  background: var(--nexus-danger);
+  box-shadow: 0 0 9px rgba(255, 111, 134, 0.62);
+}
+
+/* ========================================================================== */
+/* Nexus Internal Page Overrides                                               */
+/* ========================================================================== */
+
+body.nexus-mode .hive-chat-layout {
+  color: var(--nexus-text-primary);
+}
+
+body.nexus-mode .hive-chat-layout__body {
+  gap: 8px;
+  padding: 8px;
+  border-radius: 0;
+}
+
+body.nexus-mode .hive-chat-panel,
+body.nexus-mode .hive-workspace-panel,
+body.nexus-mode .hive-chat-preview-panel {
+  border-radius: var(--nexus-radius-md);
+  border: 1px solid var(--nexus-border-default);
+  background: linear-gradient(180deg, rgba(22, 29, 43, 0.86), rgba(13, 18, 27, 0.96));
+  box-shadow: var(--nexus-shadow-sm);
+}
+
+body.nexus-mode .hive-chat-header,
+body.nexus-mode .hive-workspace-panel-header {
+  border-bottom: 1px solid var(--nexus-border-subtle) !important;
+  background: rgba(27, 35, 51, 0.84) !important;
+  min-height: 36px;
+}
+
+body.nexus-mode .hive-chat-agent-badge {
+  border: 1px solid rgba(124, 140, 255, 0.45);
+  background: rgba(124, 140, 255, 0.16) !important;
+  border-radius: 999px;
+}
+
+body.nexus-mode .hive-chat-main {
+  background: rgba(9, 12, 19, 0.65) !important;
+}
+
+body.nexus-mode .workspace-header__toggle {
+  border-radius: var(--nexus-radius-sm);
+  border: 1px solid var(--nexus-border-default);
+  background: rgba(22, 29, 43, 0.66);
+  color: var(--nexus-text-secondary);
+}
+
+body.nexus-mode .workspace-header__toggle:hover {
+  border-color: rgba(124, 140, 255, 0.6);
+  color: var(--nexus-text-primary);
+  background: rgba(124, 140, 255, 0.18);
+}
+
+body.nexus-mode .hive-settings-page {
+  background:
+    radial-gradient(760px 320px at 8% -5%, rgba(124, 140, 255, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(9, 12, 19, 0.94), rgba(8, 10, 15, 1));
+}
+
+body.nexus-mode .hive-settings-content {
+  border-radius: var(--nexus-radius-lg);
+  border: 1px solid var(--nexus-border-default);
+  background: linear-gradient(180deg, rgba(22, 29, 43, 0.82), rgba(13, 18, 27, 0.96));
+  box-shadow: var(--nexus-shadow-md);
+  padding: 14px;
+}
+
+body.nexus-mode .hive-settings-sider {
+  padding: 2px;
+}
+
+body.nexus-mode .hive-settings-sider__item {
+  border-radius: var(--nexus-radius-sm);
+  border: 1px solid transparent;
+  background: rgba(22, 29, 43, 0.54);
+}
+
+body.nexus-mode .hive-settings-sider__item:hover {
+  border-color: var(--nexus-border-default);
+  background: rgba(27, 35, 51, 0.84);
+}
+
+body.nexus-mode .hive-settings-sider__item--active {
+  border-color: rgba(124, 140, 255, 0.56);
+  background: rgba(124, 140, 255, 0.18) !important;
+  box-shadow: var(--nexus-shadow-sm);
+}
+
+body.nexus-mode .hive-settings-sider__item-label {
+  font-size: 12px;
+  color: var(--nexus-text-secondary);
+}
+
+body.nexus-mode .nexus-guid-page {
+  background:
+    radial-gradient(620px 280px at 50% -10%, rgba(124, 140, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(11, 15, 23, 0.72), rgba(8, 10, 15, 0.96));
+  color: var(--nexus-text-primary);
+}
+
+body.nexus-mode .nexus-guid-page .nexus-guid-agent-rail {
+  background: rgba(22, 29, 43, 0.78) !important;
+  border: 1px solid var(--nexus-border-default);
+  border-radius: 999px;
+  box-shadow: var(--nexus-shadow-sm);
+}
+
+body.nexus-mode .nexus-guid-page .nexus-guid-input-card {
+  border-radius: var(--nexus-radius-md) !important;
+  border: 1px solid var(--nexus-border-default) !important;
+  background: linear-gradient(180deg, rgba(22, 29, 43, 0.8), rgba(13, 18, 27, 0.96)) !important;
+  box-shadow: var(--nexus-shadow-md) !important;
+}
+
+body.nexus-mode .nexus-guid-page .nexus-guid-mention-pill {
+  border: 1px solid var(--nexus-border-subtle);
+  background: rgba(22, 29, 43, 0.72) !important;
+}
+
+body.nexus-mode .nexus-guid-page .arco-textarea,
+body.nexus-mode .nexus-guid-page .arco-textarea-wrapper {
+  color: var(--nexus-text-primary) !important;
+}
+
+body.nexus-mode .nexus-guid-page .arco-btn-text {
+  color: var(--nexus-text-secondary);
+}
+
+body.nexus-mode .nexus-guid-page .arco-btn-text:hover {
+  background: rgba(124, 140, 255, 0.16);
+  color: var(--nexus-text-primary);
+}
+
+
+
+@media (max-width: 960px) {
+  .nexus-workspace {
+    padding: 0;
+    gap: 0;
+  }
+
+  .nexus-main,
+  .nexus-sider,
+  .nexus-right-rail {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}

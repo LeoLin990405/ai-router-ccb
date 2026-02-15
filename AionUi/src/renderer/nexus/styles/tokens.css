@@ -1,0 +1,57 @@
+:root {
+  /* ------------------------------------------------------------------ */
+  /* Nexus V3 Palette (inspired by Linear + Raycast + Grafana dark UI)  */
+  /* ------------------------------------------------------------------ */
+  --nexus-bg-canvas: #080a0f;
+  --nexus-bg-app: #0c0f17;
+  --nexus-bg-panel: #121722;
+  --nexus-bg-panel-2: #161d2b;
+  --nexus-bg-elevated: #1b2333;
+
+  --nexus-border-subtle: rgba(159, 173, 198, 0.15);
+  --nexus-border-default: rgba(159, 173, 198, 0.24);
+  --nexus-border-strong: rgba(159, 173, 198, 0.35);
+
+  --nexus-text-primary: #f2f5fb;
+  --nexus-text-secondary: #c5cedd;
+  --nexus-text-tertiary: #8f9ab0;
+  --nexus-text-disabled: #647087;
+
+  --nexus-accent: #7c8cff;
+  --nexus-accent-hover: #95a2ff;
+  --nexus-accent-muted: rgba(124, 140, 255, 0.18);
+  --nexus-cyan: #3ac0ff;
+  --nexus-success: #31d0aa;
+  --nexus-warning: #f7b955;
+  --nexus-danger: #ff6f86;
+  --nexus-info: #5ea9ff;
+
+  --nexus-provider-kimi: rgba(154, 129, 255, 0.9);
+  --nexus-provider-qwen: rgba(110, 138, 255, 0.9);
+  --nexus-provider-gemini: rgba(82, 177, 255, 0.9);
+  --nexus-provider-codex: rgba(72, 211, 162, 0.9);
+  --nexus-provider-deepseek: rgba(250, 190, 86, 0.9);
+  --nexus-provider-obsidian: rgba(176, 125, 255, 0.9);
+
+  --nexus-space-1: 4px;
+  --nexus-space-2: 8px;
+  --nexus-space-3: 12px;
+  --nexus-space-4: 16px;
+  --nexus-space-5: 20px;
+  --nexus-space-6: 24px;
+  --nexus-space-8: 32px;
+
+  --nexus-radius-sm: 6px;
+  --nexus-radius-md: 10px;
+  --nexus-radius-lg: 14px;
+
+  --nexus-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --nexus-shadow-md: 0 12px 30px rgba(0, 0, 0, 0.35);
+  --nexus-shadow-lg: 0 22px 48px rgba(0, 0, 0, 0.45);
+
+  --nexus-glow-accent: 0 0 0 1px rgba(124, 140, 255, 0.44), 0 0 20px rgba(124, 140, 255, 0.26);
+  --nexus-glow-success: 0 0 0 1px rgba(49, 208, 170, 0.44), 0 0 18px rgba(49, 208, 170, 0.2);
+
+  --nexus-font-sans: Inter, 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --nexus-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}

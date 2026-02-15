@@ -39,6 +39,16 @@ export const mainConfig: Configuration = {
       '@process': path.resolve(__dirname, '../../src/process'),
       '@worker': path.resolve(__dirname, '../../src/worker'),
       '@xterm/headless$': path.resolve(__dirname, '../../src/shims/xterm-headless.ts'),
+      // Stub all OpenTelemetry modules - optional telemetry from aioncli-core
+      '@opentelemetry/api': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/sdk-metrics': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/sdk-node': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/sdk-logs': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/sdk-trace-node': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/exporter-trace-otlp-grpc': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/exporter-metrics-otlp-grpc': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/exporter-logs-otlp-grpc': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
+      '@opentelemetry/auto-instrumentations-node': path.resolve(__dirname, '../../src/shims/opentelemetry-stub.ts'),
     },
   },
   externals: {

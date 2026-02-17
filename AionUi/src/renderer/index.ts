@@ -35,7 +35,6 @@ import './theme/global.css';
 import './arco-override.css';
 import './i18n';
 import './styles/themes/index.css';
-import './nexus/styles/index.css';
 import HOC from './utils/HOC';
 import { arcoThemeConfig } from './theme/arco-theme';
 const root = createRoot(document.getElementById('root'));

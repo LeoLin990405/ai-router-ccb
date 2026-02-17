@@ -42,6 +42,7 @@
 .arco-collapse {
   border: none;
   border-radius: var(--radius-md, 10px);
+
   .arco-collapse-item-header {
     border-bottom: none;
   }

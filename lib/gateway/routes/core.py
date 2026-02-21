@@ -314,7 +314,7 @@ if HAS_FASTAPI:
     ) -> Dict[str, Any]:
         """Get smart-router configuration used by /api/route."""
         available = list(config.providers.keys())
-        default_provider = getattr(config, "default_provider", "deepseek")
+        default_provider = getattr(config, "default_provider", "claude")
 
         try:
             router = SmartRouter(
@@ -370,6 +370,6 @@ if HAS_FASTAPI:
 
         return {
             "hours": hours,
-            "default_provider": getattr(config, "default_provider", "deepseek"),
+            "default_provider": getattr(config, "default_provider", "claude"),
             "scores": scores,
         }

@@ -1,7 +1,7 @@
 """
 HTTP API Backend for CCB Gateway.
 
-Supports OpenAI-compatible APIs (Anthropic, DeepSeek, OpenAI, etc.)
+Supports OpenAI-compatible APIs (Anthropic, OpenAI, etc.)
 """
 from __future__ import annotations
 

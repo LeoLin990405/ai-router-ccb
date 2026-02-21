@@ -51,7 +51,6 @@ export type AcpBackendAll =
   | 'opencode' // OpenCode CLI
   | 'copilot' // GitHub Copilot CLI
   | 'qoder' // Qoder CLI
-  | 'deepseek' // DeepSeek CLI
   | 'droid' // Droid Terminal AI
   | 'openclaw-gateway' // OpenClaw Gateway WebSocket
   | 'custom'; // User-configured custom ACP agent
@@ -412,16 +411,6 @@ export const ACP_BACKENDS_ALL: Record<AcpBackendAll, AcpBackendConfig> = {
     supportsStreaming: false,
     acpArgs: ['--acp'], // qoder 使用 --acp flag
     modelArg: '--model', // Qoder supports --model flag
-  },
-  deepseek: {
-    id: 'deepseek',
-    name: 'DeepSeek CLI',
-    cliCommand: 'deepseek',
-    authRequired: false,
-    enabled: true, // ✅ DeepSeek CLI
-    supportsStreaming: false,
-    acpArgs: ['--acp'],
-    modelArg: '--model', // DeepSeek supports --model flag
   },
   droid: {
     id: 'droid',

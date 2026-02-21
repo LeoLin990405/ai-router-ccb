@@ -25,7 +25,7 @@ class ErrorType(Enum):
 
 class BackendType(Enum):
     """Types of provider backends."""
-    HTTP_API = "http_api"      # Direct HTTP API (OpenAI, Anthropic, DeepSeek)
+    HTTP_API = "http_api"      # Direct HTTP API (OpenAI, Anthropic)
     CLI_EXEC = "cli_exec"      # CLI subprocess execution (Codex, Gemini CLI)
     FIFO_PIPE = "fifo_pipe"    # FIFO/named pipe (legacy)
     TERMINAL = "terminal"      # WezTerm terminal (legacy compatibility)
@@ -62,4 +62,3 @@ class MessageType(Enum):
     REVIEW = "review"  # Review/feedback in round 2
     REVISION = "revision"  # Revised proposal in round 3
     SUMMARY = "summary"  # Final summary by orchestrator
-

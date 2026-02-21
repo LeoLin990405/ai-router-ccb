@@ -143,31 +143,6 @@ const qwenModels: ModelConfig[] = [
 ];
 
 /**
- * DeepSeek 模型配置
- */
-const deepseekModels: ModelConfig[] = [
-  {
-    id: 'deepseek-reasoner',
-    displayName: 'DeepSeek Reasoner',
-    description: '深度推理模型，适合算法和逻辑分析',
-    isDefault: true,
-    capabilities: ['reasoning', 'code', 'math'],
-    estimatedResponseTime: 45,
-    isPaid: true,
-    speedTier: 'medium',
-  },
-  {
-    id: 'deepseek-chat',
-    displayName: 'DeepSeek Chat',
-    description: '快速对话模型',
-    capabilities: ['code', 'chinese'],
-    estimatedResponseTime: 20,
-    isPaid: true,
-    speedTier: 'medium',
-  },
-];
-
-/**
  * iFlow 模型配置
  */
 const iflowModels: ModelConfig[] = [
@@ -225,15 +200,6 @@ const opencodeModels: ModelConfig[] = [
     speedTier: 'medium',
   },
   {
-    id: 'deepseek/deepseek-reasoner',
-    displayName: 'DeepSeek Reasoner',
-    description: 'DeepSeek 推理模型 (via OpenCode)',
-    capabilities: ['reasoning', 'code'],
-    estimatedResponseTime: 60,
-    isPaid: false,
-    speedTier: 'medium',
-  },
-  {
     id: 'opencode/glm-4.7-free',
     displayName: 'GLM-4.7 - 免费',
     description: '智谱 GLM-4.7 免费模型',
@@ -258,15 +224,6 @@ const ollamaModels: ModelConfig[] = [
     estimatedResponseTime: 40,
     isPaid: false,
     speedTier: 'medium',
-  },
-  {
-    id: 'deepseek-v3.1:671b-cloud',
-    displayName: 'DeepSeek V3.1 671B',
-    description: 'DeepSeek V3.1 大模型',
-    capabilities: ['local', 'code', 'reasoning', 'chinese'],
-    estimatedResponseTime: 60,
-    isPaid: false,
-    speedTier: 'slow',
   },
   {
     id: 'llama3.2:3b',
@@ -451,11 +408,6 @@ export const MODEL_REGISTRY: ProviderModels[] = [
     provider: 'qwen',
     models: qwenModels,
     defaultModelId: 'qwen3-coder-plus',
-  },
-  {
-    provider: 'deepseek',
-    models: deepseekModels,
-    defaultModelId: 'deepseek-reasoner',
   },
   {
     provider: 'iflow',

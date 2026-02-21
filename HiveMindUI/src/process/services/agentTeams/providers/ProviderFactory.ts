@@ -9,7 +9,6 @@ import { ClaudeProvider } from './ClaudeProvider';
 import { GeminiProvider } from './GeminiProvider';
 import { KimiProvider } from './KimiProvider';
 import { QwenProvider } from './QwenProvider';
-import { DeepSeekProvider } from './DeepSeekProvider';
 import { CCBProvider } from './CCBProvider';
 import { GatewayProvider } from './GatewayProvider';
 
@@ -24,8 +23,6 @@ export class ProviderFactory {
         return new KimiProvider(model || 'thinking');
       case 'qwen':
         return new QwenProvider(model || 'coder');
-      case 'deepseek':
-        return new DeepSeekProvider(model || 'chat');
       case 'gateway':
         return new GatewayProvider(provider, model || 'auto');
       default:

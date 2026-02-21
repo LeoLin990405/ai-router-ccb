@@ -286,7 +286,6 @@ export class AcpConnection {
       case 'opencode':
       case 'copilot':
       case 'qoder':
-      case 'deepseek':
         if (!cliPath) {
           throw new Error(`CLI path is required for ${backend} backend`);
         }

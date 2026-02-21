@@ -1,7 +1,6 @@
 import AuggieLogo from '@/renderer/assets/logos/auggie.svg';
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
-import DeepSeekLogo from '@/renderer/assets/logos/deepseek.svg';
 import GeminiLogo from '@/renderer/assets/logos/gemini.svg';
 import GitHubLogo from '@/renderer/assets/logos/github.svg';
 import GooseLogo from '@/renderer/assets/logos/goose.svg';
@@ -34,7 +33,6 @@ const AGENT_LOGO_MAP: Record<string, string> = {
   opencode: OpenCodeLogo,
   copilot: GitHubLogo,
   qoder: QoderLogo,
-  deepseek: DeepSeekLogo,
   openclaw: OpenClawLogo,
   'openclaw-gateway': OpenClawLogo,
 };

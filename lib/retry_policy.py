@@ -80,7 +80,6 @@ class RetryExecutor:
         "claude": ["gemini", "codex"],
         "gemini": ["claude", "codex"],
         "codex": ["claude", "gemini"],
-        "deepseek": ["claude", "gemini"],
         "opencode": ["claude", "codex"],
         "droid": ["claude", "codex"],
         "iflow": ["claude", "gemini"],

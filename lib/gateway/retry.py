@@ -37,23 +37,22 @@ GEMINI_RATE_LIMIT_MIN_TIMEOUT_S = 600.0
 
 # Default fallback chains for providers
 DEFAULT_FALLBACK_CHAINS: Dict[str, List[str]] = {
-    "claude": ["deepseek", "gemini"],
-    "gemini": ["claude", "deepseek"],
-    "deepseek": ["claude", "qwen"],
+    "claude": ["gemini", "qwen"],
+    "gemini": ["claude", "qwen"],
     "codex": ["opencode", "claude"],
     "opencode": ["codex", "claude"],
-    "kimi": ["qwen", "deepseek"],
-    "qwen": ["kimi", "deepseek"],
-    "iflow": ["claude", "deepseek"],
+    "kimi": ["qwen", "claude"],
+    "qwen": ["kimi", "claude"],
+    "iflow": ["claude", "qwen"],
 }
 
 # Default provider groups for parallel queries
 DEFAULT_PROVIDER_GROUPS: Dict[str, List[str]] = {
-    "all": ["claude", "gemini", "deepseek", "codex"],
-    "fast": ["claude", "deepseek"],
-    "reasoning": ["deepseek", "claude"],
+    "all": ["claude", "gemini", "codex", "opencode", "kimi", "qwen", "iflow"],
+    "fast": ["kimi", "qwen"],
+    "reasoning": ["claude", "gemini", "codex"],
     "coding": ["codex", "claude", "opencode"],
-    "chinese": ["deepseek", "kimi", "qwen"],
+    "chinese": ["kimi", "qwen"],
 }
 
 
@@ -425,4 +424,3 @@ try:
     from .retry_reliability import ProviderReliabilityScore, ReliabilityTracker
 except ImportError:  # pragma: no cover - script mode
     from retry_reliability import ProviderReliabilityScore, ReliabilityTracker
-

@@ -10,7 +10,6 @@ import { LinkCloud } from '@icon-park/react';
 import GeminiLogo from '@/renderer/assets/logos/gemini.svg';
 import OpenAILogo from '@/renderer/assets/logos/openai.svg';
 import AnthropicLogo from '@/renderer/assets/logos/anthropic.svg';
-import DeepSeekLogo from '@/renderer/assets/logos/deepseek.svg';
 import OpenRouterLogo from '@/renderer/assets/logos/openrouter.svg';
 import SiliconFlowLogo from '@/renderer/assets/logos/siliconflow.svg';
 import QwenLogo from '@/renderer/assets/logos/qwen.svg';
@@ -38,7 +37,6 @@ const PROVIDER_CONFIGS = [
   { name: 'New API', url: '', logo: NewApiLogo, platform: 'new-api' },
   { name: 'OpenAI', url: 'https://api.openai.com/v1', logo: OpenAILogo },
   { name: 'Anthropic', url: 'https://api.anthropic.com/v1', logo: AnthropicLogo },
-  { name: 'DeepSeek', url: 'https://api.deepseek.com', logo: DeepSeekLogo },
   { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', logo: OpenRouterLogo },
   { name: 'SiliconFlow', url: 'https://api.siliconflow.cn/v1', logo: SiliconFlowLogo },
   { name: 'Dashscope', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', logo: QwenLogo },

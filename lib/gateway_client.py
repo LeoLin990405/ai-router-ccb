@@ -154,11 +154,6 @@ def gateway_ask_claude(message: str, timeout_s: float = 300.0, wait: bool = True
     return gateway_ask(message, provider="claude", timeout_s=timeout_s, wait=wait)
 
 
-def gateway_ask_deepseek(message: str, timeout_s: float = 600.0, wait: bool = True) -> Tuple[Optional[str], int]:
-    """Send request to DeepSeek via gateway."""
-    return gateway_ask(message, provider="deepseek", timeout_s=timeout_s, wait=wait)
-
-
 def gateway_ask_opencode(message: str, timeout_s: float = 300.0, wait: bool = True) -> Tuple[Optional[str], int]:
     """Send request to OpenCode via gateway."""
     return gateway_ask(message, provider="opencode", timeout_s=timeout_s, wait=wait)

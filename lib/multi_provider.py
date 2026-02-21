@@ -63,7 +63,6 @@ class MultiProviderExecutor:
         "iflow": "iask",
         "kimi": "kask",
         "qwen": "qask",
-        "deepseek": "dskask",
     }
 
     def __init__(

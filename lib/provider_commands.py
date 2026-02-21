@@ -18,7 +18,6 @@ ALL_PROVIDERS = [
     "iflow",     # iask - iFlow CLI
     "kimi",      # kask - Kimi CLI (Moonshot)
     "qwen",      # qask - Qwen CLI (Alibaba)
-    "deepseek",  # dskask - DeepSeek CLI
 ]
 
 # Provider to ask command mapping (CCB daemon commands)
@@ -31,7 +30,6 @@ PROVIDER_COMMANDS: Dict[str, str] = {
     "iflow": "iask",
     "kimi": "kask",
     "qwen": "qask",
-    "deepseek": "dskask",
 }
 
 # Provider to ping command mapping
@@ -44,7 +42,6 @@ PROVIDER_PING_COMMANDS: Dict[str, str] = {
     "iflow": "iping",
     "kimi": "kping",
     "qwen": "qping",
-    "deepseek": "dskping",
 }
 
 # Provider to pend command mapping (for checking results)
@@ -57,7 +54,6 @@ PROVIDER_PEND_COMMANDS: Dict[str, str] = {
     "iflow": "ipend",
     "kimi": "kpend",
     "qwen": "qpend",
-    "deepseek": "dskpend",
 }
 
 

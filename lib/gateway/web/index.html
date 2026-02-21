@@ -1395,7 +1395,6 @@
                                     <select v-model="system2Config.llm_provider" class="input-field">
                                         <option value="kimi">Kimi</option>
                                         <option value="qwen">Qwen</option>
-                                        <option value="deepseek">DeepSeek</option>
                                         <option value="codex">Codex</option>
                                         <option value="gemini">Gemini</option>
                                     </select>
@@ -2034,7 +2033,7 @@
                                     <div class="text-cyan-300">ccb-cli kimi thinking "分析问题"</div>
                                     <div class="text-cyan-300">ccb-cli codex o3 "设计算法"</div>
                                     <div class="text-cyan-300">ccb-cli gemini 3f "React 组件"</div>
-                                    <div class="text-cyan-300">ccb-cli deepseek chat "快速问答"</div>
+                                    <div class="text-cyan-300">ccb-cli kimi normal "快速问答"</div>
                                 </div>
                                 <div class="bg-gray-900/50 rounded-lg p-3">
                                     <div class="text-gray-400 text-xs mb-1"># Direct mode (bypass Gateway)</div>
@@ -2108,7 +2107,6 @@
                                     <tbody class="font-mono text-cyan-300">
                                         <tr class="border-t border-gray-700/50"><td class="py-2 text-white">Kimi</td><td>thinking, normal</td><td class="text-emerald-400">🚀 Fast</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 text-white">Qwen</td><td>-</td><td class="text-emerald-400">🚀 Fast</td></tr>
-                                        <tr class="border-t border-gray-700/50"><td class="py-2 text-white">DeepSeek</td><td>reasoner, chat</td><td class="text-amber-400">⚡ Medium</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 text-white">iFlow</td><td>thinking, normal</td><td class="text-amber-400">⚡ Medium</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 text-white">OpenCode</td><td>mm, kimi, ds, glm</td><td class="text-amber-400">⚡ Medium</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 text-white">Codex</td><td>o3, o4-mini, gpt-4o</td><td class="text-rose-400">🐢 Slow</td></tr>
@@ -2132,7 +2130,7 @@
                                         <tr class="border-t border-gray-700/50"><td class="py-2 font-mono text-indigo-400">@all</td><td class="text-xs">{{ t('allProviders7') }}</td><td class="text-xs">{{ t('comprehensive') }}</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 font-mono text-emerald-400">@fast</td><td class="text-xs">Kimi, Qwen</td><td class="text-xs">{{ t('quickResponses') }}</td></tr>
                                         <tr class="border-t border-gray-700/50"><td class="py-2 font-mono text-purple-400">@coding</td><td class="text-xs">Kimi, Qwen, DS, Codex, Gemini</td><td class="text-xs">{{ t('codeTasks') }}</td></tr>
-                                        <tr class="border-t border-gray-700/50"><td class="py-2 font-mono text-amber-400">@chinese</td><td class="text-xs">Kimi, Qwen, DeepSeek</td><td class="text-xs">{{ t('chineseNlp') }}</td></tr>
+                                        <tr class="border-t border-gray-700/50"><td class="py-2 font-mono text-amber-400">@chinese</td><td class="text-xs">Kimi, Qwen</td><td class="text-xs">{{ t('chineseNlp') }}</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -2792,7 +2790,7 @@
                 const costByDay = ref([]);
                 const costChart = ref(null);
                 let costChartInstance = null;
-                const defaultProviderList = ['qoder', 'codex', 'gemini', 'opencode', 'iflow', 'kimi', 'qwen', 'deepseek'];
+                const defaultProviderList = ['qoder', 'codex', 'gemini', 'opencode', 'iflow', 'kimi', 'qwen'];
                 const warmupProviders = ref(defaultProviderList.map(name => ({ name, selected: true, status: null })));
 
                 // Discussion state
@@ -2801,10 +2799,10 @@
                 const discussionMessages = ref([]);
                 const showNewDiscussionModal = ref(false);
                 const newDiscussionTopic = ref('');
-                const newDiscussionProviders = ref(['kimi', 'qwen', 'deepseek']);
+                const newDiscussionProviders = ref(['kimi', 'qwen', 'iflow']);
                 const newDiscussionQuickMode = ref(false);
                 const startingDiscussion = ref(false);
-                const availableDiscussionProviders = ['kimi', 'qwen', 'deepseek', 'iflow', 'codex', 'gemini'];
+                const availableDiscussionProviders = ['kimi', 'qwen', 'iflow', 'codex', 'gemini'];
 
                 // B2: Discussion templates state
                 const discussionTemplates = ref([]);
@@ -4796,10 +4794,10 @@
 
                         // Determine timeout based on provider speed tier
                         // Fast: kimi, qwen, antigravity (7-12s, timeout 60s)
-                        // Medium: deepseek, iflow, opencode, qoder (16-42s, timeout 120s)
+                        // Medium: iflow, opencode, qoder (16-42s, timeout 120s)
                         // Slow: codex, gemini (48-71s, timeout 180s)
                         const slowProviders = ['codex', 'gemini'];
-                        const mediumProviders = ['deepseek', 'iflow', 'opencode', 'qoder'];
+                        const mediumProviders = ['iflow', 'opencode', 'qoder'];
                         const timeout = slowProviders.includes(provider.name) ? 180 :
                                        mediumProviders.includes(provider.name) ? 120 : 60;
 
@@ -5168,7 +5166,6 @@
                     kimi: { tier: 'fast', icon: '🚀', label: 'Fast', color: 'emerald' },
                     qwen: { tier: 'fast', icon: '🚀', label: 'Fast', color: 'emerald' },
                     antigravity: { tier: 'fast', icon: '🏠', label: 'Local', color: 'cyan' },
-                    deepseek: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
                     iflow: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
                     opencode: { tier: 'medium', icon: '⚡', label: 'Medium', color: 'amber' },
                     qoder: { tier: 'medium', icon: '🤖', label: 'Medium', color: 'purple' },

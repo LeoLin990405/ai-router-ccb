@@ -74,7 +74,6 @@ __all__ = [
     "KASKD_SPEC",
     "QASKD_SPEC",
     "GRKASKD_SPEC",
-    "DSKASKD_SPEC",
     "CASK_CLIENT_SPEC",
     "GASK_CLIENT_SPEC",
     "OASK_CLIENT_SPEC",
@@ -84,5 +83,4 @@ __all__ = [
     "KASK_CLIENT_SPEC",
     "QASK_CLIENT_SPEC",
     "GRKASK_CLIENT_SPEC",
-    "DSKASK_CLIENT_SPEC",
 ]

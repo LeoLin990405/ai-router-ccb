@@ -96,7 +96,7 @@ Focus on:
                 AgentCapability.REASONING,
                 AgentCapability.ANALYSIS,
             ],
-            preferred_providers=["deepseek", "claude"],
+            preferred_providers=["claude", "gemini"],
             fallback_providers=["gemini", "codex"],
             tools=["read", "grep", "web_search"],
             system_prompt="""You are Oracle, a deep reasoning specialist.
@@ -174,7 +174,7 @@ Focus on:
                 AgentCapability.TESTING,
             ],
             preferred_providers=["gemini", "claude"],
-            fallback_providers=["codex", "deepseek"],
+            fallback_providers=["codex", "qwen"],
             tools=["read", "grep", "glob"],
             system_prompt="""You are Reviewer, a code review specialist.
 Your role is to review code for quality, bugs, and improvements.

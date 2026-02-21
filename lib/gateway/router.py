@@ -104,7 +104,7 @@ DEFAULT_ROUTING_RULES: List[RoutingRule] = [
         priority=80,
         description="Frontend development tasks",
     ),
-    # Algorithm/Math tasks -> Codex o3 or DeepSeek
+    # Algorithm/Math tasks -> Codex o3
     RoutingRule(
         keywords=[
             "algorithm",
@@ -184,11 +184,11 @@ DEFAULT_ROUTING_RULES: List[RoutingRule] = [
         priority=60,
         description="Shell and terminal tasks",
     ),
-    # Deep reasoning -> DeepSeek
+    # Deep reasoning -> Claude
     RoutingRule(
         keywords=["详细", "推理", "reasoning", "think through", "step by step", "深入"],
-        provider="deepseek",
-        model="reasoner",
+        provider="claude",
+        model="sonnet",
         priority=65,
         description="Deep reasoning tasks",
     ),

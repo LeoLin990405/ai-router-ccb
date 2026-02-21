@@ -21,7 +21,6 @@ const providerMetrics: ProviderMetric[] = [
   { name: 'Codex', latency: '1.7s', state: 'ok' },
   { name: 'Gemini', latency: '2.1s', state: 'warn' },
   { name: 'Qwen', latency: '1.4s', state: 'ok' },
-  { name: 'DeepSeek', latency: '2.8s', state: 'warn' },
   { name: 'Ollama', latency: 'offline', state: 'err' },
 ];
 

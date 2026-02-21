@@ -152,8 +152,8 @@ class DiscussionExecutor:
         }
 
         # Categorize providers
-        fast_providers = {"kimi", "qwen", "deepseek"}
-        coding_providers = {"codex", "gemini", "qwen", "deepseek", "kimi"}
+        fast_providers = {"kimi", "qwen", "iflow"}
+        coding_providers = {"codex", "gemini", "qwen", "kimi", "opencode"}
 
         for provider in self.backends.keys():
             if provider.lower() in fast_providers:

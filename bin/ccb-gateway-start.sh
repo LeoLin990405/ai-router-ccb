@@ -10,10 +10,6 @@ elif [[ -f "$HOME/.bashrc" ]]; then
     source "$HOME/.bashrc" 2>/dev/null || true
 fi
 
-# Workaround: Set placeholder DeepSeek API key to prevent fallback errors
-# Issue #1: Kimi 失败时 fallback 到 DeepSeek 需要 API key
-export DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-sk-placeholder-for-fallback}"
-
 # If OPENAI_API_KEY not set, try to load from Codex auth.json (for OpenAI-compatible CLIs like Qwen)
 if [[ -z "${OPENAI_API_KEY:-}" && -f "$HOME/.codex/auth.json" ]]; then
     OPENAI_API_KEY="$(python3 - <<'PY'

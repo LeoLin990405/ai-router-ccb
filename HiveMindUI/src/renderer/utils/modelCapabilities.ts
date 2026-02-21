@@ -13,9 +13,9 @@ const modelCapabilitiesCache = new Map<string, boolean | undefined>();
  * 能力匹配的正则表达式 - 参考 Cherry Studio 的做法
  */
 const CAPABILITY_PATTERNS: Record<ModelType, RegExp> = {
-  text: /gpt|claude|gemini|qwen|llama|mistral|deepseek/i,
+  text: /gpt|claude|gemini|qwen|llama|mistral/i,
   vision: /4o|claude-3|gemini-.*-pro|gemini-.*-flash|gemini-2\.0|qwen-vl|llava|vision/i,
-  function_calling: /gpt-4|claude-3|gemini|qwen|deepseek/i,
+  function_calling: /gpt-4|claude-3|gemini|qwen/i,
   image_generation: /flux|diffusion|stabilityai|sd-|dall|cogview|janus|midjourney|mj-|imagen/i,
   web_search: /search|perplexity/i,
   reasoning: /o1-|reasoning|think/i,
@@ -50,17 +50,6 @@ const PROVIDER_CAPABILITY_RULES: Record<string, Record<ModelType, boolean | null
     image_generation: false,
     web_search: false,
     reasoning: false,
-    embedding: false,
-    rerank: false,
-    excludeFromPrimary: false,
-  },
-  deepseek: {
-    text: true,
-    vision: null,
-    function_calling: true,
-    image_generation: false,
-    web_search: false,
-    reasoning: null,
     embedding: false,
     rerank: false,
     excludeFromPrimary: false,

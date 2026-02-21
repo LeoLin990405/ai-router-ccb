@@ -203,7 +203,7 @@ That should solve your problem!`;
       expect(result).toContain('That should solve your problem!');
     });
 
-    it('should handle DeepSeek-style thinking tags', () => {
+    it('should handle generic thinking tags', () => {
       const input = `<thinking>
 Let me think through this step by step:
 - First consideration

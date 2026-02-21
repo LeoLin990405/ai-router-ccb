@@ -9,7 +9,6 @@
  * - Qwen: ~/.qwen/settings.json
  * - Kimi: ~/.kimi/config.toml
  * - iFlow: ~/.iflow/settings.json
- * - DeepSeek: 已知模型
  * - Ollama: `ollama list` 命令
  */
 
@@ -119,7 +118,7 @@ export function clearModelCache(provider?: string): void {
  * 启动时预扫描所有 Provider（异步，不阻塞启动）
  */
 export async function prescanAllProviders(): Promise<void> {
-  const providers = ['codex', 'claude', 'qwen', 'kimi', 'opencode', 'deepseek', 'iflow', 'ollama'];
+  const providers = ['codex', 'claude', 'qwen', 'kimi', 'opencode', 'iflow', 'ollama'];
   console.log('[CliModelScanner] Pre-scanning all providers...');
 
   const results = await Promise.allSettled(

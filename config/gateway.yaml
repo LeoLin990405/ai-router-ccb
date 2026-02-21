@@ -59,10 +59,6 @@ health_check:
       enabled: true
       timeout_s: 10
 
-    deepseek:
-      enabled: true
-      timeout_s: 45
-
     opencode:
       enabled: true
       timeout_s: 45
@@ -83,17 +79,6 @@ providers:
     api_key_env: "ANTHROPIC_API_KEY"
     model: "claude-sonnet-4-20250514"
     max_tokens: 4096
-
-  # DeepSeek (HTTP API)
-  deepseek:
-    backend_type: "http_api"
-    enabled: true
-    priority: 40
-    timeout_s: 600.0  # Longer for reasoning
-    api_base_url: "https://api.deepseek.com/v1"
-    api_key_env: "DEEPSEEK_API_KEY"
-    model: "deepseek-reasoner"
-    max_tokens: 8192
 
   # Codex (CLI)
   codex:

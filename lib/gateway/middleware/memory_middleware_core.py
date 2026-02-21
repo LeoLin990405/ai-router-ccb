@@ -270,8 +270,8 @@ class MemoryMiddlewareCoreMixin:
 
         路由策略：
         1. 首选本地 qwen2.5:7b（快速，无网络依赖）
-        2. 本地超时/失败 → 自动切换云端 deepseek-v3.1:671b-cloud
-        3. 云端失败 → 回退到正则提取
+        2. 本地超时/失败 → 自动切换本地 llama3.2:3b
+        3. 仍失败 → 回退到正则提取
         """
         import requests
         import re
@@ -299,9 +299,9 @@ class MemoryMiddlewareCoreMixin:
                 'location': 'local'
             },
             {
-                'name': 'deepseek-v3.1:671b-cloud',
-                'timeout': 10,     # 云端模型 10 秒超时
-                'location': 'cloud'
+                'name': 'llama3.2:3b',
+                'timeout': 8,      # 本地轻量模型 8 秒超时
+                'location': 'local'
             }
         ]
 
@@ -404,4 +404,3 @@ class MemoryMiddlewareCoreMixin:
         else:
             # 对于短查询（如"购物车"），直接返回
             return [cleaned] if len(cleaned) <= 10 else []
-

@@ -12,7 +12,7 @@ import { emitter } from '@/renderer/utils/emitter';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 const MODEL_SELECTABLE_PROVIDERS = new Set<AcpBackendAll>([
-  'claude', 'codex', 'gemini', 'kimi', 'qwen', 'deepseek',
+  'claude', 'codex', 'gemini', 'kimi', 'qwen',
   'iflow', 'opencode', 'ollama', 'goose', 'auggie', 'copilot',
   'qoder', 'openclaw-gateway', 'custom',
 ]);

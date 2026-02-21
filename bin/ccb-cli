@@ -97,7 +97,6 @@ Agent 角色:
 Providers 和模型选项:
   kimi [thinking|normal] <prompt>     - Kimi (默认 normal)
   qwen <prompt>                       - Qwen (仅 coder-model)
-  deepseek [reasoner|chat] <prompt>   - DeepSeek (默认 reasoner)
   iflow [thinking|normal] <prompt>    - iFlow GLM-4.7 (默认 normal)
   opencode [model] <prompt>           - OpenCode 多模型
   codex [model] <prompt>              - Codex OpenAI
@@ -107,11 +106,9 @@ Providers 和模型选项:
   obsidian <command|prompt>           - Obsidian CLI (知识库操作)
 
 模型快捷方式:
-  deepseek reasoner  = deepseek-reasoner
-  deepseek chat      = deepseek-chat
   codex o3/o4-mini/gpt-4o/...
   gemini 3f/3p/2.5f/2.5p = gemini-3-flash-preview/...
-  opencode mm/kimi/ds = minimax/kimi-k2.5/deepseek
+  opencode mm/kimi/glm = minimax/kimi-k2.5/glm
 
 环境变量:
   CCB_GATEWAY_URL     - Gateway 地址 (默认: http://localhost:8765)
@@ -121,7 +118,6 @@ Providers 和模型选项:
   ccb-cli kimi "你好"
   ccb-cli kimi thinking "分析这个问题"
   ccb-cli kimi -a sisyphus "修复这个 bug"
-  ccb-cli deepseek --agent oracle "预测市场趋势"
   ccb-cli codex o4-mini -a reviewer "审查这段代码"
   ccb-cli gemini 3f --agent frontend "React 组件"
   ccb-cli claude "问另一个 Claude"
@@ -331,17 +327,6 @@ parse_and_call() {
         qwen)
             message="${args[*]}"
             ;;
-        deepseek)
-            local model="${args[0]:-reasoner}"
-            case "$model" in
-                reasoner|r) model="deepseek-reasoner"; message="${args[*]:1}" ;;
-                chat|c) model="deepseek-chat"; message="${args[*]:1}" ;;
-                *) model="deepseek-reasoner"; message="${args[*]}" ;;
-            esac
-            model_info="[model=$model]"
-            # Prepend model info for Gateway backend
-            message="[MODEL:$model] $message"
-            ;;
         iflow)
             local mode="${args[0]:-normal}"
             if [[ "$mode" == "thinking" || "$mode" == "normal" ]]; then
@@ -360,10 +345,9 @@ parse_and_call() {
                 mm|minimax) model="minimax-cn-coding-plan/MiniMax-M2.5"; message="${args[*]:1}" ;;
                 free) model="opencode/minimax-m2.5-free"; message="${args[*]:1}" ;;
                 kimi|k) model="opencode/kimi-k2.5-free"; message="${args[*]:1}" ;;
-                ds|deepseek) model="deepseek/deepseek-reasoner"; message="${args[*]:1}" ;;
                 glm) model="opencode/glm-4.7-free"; message="${args[*]:1}" ;;
                 *)
-                    if [[ "$model" != opencode/* && "$model" != deepseek/* && "$model" != minimax* ]]; then
+                    if [[ "$model" != opencode/* && "$model" != minimax* ]]; then
                         model="minimax-cn-coding-plan/MiniMax-M2.5"
                         message="${args[*]}"
                     else

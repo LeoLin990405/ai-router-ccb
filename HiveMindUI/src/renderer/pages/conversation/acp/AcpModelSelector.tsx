@@ -20,10 +20,6 @@ const DEFAULT_MODELS: Partial<Record<AcpBackend, ModelConfig[]>> = {
     { id: 'kimi-normal', displayName: 'Kimi 标准模式', description: '快速响应', isDefault: true },
     { id: 'kimi-thinking', displayName: 'Kimi 思考模式', description: '详细推理' },
   ],
-  deepseek: [
-    { id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner', description: '深度推理', isDefault: true },
-    { id: 'deepseek-chat', displayName: 'DeepSeek Chat', description: '快速对话' },
-  ],
   ollama: [
     { id: 'qwen2.5:7b', displayName: 'Qwen 2.5 7B', description: '推荐模型', isDefault: true },
     { id: 'llama3.2:3b', displayName: 'Llama 3.2 3B', description: '轻量模型' },

@@ -44,7 +44,6 @@ Available collaboration commands:
 - iask: Ask iFlow
 - kask: Ask Kimi
 - qask: Ask Qwen
-- dskask: Ask DeepSeek
 
 Guidelines:
 - Execute simple tasks directly yourself

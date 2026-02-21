@@ -55,7 +55,7 @@ export async function processAgentResponse(conversationId: string, agentType: Ac
   let displayContent = textContent;
   let needsDisplayMessage = false;
 
-  // Strip think tags first (internal reasoning tags from models like MiniMax, DeepSeek, etc.)
+  // Strip think tags first (internal reasoning tags from models like MiniMax, etc.)
   if (hasThinkTags(displayContent)) {
     displayContent = stripThinkTags(displayContent);
     needsDisplayMessage = true;

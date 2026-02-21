@@ -32,7 +32,7 @@ from ccb_start_config import DEFAULT_PROVIDERS, ensure_default_start_config, loa
 from session_utils import safe_write_session, check_session_writable, find_project_session_file
 from pane_registry import upsert_registry
 from project_id import compute_ccb_project_id
-from providers import CASK_CLIENT_SPEC, GASK_CLIENT_SPEC, OASK_CLIENT_SPEC, LASK_CLIENT_SPEC, DASK_CLIENT_SPEC, IASK_CLIENT_SPEC, KASK_CLIENT_SPEC, QASK_CLIENT_SPEC, DSKASK_CLIENT_SPEC
+from providers import CASK_CLIENT_SPEC, GASK_CLIENT_SPEC, OASK_CLIENT_SPEC, LASK_CLIENT_SPEC, DASK_CLIENT_SPEC, IASK_CLIENT_SPEC, KASK_CLIENT_SPEC, QASK_CLIENT_SPEC
 from process_lock import ProviderLock
 from askd_rpc import shutdown_daemon
 from askd_runtime import state_file_path
@@ -597,7 +597,7 @@ class AILauncher:
         if not cfg.is_dir():
             return
 
-        for name in (".codex-session", ".gemini-session", ".opencode-session", ".claude-session", ".droid-session", ".deepseek-session"):
+        for name in (".codex-session", ".gemini-session", ".opencode-session", ".claude-session", ".droid-session"):
             legacy = self.project_root / name
             if not legacy.exists():
                 continue
@@ -703,7 +703,7 @@ class AILauncher:
         try:
             backend = TmuxBackend()
             pane_id = backend.get_current_pane_id()
-            label = "DeepSeek" if provider.lower() == "deepseek" else provider.capitalize()
+            label = provider.capitalize()
             title = f"CCB-{label}"
             backend.set_pane_title(pane_id, title)
             backend.set_pane_user_option(pane_id, "@ccb_agent", label)
@@ -746,7 +746,6 @@ class AILauncher:
             "iflow": IASK_CLIENT_SPEC,
             "kimi": KASK_CLIENT_SPEC,
             "qwen": QASK_CLIENT_SPEC,
-            "deepseek": DSKASK_CLIENT_SPEC,
         }
         spec = specs.get(provider)
         if not spec:
@@ -955,8 +954,6 @@ class AILauncher:
             return self._start_generic_tmux(provider, parent_pane=parent_pane, direction=direction)
         elif provider == "qwen":
             return self._start_generic_tmux(provider, parent_pane=parent_pane, direction=direction)
-        elif provider == "deepseek":
-            return self._start_generic_tmux(provider, parent_pane=parent_pane, direction=direction)
         else:
             print(f"❌ {t('unknown_provider', provider=provider)}")
             return None
@@ -983,7 +980,7 @@ class AILauncher:
             except StopIteration:
                 use_parent = None
 
-        pane_title = "DeepSeek" if provider == "deepseek" else provider.capitalize()
+        pane_title = provider.capitalize()
         pane_title_marker = f"CCB-{pane_title}"
         title_cmd = _build_pane_title_cmd(pane_title_marker)
         env_overrides = self._managed_env_overrides()
@@ -1017,8 +1014,6 @@ class AILauncher:
             self._write_kimi_session(runtime, None, pane_id=pane_id, pane_title_marker=pane_title_marker, start_cmd=start_cmd)
         elif provider == "qwen":
             self._write_qwen_session(runtime, None, pane_id=pane_id, pane_title_marker=pane_title_marker, start_cmd=start_cmd)
-        elif provider == "deepseek":
-            self._write_deepseek_session(runtime, None, pane_id=pane_id, pane_title_marker=pane_title_marker, start_cmd=start_cmd)
         else:
             print(f"❌ {t('unknown_provider', provider=provider)}")
             return None
@@ -1575,8 +1570,6 @@ class AILauncher:
             ping_script = self.script_dir / "bin" / "oping"
         elif provider == "droid":
             ping_script = self.script_dir / "bin" / "dping"
-        elif provider == "deepseek":
-            ping_script = self.script_dir / "bin" / "dskping"
         else:
             return False
 
@@ -1622,8 +1615,6 @@ class AILauncher:
             return self._build_opencode_start_cmd()
         elif provider == "droid":
             return self._build_droid_start_cmd()
-        elif provider == "deepseek":
-            return self._build_deepseek_start_cmd()
         elif provider == "iflow":
             return "iflow"
         elif provider == "kimi":
@@ -3159,8 +3150,6 @@ class AILauncher:
             print("   oask/oping/opend - OpenCode communication")
         if "droid" in self.providers:
             print("   dask/dping/dpend - Droid communication")
-        if "deepseek" in self.providers:
-            print("   dskask/dskping - DeepSeek communication")
         print()
         print(f"Executing: {' '.join(cmd)}")
 
@@ -3932,7 +3921,7 @@ def _kill_pid(pid: int, force: bool = False) -> bool:
 
 
 def cmd_kill(args):
-    providers = _parse_providers(args.providers or ["codex", "gemini", "opencode", "claude", "droid", "deepseek"], allow_unknown=True)
+    providers = _parse_providers(args.providers or ["codex", "gemini", "opencode", "claude", "droid"], allow_unknown=True)
     if not providers:
         return 2
 
@@ -3948,7 +3937,6 @@ def cmd_kill(args):
         "iflow": IASK_CLIENT_SPEC,
         "kimi": KASK_CLIENT_SPEC,
         "qwen": QASK_CLIENT_SPEC,
-        "deepseek": DSKASK_CLIENT_SPEC,
     }
 
     for provider in providers:
@@ -4049,7 +4037,7 @@ def _parse_providers(values: list[str], *, allow_unknown: bool = False) -> list[
 
     Returns a de-duplicated list preserving order.
     """
-    allowed = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen", "deepseek"}
+    allowed = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen"}
     raw_parts = _split_provider_tokens(values)
 
     if not raw_parts:
@@ -4069,8 +4057,8 @@ def _parse_providers(values: list[str], *, allow_unknown: bool = False) -> list[
 
     if unknown and not allow_unknown:
         print(f"❌ invalid provider(s): {', '.join(unknown)}", file=sys.stderr)
-        print("💡 use: ccb codex gemini opencode claude droid iflow kimi qwen deepseek  (spaces)  or  ccb codex,gemini,opencode,claude,droid,iflow,kimi,qwen,deepseek  (commas)", file=sys.stderr)
-        print("💡 allowed: codex, gemini, opencode, claude, droid, iflow, kimi, qwen, deepseek", file=sys.stderr)
+        print("💡 use: ccb codex gemini opencode claude droid iflow kimi qwen  (spaces)  or  ccb codex,gemini,opencode,claude,droid,iflow,kimi,qwen  (commas)", file=sys.stderr)
+        print("💡 allowed: codex, gemini, opencode, claude, droid, iflow, kimi, qwen", file=sys.stderr)
         return []
 
     return parsed
@@ -4081,7 +4069,7 @@ def _parse_providers_with_cmd(values: list[str]) -> tuple[list[str], bool]:
     Parse providers from argv and treat "cmd" as a separate flag.
     Returns (providers, cmd_enabled).
     """
-    allowed = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen", "deepseek"}
+    allowed = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen"}
     raw_parts = _split_provider_tokens(values)
     if not raw_parts:
         return [], False
@@ -4105,8 +4093,8 @@ def _parse_providers_with_cmd(values: list[str]) -> tuple[list[str], bool]:
 
     if unknown:
         print(f"❌ invalid provider(s): {', '.join(unknown)}", file=sys.stderr)
-        print("💡 use: ccb codex gemini opencode claude droid iflow kimi qwen deepseek cmd  (spaces)  or  ccb codex,gemini,opencode,claude,droid,iflow,kimi,qwen,deepseek,cmd  (commas)", file=sys.stderr)
-        print("💡 allowed: codex, gemini, opencode, claude, droid, iflow, kimi, qwen, deepseek, cmd", file=sys.stderr)
+        print("💡 use: ccb codex gemini opencode claude droid iflow kimi qwen cmd  (spaces)  or  ccb codex,gemini,opencode,claude,droid,iflow,kimi,qwen,cmd  (commas)", file=sys.stderr)
+        print("💡 allowed: codex, gemini, opencode, claude, droid, iflow, kimi, qwen, cmd", file=sys.stderr)
         return [], cmd_enabled
 
     return parsed, cmd_enabled
@@ -5025,7 +5013,7 @@ def main():
 
     if argv and argv[0] == "sidecar":
         parser = argparse.ArgumentParser(prog="ccb sidecar", description="Start temporary sidecar panes", add_help=True)
-        parser.add_argument("providers", nargs="+", help="Backends to start (space or comma separated): codex, gemini, opencode, droid, deepseek, iflow, kimi, qwen")
+        parser.add_argument("providers", nargs="+", help="Backends to start (space or comma separated): codex, gemini, opencode, droid, iflow, kimi, qwen")
         parser.add_argument("--wait-file", default="", help="Path to wait file used to close panes")
         parser.add_argument("--timeout", type=float, default=None, help="Seconds to wait before closing (default: wait for file)")
         parser.add_argument("--direction", default="right", choices=["left", "right", "top", "bottom"], help="Sidecar pane direction for the first split")
@@ -5091,7 +5079,7 @@ def main():
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
         kill_parser = subparsers.add_parser("kill", help="Terminate session")
-        kill_parser.add_argument("providers", nargs="*", default=[], help="Backends to terminate (codex/gemini/opencode/claude/droid/deepseek/iflow/kimi/qwen)")
+        kill_parser.add_argument("providers", nargs="*", default=[], help="Backends to terminate (codex/gemini/opencode/claude/droid/iflow/kimi/qwen)")
         kill_parser.add_argument("-f", "--force", action="store_true", help="Force kill all daemon processes (SIGKILL)")
 
         update_parser = subparsers.add_parser("update", help="Update to latest or specified version")
@@ -5124,7 +5112,7 @@ def main():
     start_parser.add_argument(
         "providers",
         nargs="*",
-        help="Backends to start (space or comma separated): codex, gemini, opencode, claude, droid, deepseek, iflow, kimi, qwen (add cmd for a shell pane)",
+        help="Backends to start (space or comma separated): codex, gemini, opencode, claude, droid, iflow, kimi, qwen (add cmd for a shell pane)",
     )
     start_parser.add_argument("-r", "--resume", "--restore", action="store_true", help="Resume context")
     start_parser.add_argument("-a", "--auto", action="store_true", help="Full auto permission mode")

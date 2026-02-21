@@ -89,7 +89,7 @@ if HAS_FASTAPI:
         Start a new multi-AI discussion session.
 
         Supports:
-        - Explicit provider list: providers=["kimi", "qwen", "deepseek"]
+        - Explicit provider list: providers=["kimi", "qwen", "iflow"]
         - Provider groups: provider_group="@all", "@fast", "@coding"
         """
         if not discussion_executor:

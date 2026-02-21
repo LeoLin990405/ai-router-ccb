@@ -202,7 +202,6 @@ export const PROTOCOL_SIGNATURES: ProtocolSignature[] = [
     urlPatterns: [
       /api\.openai\.com/, // OpenAI 官方
       /\.openai\.azure\.com/, // Azure OpenAI
-      /api\.deepseek\.com/, // DeepSeek
       /api\.moonshot\.cn/, // Moonshot/Kimi China
       /api\.moonshot\.ai/, // Moonshot/Kimi Global
       /api\.mistral\.ai/, // Mistral AI
@@ -296,7 +295,7 @@ export const THIRD_PARTY_KEY_PATTERNS: Array<{ pattern: RegExp; name: string; pr
   { pattern: /^sk-ant-[A-Za-z0-9-]{80,}$/, name: 'Anthropic', protocol: 'anthropic' },
   { pattern: /^gsk_[A-Za-z0-9]{52}$/, name: 'Groq', protocol: 'openai' },
   { pattern: /^pplx-[A-Za-z0-9]{48}$/, name: 'Perplexity', protocol: 'openai' },
-  { pattern: /^[A-Za-z0-9]{32}$/, name: 'DeepSeek/Moonshot', protocol: 'openai' },
+  { pattern: /^[A-Za-z0-9]{32}$/, name: 'Moonshot', protocol: 'openai' },
   { pattern: /^[A-Za-z0-9]{64}$/, name: 'SiliconFlow/Together', protocol: 'openai' },
 ];
 

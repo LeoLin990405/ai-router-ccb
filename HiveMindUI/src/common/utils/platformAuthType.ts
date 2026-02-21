@@ -34,7 +34,7 @@ export function getAuthTypeFromPlatform(platform: string): AuthType {
   // New API 网关默认使用 OpenAI 兼容协议（per-model 协议由 getProviderAuthType 处理）
   // New API gateway defaults to OpenAI compatible (per-model protocol handled by getProviderAuthType)
   // 其他所有平台默认使用OpenAI兼容协议
-  // 包括：OpenRouter, OpenAI, DeepSeek, new-api, 等
+  // 包括：OpenRouter, OpenAI, new-api, 等
   return AuthType.USE_OPENAI;
 }
 

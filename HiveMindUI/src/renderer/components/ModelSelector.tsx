@@ -135,7 +135,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ provider, value, onChange
       qwen: 'Qwen',
       kimi: 'Kimi',
       codex: 'Codex',
-      deepseek: 'DeepSeek',
       iflow: 'iFlow',
       opencode: 'OpenCode',
       goose: 'Goose',

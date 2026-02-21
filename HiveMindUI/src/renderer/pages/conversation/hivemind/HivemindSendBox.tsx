@@ -48,7 +48,7 @@ const useHivemindSendBoxDraft = getSendBoxDraftHook('hivemind', {
   selectedProvider: null,
 });
 
-const MODEL_SELECTABLE_PROVIDERS = new Set<AcpBackendAll>(['claude', 'codex', 'gemini', 'kimi', 'qwen', 'deepseek', 'iflow', 'opencode', 'ollama', 'goose', 'auggie', 'copilot', 'qoder', 'openclaw-gateway', 'custom']);
+const MODEL_SELECTABLE_PROVIDERS = new Set<AcpBackendAll>(['claude', 'codex', 'gemini', 'kimi', 'qwen', 'iflow', 'opencode', 'ollama', 'goose', 'auggie', 'copilot', 'qoder', 'openclaw-gateway', 'custom']);
 
 const isModelSelectableProvider = (provider: string | null | undefined): provider is AcpBackendAll => {
   if (!provider) return false;
@@ -334,7 +334,7 @@ const HivemindSendBox: React.FC<{ conversation_id: string; gatewayUrl?: string }
 
   const resolveFallbackProvider = useCallback(
     (currentProvider: string | null): string | null => {
-      const priority = ['kimi', 'qwen', 'deepseek', 'iflow', 'ollama', 'opencode', 'claude', 'codex', 'gemini'];
+      const priority = ['kimi', 'qwen', 'iflow', 'ollama', 'opencode', 'claude', 'codex', 'gemini'];
       const candidates = providersRef.current
         .filter((provider) => provider.enabled !== false)
         .filter((provider) => provider.status !== 'offline' && provider.status !== 'unavailable')

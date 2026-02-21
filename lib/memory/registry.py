@@ -180,13 +180,6 @@ class CCBRegistry:
                 "speed": "fast",
             },
             {
-                "name": "deepseek",
-                "command": "ccb-cli deepseek",
-                "models": ["reasoner", "chat"],
-                "strengths": ["reasoning", "algorithm", "code"],
-                "speed": "medium",
-            },
-            {
                 "name": "iflow",
                 "command": "ccb-cli iflow",
                 "models": ["thinking", "normal"],

@@ -2,7 +2,7 @@
 Backend implementations for CCB Gateway.
 
 Provides different backend types for communicating with AI providers:
-- HTTP API (OpenAI, Anthropic, DeepSeek)
+- HTTP API (OpenAI, Anthropic)
 - CLI Execution (Codex, Gemini CLI)
 - FIFO/Pipe (legacy)
 - Terminal (legacy WezTerm integration)

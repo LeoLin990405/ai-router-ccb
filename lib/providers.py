@@ -223,25 +223,3 @@ GRKASK_CLIENT_SPEC = ProviderClientSpec(
     daemon_module="grkaskd_daemon",
 )
 
-
-# DeepSeek CLI - Headless mode, no WezTerm pane needed
-DSKASKD_SPEC = ProviderDaemonSpec(
-    daemon_key="dskaskd",
-    protocol_prefix="dskask",
-    state_file_name="dskaskd.json",
-    log_file_name="dskaskd.log",
-    idle_timeout_env="CCB_DSKASKD_IDLE_TIMEOUT_S",
-    lock_name="dskaskd",
-)
-
-
-DSKASK_CLIENT_SPEC = ProviderClientSpec(
-    protocol_prefix="dskask",
-    enabled_env="CCB_DSKASKD",
-    autostart_env_primary="CCB_DSKASKD_AUTOSTART",
-    autostart_env_legacy="CCB_AUTO_DSKASKD",
-    state_file_env="CCB_DSKASKD_STATE_FILE",
-    session_filename=".deepseek-session",
-    daemon_bin_name="dskaskd",
-    daemon_module="dskaskd_daemon",
-)

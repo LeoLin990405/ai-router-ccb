@@ -24,7 +24,6 @@ class CacheConfig:
     provider_ttl_s: Dict[str, float] = field(default_factory=lambda: {
         "claude": 3600.0,
         "gemini": 3600.0,
-        "deepseek": 1800.0,  # 30 min for reasoning models
         "codex": 1800.0,
         "opencode": 1800.0,
     })
@@ -168,5 +167,4 @@ except ImportError:  # pragma: no cover - script mode
 
 class CacheManager(CacheManagerCoreMixin, CacheManagerStatsMixin):
     """Manages cache lifecycle, retrieval, and analytics."""
-
 

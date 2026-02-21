@@ -6,13 +6,12 @@
 
 _ccb_cli() {
     local -a providers agents options
-    local -a codex_models gemini_models opencode_models deepseek_models kimi_models iflow_models
+    local -a codex_models gemini_models opencode_models kimi_models iflow_models
 
     # Providers
     providers=(
         'kimi:Fast Chinese AI with 128k context'
         'qwen:Multi-language code specialist'
-        'deepseek:Deep reasoning and algorithms'
         'iflow:Workflow automation'
         'opencode:Multi-model switching'
         'codex:OpenAI models (o3, o4-mini, gpt-4o)'
@@ -35,8 +34,7 @@ _ccb_cli() {
     # Model shortcuts
     codex_models=('o3:Deep reasoning' 'o4-mini:Fast responses' 'gpt-4o:Multimodal' 'o1-pro:Professional')
     gemini_models=('3f:Gemini 3 Fast' '3p:Gemini 3 Pro' '2.5f:Gemini 2.5 Fast' '2.5p:Gemini 2.5 Pro')
-    opencode_models=('mm:MiniMax' 'kimi:Kimi' 'ds:DeepSeek' 'glm:GLM')
-    deepseek_models=('reasoner:Deep reasoning' 'chat:Fast chat')
+    opencode_models=('mm:MiniMax' 'kimi:Kimi' 'glm:GLM')
     kimi_models=('thinking:Chain of thought' 'normal:Normal mode')
     iflow_models=('thinking:Chain of thought' 'normal:Normal mode')
 
@@ -74,9 +72,6 @@ _ccb_cli() {
                     ;;
                 opencode)
                     _describe -t models 'model' opencode_models
-                    ;;
-                deepseek)
-                    _describe -t models 'model' deepseek_models
                     ;;
                 kimi)
                     _describe -t models 'model' kimi_models

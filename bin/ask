@@ -20,7 +20,6 @@ from pathlib import Path
 
 
 PROVIDER_MAP = {
-    "deepseek": "dskask",
     "codex": "cask",
     "gemini": "gask",
     "opencode": "oask",
@@ -32,7 +31,6 @@ PROVIDER_MAP = {
 }
 
 ALIASES = {
-    "deep-seek": "deepseek",
     "open-code": "opencode",
     "open_code": "opencode",
 }

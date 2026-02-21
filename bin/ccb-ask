@@ -515,7 +515,7 @@ def main() -> int:
     )
     parser.add_argument(
         "-p", "--provider",
-        choices=["claude", "gemini", "codex", "opencode", "deepseek", "droid", "iflow", "kimi", "qwen"],
+        choices=["claude", "gemini", "codex", "opencode", "droid", "iflow", "kimi", "qwen"],
         help="Force specific provider",
     )
     parser.add_argument(

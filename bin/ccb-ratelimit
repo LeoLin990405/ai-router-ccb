@@ -187,7 +187,7 @@ Examples:
   ccb-ratelimit status -p claude          # Show specific provider
   ccb-ratelimit set claude --rpm 50       # Set RPM limit
   ccb-ratelimit reset --all               # Reset all counters
-  ccb-ratelimit disable deepseek          # Disable rate limiting
+  ccb-ratelimit disable kimi              # Disable rate limiting
   ccb-ratelimit test claude -c 20         # Test with 20 requests
         """
     )

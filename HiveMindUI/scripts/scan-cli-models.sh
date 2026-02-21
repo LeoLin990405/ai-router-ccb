@@ -106,7 +106,7 @@ case "$PROVIDER" in
     # Filter to relevant providers only
     printf '['
     first=true
-    echo "$MODELS" | grep -E "^(opencode/|deepseek/|minimax-cn-coding-plan/)" | while read -r model; do
+    echo "$MODELS" | grep -E "^(opencode/|minimax-cn-coding-plan/)" | while read -r model; do
       [ -z "$model" ] && continue
       $first || printf ','
       first=false
@@ -178,15 +178,6 @@ print(json.dumps(models))
     json_model "iflow-normal" "iFlow 标准 ($MODEL_NAME)" "工作流自动化" "true"
     printf ','
     json_model "iflow-thinking" "iFlow 思考 ($MODEL_NAME)" "启用思考链" "false"
-    printf ']'
-    ;;
-
-  deepseek)
-    # DeepSeek CLI supports reasoner and chat
-    printf '['
-    json_model "deepseek-reasoner" "DeepSeek Reasoner" "深度推理" "true"
-    printf ','
-    json_model "deepseek-chat" "DeepSeek Chat" "快速对话" "false"
     printf ']'
     ;;
 

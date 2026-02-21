@@ -31,7 +31,6 @@ const PROVIDER_COLORS: Record<string, { color: string; bg: string }> = {
   kimi: { color: '#10b981', bg: '#10b98120' },
   gemini: { color: '#8b5cf6', bg: '#8b5cf620' },
   qwen: { color: '#f59e0b', bg: '#f59e0b20' },
-  deepseek: { color: '#ef4444', bg: '#ef444420' },
 };
 
 const getPriorityColor = (priority: number) => {

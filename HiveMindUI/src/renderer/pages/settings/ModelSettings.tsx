@@ -13,7 +13,6 @@ const PROVIDERS: Array<{ id: AcpBackendAll; name: string; icon: string }> = [
   { id: 'gemini', name: 'Gemini', icon: '💎' },
   { id: 'qwen', name: 'Qwen', icon: '🐼' },
   { id: 'kimi', name: 'Kimi', icon: '🌙' },
-  { id: 'deepseek', name: 'DeepSeek', icon: '🌊' },
   { id: 'iflow', name: 'iFlow', icon: '⚡' },
   { id: 'ollama', name: 'Ollama', icon: '🦙' },
   { id: 'opencode', name: 'OpenCode', icon: '📦' },

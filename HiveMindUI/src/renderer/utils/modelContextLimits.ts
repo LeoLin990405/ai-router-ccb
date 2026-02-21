@@ -51,10 +51,7 @@ const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   'claude-3-haiku': 200_000,
   'claude-default': 200_000,
 
-  // DeepSeek / Qwen / Kimi / 其他 CLI 常用模型
-  'deepseek-reasoner': 128_000,
-  'deepseek-chat': 128_000,
-  'deepseek/deepseek-reasoner': 128_000,
+  // Qwen / Kimi / 其他 CLI 常用模型
   'qwen-coder': 131_072,
   'kimi-normal': 128_000,
   'kimi-thinking': 128_000,

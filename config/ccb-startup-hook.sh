@@ -11,7 +11,6 @@ AUTO_START="${CCB_AUTO_START:-true}"  # Enable auto-start by default
 get_ping_cmd() {
     local provider=$1
     case "$provider" in
-        deepseek) echo "dskping" ;;
         opencode) echo "oping" ;;
         droid) echo "dping" ;;
         *) echo "${provider:0:1}ping" ;;
@@ -77,7 +76,7 @@ fi
 # Get configured providers
 CONFIGURED_PROVIDERS=$(get_configured_providers)
 if [ -z "$CONFIGURED_PROVIDERS" ]; then
-    CONFIGURED_PROVIDERS="deepseek"  # Default fallback
+    CONFIGURED_PROVIDERS="kimi"  # Default fallback
 fi
 
 # Check status and collect inactive providers
@@ -103,7 +102,7 @@ if [ "$ACTIVE_COUNT" -gt 0 ]; then
     echo "💡 Inactive providers will auto-start on demand (sidecar mode)"
 elif [ "$IN_WEZTERM" = true ]; then
     echo "💡 CCB sidecar mode enabled - providers will auto-start on demand"
-    echo "   Use: gask, cask, oask, dskask, etc. to invoke providers"
+    echo "   Use: gask, cask, oask, kask, qask, etc. to invoke providers"
 else
     echo "💡 To use CCB: open WezTerm for sidecar auto-start"
 fi

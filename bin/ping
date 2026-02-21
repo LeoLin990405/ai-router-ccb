@@ -15,7 +15,6 @@ from pathlib import Path
 
 
 PROVIDER_MAP = {
-    "deepseek": "dskping",
     "codex": "cping",
     "gemini": "gping",
     "2f": "gping",
@@ -32,7 +31,6 @@ PROVIDER_MAP = {
 }
 
 ALIASES = {
-    "deep-seek": "deepseek",
     "open-code": "opencode",
     "open_code": "opencode",
 }

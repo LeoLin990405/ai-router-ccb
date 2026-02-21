@@ -66,7 +66,7 @@ Output format:
     ]
 
     PREFERRED_PROVIDERS = ["gemini", "claude"]
-    FALLBACK_PROVIDERS = ["codex", "deepseek"]
+    FALLBACK_PROVIDERS = ["codex", "qwen"]
 
     TOOLS = [
         "read",

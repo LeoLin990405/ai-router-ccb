@@ -17,7 +17,7 @@ class StartConfig:
     path: Optional[Path] = None
 
 
-_ALLOWED_PROVIDERS = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen", "deepseek"}
+_ALLOWED_PROVIDERS = {"codex", "gemini", "opencode", "claude", "droid", "iflow", "kimi", "qwen"}
 
 
 HANDLED_EXCEPTIONS = (Exception,)

@@ -10,7 +10,7 @@ _ccb_cli_completions() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Providers
-    local providers="kimi qwen deepseek iflow opencode codex gemini claude qoder auto"
+    local providers="kimi qwen iflow opencode codex gemini claude qoder auto"
 
     # Agent roles
     local agents="sisyphus oracle librarian explorer frontend reviewer"
@@ -19,7 +19,6 @@ _ccb_cli_completions() {
     local codex_models="o3 o4-mini gpt-4o o1-pro"
     local gemini_models="3f 3p 2.5f 2.5p"
     local opencode_models="mm kimi ds glm"
-    local deepseek_models="reasoner chat"
     local kimi_models="thinking normal"
     local iflow_models="thinking normal"
 
@@ -50,9 +49,6 @@ _ccb_cli_completions() {
                 ;;
             opencode)
                 COMPREPLY=( $(compgen -W "${opencode_models} ${options}" -- ${cur}) )
-                ;;
-            deepseek)
-                COMPREPLY=( $(compgen -W "${deepseek_models} ${options}" -- ${cur}) )
                 ;;
             kimi)
                 COMPREPLY=( $(compgen -W "${kimi_models} ${options}" -- ${cur}) )

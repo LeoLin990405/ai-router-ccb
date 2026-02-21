@@ -8,7 +8,7 @@
  * Think Tag Detector
  *
  * Detects and strips <think> and <thinking> tags from AI agent responses.
- * These tags are used by some AI models (like MiniMax, DeepSeek, etc.) to show
+ * These tags are used by some AI models (like MiniMax, etc.) to show
  * internal reasoning, but should be filtered out from the user-facing display.
  *
  * Similar to Gemini's implementation in src/agent/gemini/utils.ts:104-127

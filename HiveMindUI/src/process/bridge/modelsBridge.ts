@@ -21,7 +21,6 @@ try {
 const OLLAMA_FALLBACK_MODELS = [
   { id: 'qwen2.5:7b', displayName: 'Qwen 2.5 7B', description: 'Qwen 2.5 7B 模型', isDefault: true },
   { id: 'llama3.2:3b', displayName: 'Llama 3.2 3B', description: 'Llama 3.2 3B 轻量模型' },
-  { id: 'deepseek-r1:7b', displayName: 'DeepSeek R1 7B', description: 'DeepSeek R1 推理模型' },
   { id: 'codellama:7b', displayName: 'Code Llama 7B', description: 'Code Llama 代码模型' },
 ];
 

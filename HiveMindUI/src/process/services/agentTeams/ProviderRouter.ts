@@ -42,11 +42,6 @@ const FAILOVER_ORDER: Record<string, Array<{ provider: string; model: string }>>
     { provider: 'claude', model: 'sonnet' },
     { provider: 'gateway', model: 'auto' },
   ],
-  deepseek: [
-    { provider: 'qwen', model: 'coder' },
-    { provider: 'claude', model: 'sonnet' },
-    { provider: 'gateway', model: 'auto' },
-  ],
   gateway: [
     { provider: 'kimi', model: 'thinking' },
     { provider: 'qwen', model: 'coder' },

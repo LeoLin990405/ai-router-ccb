@@ -92,7 +92,6 @@ export const HIVEMIND_PROVIDER_OPTIONS: Array<{ value: string; label: string }> 
   { value: '', label: '🧠 Auto (Smart Route)' },
   { value: 'kimi', label: '🚀 Kimi' },
   { value: 'qwen', label: '🚀 Qwen' },
-  { value: 'deepseek', label: '⚡ DeepSeek' },
   { value: 'iflow', label: '⚡ iFlow' },
   { value: 'ollama', label: '⚡ Ollama' },
   { value: 'opencode', label: '⚡ OpenCode' },
@@ -111,7 +110,6 @@ export type CancelRequest = {
 export const PROVIDER_TIERS: Record<string, { emoji: string; label: string; color: string }> = {
   kimi: { emoji: '🚀', label: 'Fast', color: 'arcoblue' },
   qwen: { emoji: '🚀', label: 'Fast', color: 'arcoblue' },
-  deepseek: { emoji: '⚡', label: 'Balanced', color: 'green' },
   iflow: { emoji: '⚡', label: 'Balanced', color: 'green' },
   ollama: { emoji: '⚡', label: 'Local', color: 'lime' },
   opencode: { emoji: '⚡', label: 'Balanced', color: 'green' },

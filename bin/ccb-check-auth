@@ -45,7 +45,6 @@ check_cli() {
 echo "快速 Provider:"
 check_cli "Kimi" "kimi" "kimi --quiet -p 'pong'" 10
 check_cli "Qwen" "qwen" "qwen --auth-type qwen-oauth 'pong'" 15
-check_cli "DeepSeek" "deepseek" "deepseek -q '回复pong'" 15
 
 echo ""
 echo "中速 Provider:"

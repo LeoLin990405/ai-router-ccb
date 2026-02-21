@@ -159,7 +159,7 @@ class UnifiedRouter(UnifiedRouterCoreMixin, UnifiedRouterMagicMixin):
         TaskType.FRONTEND: "gemini",
         TaskType.BACKEND: "codex",
         TaskType.ARCHITECTURE: "claude",
-        TaskType.REASONING: "deepseek",
+        TaskType.REASONING: "claude",
         TaskType.GENERAL: "claude",
     }
 
@@ -203,7 +203,7 @@ class UnifiedRouter(UnifiedRouterCoreMixin, UnifiedRouterMagicMixin):
         },
         "@deep": {
             "action": "deep_reasoning",
-            "provider": "deepseek",
+            "provider": "claude",
             "description": "Force deep reasoning mode",
         },
         "@review": {
@@ -222,4 +222,3 @@ class UnifiedRouter(UnifiedRouterCoreMixin, UnifiedRouterMagicMixin):
             "description": "Enable all smart features",
         },
     }
-

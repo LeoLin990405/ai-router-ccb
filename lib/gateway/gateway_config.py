@@ -18,27 +18,27 @@ from lib.common.paths import default_gateway_db_path
 from .models import BackendType
 
 logger = get_logger("gateway.config")
+REMOVED_PROVIDERS = {"deepseek"}
 
 # Default fallback chains for providers
 DEFAULT_FALLBACK_CHAINS: Dict[str, List[str]] = {
-    "gemini": ["deepseek", "qwen"],
-    "deepseek": ["qwen", "kimi"],
+    "gemini": ["qwen", "kimi"],
     "codex": ["opencode", "gemini"],
     "opencode": ["codex", "gemini"],
-    "kimi": ["qwen", "deepseek"],
-    "qwen": ["kimi", "deepseek"],
-    "iflow": ["deepseek", "gemini"],
+    "kimi": ["qwen", "gemini"],
+    "qwen": ["kimi", "gemini"],
+    "iflow": ["qwen", "gemini"],
     "qoder": ["codex", "gemini"],
     "claude": ["codex", "gemini"],
 }
 
 # Default provider groups for parallel queries
 DEFAULT_PROVIDER_GROUPS: Dict[str, List[str]] = {
-    "all": ["gemini", "deepseek", "codex", "opencode", "kimi", "qwen", "iflow", "qoder", "claude"],
-    "fast": ["deepseek", "kimi"],
-    "reasoning": ["deepseek", "gemini", "claude"],
+    "all": ["gemini", "codex", "opencode", "kimi", "qwen", "iflow", "qoder", "claude"],
+    "fast": ["kimi", "qwen"],
+    "reasoning": ["gemini", "claude", "codex"],
     "coding": ["codex", "opencode", "gemini", "qoder", "claude"],
-    "chinese": ["deepseek", "kimi", "qwen"],
+    "chinese": ["kimi", "qwen"],
 }
 
 @dataclass
@@ -99,7 +99,6 @@ class CacheConfig:
     # TTL by provider
     provider_ttl_s: Dict[str, float] = field(default_factory=lambda: {
         "gemini": 3600.0,
-        "deepseek": 1800.0,
         "codex": 1800.0,
     })
     # Don't cache responses shorter than this
@@ -198,7 +197,7 @@ class GatewayConfig:
     # Provider configs
     providers: Dict[str, ProviderConfig] = field(default_factory=dict)
     # Default provider for auto-routing
-    default_provider: str = "deepseek"
+    default_provider: str = "claude"
     # WebSocket settings
     ws_enabled: bool = True
     ws_heartbeat_s: float = 30.0
@@ -275,6 +274,8 @@ class GatewayConfig:
 
             # Default provider
             self.default_provider = data.get("default_provider", self.default_provider)
+            if self.default_provider in REMOVED_PROVIDERS:
+                self.default_provider = "claude"
 
             # WebSocket
             ws = data.get("websocket", {})
@@ -291,6 +292,9 @@ class GatewayConfig:
 
             # Providers
             for name, pconfig in data.get("providers", {}).items():
+                if name in REMOVED_PROVIDERS:
+                    logger.info("Skip removed provider in config: %s", name)
+                    continue
                 self.providers[name] = self._parse_provider_config(name, pconfig)
 
         except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -340,6 +344,8 @@ class GatewayConfig:
         # Default provider
         if os.environ.get("CCB_DEFAULT_PROVIDER"):
             self.default_provider = os.environ["CCB_DEFAULT_PROVIDER"]
+            if self.default_provider in REMOVED_PROVIDERS:
+                self.default_provider = "claude"
 
         # Timeouts
         if os.environ.get("CCB_GATEWAY_TIMEOUT"):
@@ -354,15 +360,6 @@ class GatewayConfig:
 
     def _init_default_providers(self) -> None:
         """Initialize default provider configurations."""
-        # DeepSeek (CLI) - use '-q' for quick/non-interactive mode
-        self.providers["deepseek"] = ProviderConfig(
-            name="deepseek",
-            backend_type=BackendType.CLI_EXEC,
-            cli_command="deepseek",
-            cli_args=["-q"],
-            timeout_s=120.0,  # Longer timeout for reasoning
-        )
-
         # Codex (CLI) - use 'exec --json' for non-interactive mode with JSON output
         self.providers["codex"] = ProviderConfig(
             name="codex",

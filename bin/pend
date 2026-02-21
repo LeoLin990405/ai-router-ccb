@@ -11,7 +11,7 @@ import sys
 import urllib.request
 import os
 
-PROVIDERS = ["gemini", "codex", "opencode", "deepseek", "kimi", "qwen", "iflow", "droid", "llama"]
+PROVIDERS = ["gemini", "codex", "opencode", "kimi", "qwen", "iflow", "droid", "llama"]
 
 def get_gateway_url():
     return os.environ.get("CCB_GATEWAY_URL", "http://localhost:8765")

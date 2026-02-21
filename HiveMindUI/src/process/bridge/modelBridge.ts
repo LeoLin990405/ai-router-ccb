@@ -21,7 +21,7 @@ import { ProcessConfig } from '../initStorage';
  * Used to auto-fix user-provided base URLs, easy to maintain and extend
  */
 const API_PATH_PATTERNS = [
-  '/v1', // 标准格式 / Standard: OpenAI, DeepSeek, Moonshot, Mistral, SiliconFlow, 讯飞星火, 腾讯混元
+  '/v1', // 标准格式 / Standard: OpenAI, Moonshot, Mistral, SiliconFlow, 讯飞星火, 腾讯混元
   '/api/v1', // 代理格式 / Proxy: OpenRouter
   '/openai/v1', // Groq
   '/compatible-mode/v1', // 阿里云 DashScope / Alibaba Cloud

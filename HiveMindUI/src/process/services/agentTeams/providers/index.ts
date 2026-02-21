@@ -10,6 +10,5 @@ export * from './ClaudeProvider';
 export * from './GeminiProvider';
 export * from './KimiProvider';
 export * from './QwenProvider';
-export * from './DeepSeekProvider';
 export * from './GatewayProvider';
 export * from './ProviderFactory';

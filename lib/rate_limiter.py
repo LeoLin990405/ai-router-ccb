@@ -69,7 +69,6 @@ class RateLimiter:
         "codex": RateLimitConfig(rpm=60, tpm=150000, burst_size=15),
         "gemini": RateLimitConfig(rpm=60, tpm=120000, burst_size=12),
         "opencode": RateLimitConfig(rpm=60, tpm=100000, burst_size=10),
-        "deepseek": RateLimitConfig(rpm=30, tpm=60000, burst_size=5),
         "droid": RateLimitConfig(rpm=30, tpm=50000, burst_size=5),
         "iflow": RateLimitConfig(rpm=30, tpm=50000, burst_size=5),
         "kimi": RateLimitConfig(rpm=30, tpm=80000, burst_size=8),

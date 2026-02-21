@@ -59,7 +59,7 @@ Output format:
         AgentCapability.ANALYSIS,
     ]
 
-    PREFERRED_PROVIDERS = ["deepseek", "claude"]
+    PREFERRED_PROVIDERS = ["claude", "gemini"]
     FALLBACK_PROVIDERS = ["gemini", "codex"]
 
     TOOLS = [

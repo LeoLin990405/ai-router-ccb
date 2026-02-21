@@ -25,14 +25,14 @@ export class WebSocketManager {
   private eventListeners = new Map<string, Set<EventCallback>>();
   private statusListeners = new Set<(status: ConnectionStatus) => void>();
 
-  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:3000', tokenStorage: TokenStorage = defaultTokenStorage, options: WebSocketOptions = {}) {
+  constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:25808', tokenStorage: TokenStorage = defaultTokenStorage, options: WebSocketOptions = {}) {
     this.baseURL = baseURL;
     this.tokenStorage = tokenStorage;
     this.options = {
       autoReconnect: options.autoReconnect ?? true,
       reconnectDelay: options.reconnectDelay ?? 1000,
       maxReconnectAttempts: options.maxReconnectAttempts ?? 10,
-      token: options.token ?? tokenStorage.getAccessToken() ?? undefined,
+      token: options.token ?? undefined,
     };
   }
 
@@ -47,13 +47,14 @@ export class WebSocketManager {
 
     this.updateStatus(ConnectionStatus.CONNECTING);
 
-    const token = this.options.token || this.tokenStorage.getAccessToken();
+    const token = this.options.token;
 
     this.socket = io(this.baseURL, {
-      auth: {
-        token,
-      },
-      transports: ['websocket', 'polling'],
+      auth: token ? { token } : {},
+      // Browser mode keeps polling-only for stability.
+      // Some environments can intermittently fail websocket upgrade and spam warnings.
+      transports: ['polling'],
+      upgrade: false,
       reconnection: false, // We handle reconnection manually
     });
 

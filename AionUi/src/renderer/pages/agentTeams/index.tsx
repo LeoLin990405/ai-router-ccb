@@ -14,7 +14,8 @@ const NAV_ITEMS = [
   { key: '/agent-teams/dashboard', i18nKey: 'agentTeams.dashboard', fallback: 'Dashboard' },
   { key: '/agent-teams/teams', i18nKey: 'agentTeams.teams', fallback: 'Teams' },
   { key: '/agent-teams/tasks', i18nKey: 'agentTeams.tasks', fallback: 'Tasks' },
-  { key: '/agent-teams/monitor', i18nKey: 'agentTeams.monitor', fallback: 'Monitor' },
+  { key: '/agent-teams/chat', i18nKey: 'agentTeams.chat', fallback: 'Chat' },
+  { key: '/agent-teams/monitor', i18nKey: 'agentTeams.monitor', fallback: 'Team Monitor' },
   { key: '/agent-teams/analytics', i18nKey: 'agentTeams.analytics', fallback: 'Analytics' },
 ];
 

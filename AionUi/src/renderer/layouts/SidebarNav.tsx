@@ -9,7 +9,7 @@ import WorkspaceGroupedHistory from '@/renderer/pages/conversation/WorkspaceGrou
 import { usePreviewContext } from '@/renderer/pages/conversation/preview';
 import SettingsSider from '@/renderer/pages/settings/SettingsSider';
 import classNames from 'classnames';
-import { ArrowLeftCircle, BookOpen, History, LayoutDashboard, Plus, Settings, Users, Wrench } from 'lucide-react';
+import { ArrowLeftCircle, BookOpen, Bot, History, LayoutDashboard, Plus, Settings, Wrench } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -63,7 +63,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onSessionClick }) =>
   const isMonitor = pathname.startsWith('/monitor');
   const isKnowledge = pathname.startsWith('/knowledge');
   const isMemory = pathname.startsWith('/memory');
-  const isAgentTeams = pathname.startsWith('/agent-teams');
+  const isHivemind = pathname.startsWith('/guid') || pathname.startsWith('/conversation') || pathname.startsWith('/agent-teams');
   const isSkills = pathname.startsWith('/skills');
   const lastNonSettingsPathRef = useRef('/guid');
 
@@ -113,9 +113,9 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onSessionClick }) =>
         <div className='hive-nav-section'>
           <NavItem label={t('knowledge.title', { defaultValue: 'Knowledge Hub' })} icon={<BookOpen size={20} />} collapsed={collapsed} active={isKnowledge} onClick={() => safeNavigate(isKnowledge ? '/guid' : '/knowledge')} />
           <NavItem label={t('memory.title')} icon={<History size={20} />} collapsed={collapsed} active={isMemory} onClick={() => safeNavigate(isMemory ? '/guid' : '/memory')} />
-          <NavItem label={t('agentTeams.title', { defaultValue: 'Agent Teams' })} icon={<Users size={20} />} collapsed={collapsed} active={isAgentTeams} onClick={() => safeNavigate(isAgentTeams ? '/guid' : '/agent-teams/dashboard')} />
+          <NavItem label={t('settings.hivemind', { defaultValue: 'Hivemind' })} icon={<Bot size={20} />} collapsed={collapsed} active={isHivemind} onClick={() => safeNavigate('/agent-teams/chat')} />
           <NavItem label={t('skills.title', { defaultValue: 'Skills' })} icon={<Wrench size={20} />} collapsed={collapsed} active={isSkills} onClick={() => safeNavigate(isSkills ? '/guid' : '/skills')} />
-          <NavItem label={t('monitor.title', { defaultValue: 'Monitor' })} icon={<LayoutDashboard size={20} />} collapsed={collapsed} active={isMonitor} onClick={() => safeNavigate(isMonitor ? '/guid' : '/monitor')} />
+          <NavItem label={t('monitor.title', { defaultValue: 'System Monitor' })} icon={<LayoutDashboard size={20} />} collapsed={collapsed} active={isMonitor} onClick={() => safeNavigate(isMonitor ? '/guid' : '/monitor')} />
         </div>
 
         <div className='hive-nav-section sider-footer'>

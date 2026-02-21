@@ -6,6 +6,7 @@
 
 import { bridge, logger } from '@office-ai/platform';
 import type { ElectronBridgeAPI } from '@/types/electron';
+import { io, type Socket } from 'socket.io-client';
 
 interface CustomWindow extends Window {
   electronAPI?: ElectronBridgeAPI;
@@ -38,41 +39,33 @@ if (win.electronAPI) {
     },
   });
 } else {
-  // Web 环境 - 使用 WebSocket 通信，并在登录后自动补上已获取 Cookie 的连接
-  // Web runtime bridge: ensure the socket reconnects after login so session cookie can be sent
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const defaultHost = `${window.location.hostname}:25808`;
-  const socketUrl = `${protocol}//${window.location.host || defaultHost}`;
-
+  // Web 环境 - 使用 Socket.IO 客户端通信（与服务端 SocketIOManager 匹配）
+  // Web runtime bridge: use Socket.IO client to match server-side Socket.IO transport
   type QueuedMessage = { name: string; data: unknown };
 
-  let socket: WebSocket | null = null;
+  let socket: Socket | null = null;
   let emitterRef: { emit: (name: string, data: unknown) => void } | null = null;
   let reconnectTimer: number | null = null;
   let reconnectDelay = 500;
-  let shouldReconnect = true; // Flag to control reconnection
+  let shouldReconnect = true;
 
   const messageQueue: QueuedMessage[] = [];
 
-  // 1.发送队列中积压的消息，确保在重新建立连接后不会丢事件
+  // 1.发送队列中积压的消息
   const flushQueue = () => {
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      return;
-    }
+    if (!socket || !socket.connected) return;
 
     while (messageQueue.length > 0) {
       const queued = messageQueue.shift();
       if (queued) {
-        socket.send(JSON.stringify(queued));
+        socket.emit(queued.name, queued.data);
       }
     }
   };
 
-  // 2.简单的指数退避重连，等待服务端在登录成功后接受新连接
+  // 2.指数退避重连
   const scheduleReconnect = () => {
-    if (reconnectTimer !== null || !shouldReconnect) {
-      return;
-    }
+    if (reconnectTimer !== null || !shouldReconnect) return;
 
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = null;
@@ -81,86 +74,79 @@ if (win.electronAPI) {
     }, reconnectDelay);
   };
 
-  // 3.建立 WebSocket 连接（或复用已有的 OPEN/CONNECTING 状态）
+  // 3.建立 Socket.IO 连接
   const connect = () => {
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-      return;
+    if (socket?.connected) return;
+
+    // 断开旧连接（如果存在）
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socket = null;
     }
 
+    const baseURL = `${window.location.protocol}//${window.location.host || `${window.location.hostname}:25808`}`;
+
     try {
-      socket = new WebSocket(socketUrl);
+      socket = io(baseURL, {
+        // Prefer cookie-based session auth in browser mode.
+        auth: {},
+        withCredentials: true, // 发送 httpOnly cookie（hivemind-session）用于认证
+        // Keep polling-only in WebUI for stable connectivity across environments.
+        transports: ['polling'],
+        upgrade: false,
+        reconnection: false, // 手动控制重连
+      });
     } catch (error) {
       scheduleReconnect();
       return;
     }
 
-    socket.addEventListener('open', () => {
+    socket.on('connect', () => {
       reconnectDelay = 500;
       flushQueue();
     });
 
-    socket.addEventListener('message', (event: MessageEvent) => {
-      if (!emitterRef) {
+    // 使用 onAny 接收所有服务端事件并转发到 bridge emitter
+    // Use onAny to receive all server events and forward to bridge emitter
+    socket.onAny((eventName: string, ...args: unknown[]) => {
+      if (!emitterRef) return;
+
+      const data = args[0];
+
+      // 处理认证过期
+      if (eventName === 'auth-expired') {
+        console.warn('[Socket.IO] Authentication expired, stopping reconnection');
+        shouldReconnect = false;
+
+        if (reconnectTimer !== null) {
+          window.clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+
+        socket?.disconnect();
+
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
         return;
       }
 
-      try {
-        const payload = JSON.parse(event.data as string) as { name: string; data: unknown };
-
-        // 处理服务端心跳 ping，立即回复 pong 以保持连接
-        // Handle server heartbeat ping - respond with pong immediately to keep connection alive
-        if (payload.name === 'ping') {
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ name: 'pong', data: { timestamp: Date.now() } }));
-          }
-          return;
-        }
-
-        // 处理认证过期 - 停止重连并跳转到登录页
-        // Handle auth expiration - stop reconnecting and redirect to login
-        if (payload.name === 'auth-expired') {
-          console.warn('[WebSocket] Authentication expired, stopping reconnection');
-          shouldReconnect = false;
-
-          // 清除所有待执行的重连定时器
-          // Clear any pending reconnection timer
-          if (reconnectTimer !== null) {
-            window.clearTimeout(reconnectTimer);
-            reconnectTimer = null;
-          }
-
-          // 关闭 socket 并跳转到登录页
-          // Close the socket and redirect to login page
-          socket?.close();
-
-          // 短暂延迟后跳转到登录页，以便显示 UI 反馈
-          // Redirect to login page after a short delay to show any UI feedback
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 1000);
-
-          return;
-        }
-
-        emitterRef.emit(payload.name, payload.data);
-      } catch (error) {
-        // 忽略格式错误的消息 / Ignore malformed payloads
-      }
+      emitterRef.emit(eventName, data);
     });
 
-    socket.addEventListener('close', () => {
-      socket = null;
+    socket.on('disconnect', () => {
       scheduleReconnect();
     });
 
-    socket.addEventListener('error', () => {
-      socket?.close();
+    socket.on('connect_error', () => {
+      scheduleReconnect();
     });
   };
 
-  // 4.确保在发送/订阅前已经发起连接
+  // 4.确保连接已建立
   const ensureSocket = () => {
-    if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+    if (!socket || socket.disconnected) {
       connect();
     }
   };
@@ -171,9 +157,9 @@ if (win.electronAPI) {
 
       ensureSocket();
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      if (socket && socket.connected) {
         try {
-          socket.send(JSON.stringify(message));
+          socket.emit(name, data);
           return;
         } catch (error) {
           scheduleReconnect();
@@ -186,8 +172,6 @@ if (win.electronAPI) {
       emitterRef = emitter;
       win.__bridgeEmitter = emitter;
 
-      // Expose callback emitter for bridge provider pattern
-      // Used by components to send responses back through WebSocket
       win.__emitBridgeCallback = (name: string, data: unknown) => {
         emitter.emit(name, data);
       };

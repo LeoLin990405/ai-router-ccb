@@ -68,10 +68,23 @@ def get_metrics_collector(request: Request):
 
 
 if HAS_FASTAPI:
+    def _base_health_payload(start_time: float) -> Dict[str, Any]:
+        return {
+            "status": "ok",
+            "uptime_seconds": max(0.0, time.time() - start_time),
+        }
+
+
+    @router.get("/health")
+    async def health_check_legacy(start_time: float = Depends(get_start_time)) -> Dict[str, Any]:
+        """Legacy health check endpoint kept for backward compatibility."""
+        return _base_health_payload(start_time)
+
+
     @router.get("/api/health")
-    async def health_check() -> Dict[str, str]:
+    async def health_check(start_time: float = Depends(get_start_time)) -> Dict[str, Any]:
         """Simple health check endpoint."""
-        return {"status": "ok"}
+        return _base_health_payload(start_time)
 
 
     @router.get("/api/test/health")
